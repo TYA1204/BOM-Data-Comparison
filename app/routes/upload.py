@@ -98,11 +98,15 @@ def get_components(bom_id):
     return jsonify({'ok': True, 'components': components})
 
 
-@bp.route('/api/export-components', methods=['POST'])
+@bp.route('/api/export-components', methods=['GET', 'POST'])
 def export_components():
-    """按选中的组件导出Excel（组件+子件）。"""
-    bom_id = request.args.get('bom_id', type=int)
-    pns = request.args.getlist('components')
+    """按选中的组件导出Excel（组件+子件）。支持 GET/POST。"""
+    if request.method == 'POST':
+        bom_id = request.form.get('bom_id', type=int) or request.json.get('bom_id', type=int) if request.is_json else None
+        pns = request.form.getlist('components') or (request.json.get('components', []) if request.is_json else [])
+    else:
+        bom_id = request.args.get('bom_id', type=int)
+        pns = request.args.getlist('components')
     if not bom_id or not pns:
         return jsonify({'ok': False, 'msg': '请指定BOM ID和组件'}), 400
 
