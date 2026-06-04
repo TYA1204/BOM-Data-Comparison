@@ -38,3 +38,6 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Windows 启动脚本（含本地路径，不提交）
+*.bat
