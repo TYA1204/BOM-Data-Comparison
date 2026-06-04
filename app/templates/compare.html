@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">BOM 差异比对</h1>
+    <p class="text-gray-500 mt-1">选择两个BOM进行对比，查看差异明细</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <!-- 配置面板 -->
+    <div class="lg:col-span-1 space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="font-semibold text-sm mb-3">选择BOM</h3>
+            <label class="block text-xs text-gray-500 mb-1">来源BOM（A）</label>
+            <select id="source-bom" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"></select>
+
+            <label class="block text-xs text-gray-500 mb-1">目标BOM（B）</label>
+            <select id="target-bom" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"></select>
+
+            <label class="block text-xs text-gray-500 mb-1">比对类型</label>
+            <select id="compare-type" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
+                <option value="version">版本比对</option>
+                <option value="cross_model">跨机型比对</option>
+            </select>
+
+            <button id="compare-btn" onclick="startCompare()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                开始比对
+            </button>
+            <div id="compare-status" class="mt-2 text-xs"></div>
+        </div>
+
+        <!-- 筛选面板 -->
+        <div id="filter-panel" class="bg-white rounded-xl shadow-sm border p-4 hidden">
+            <h3 class="font-semibold text-sm mb-3">差异筛选</h3>
+            <div class="space-y-1">
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="all" checked onchange="applyFilter()"> 全部</label>
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="added" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span> 新增物料</label>
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="removed" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span> 删除物料</label>
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="hierarchy" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-orange-500"></span> 层级/结构变更</label>
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="quantity" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span> 数量变更</label>
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="specification" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span> 规格/描述变更</label>
+                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="other" onchange="applyFilter()"> 其他变更</label>
+            </div>
+            <!-- 严重度筛选 -->
+            <h3 class="font-semibold text-sm mt-4 mb-2">严重度</h3>
+            <div class="space-y-1">
+                <label class="flex items-center gap-2 text-xs"><input type="checkbox" value="high" checked onchange="applyFilter()"> <span class="px-1.5 py-0.5 rounded text-[10px] bg-red-200 text-red-800">高</span></label>
+                <label class="flex items-center gap-2 text-xs"><input type="checkbox" value="medium" checked onchange="applyFilter()"> <span class="px-1.5 py-0.5 rounded text-[10px] bg-yellow-200 text-yellow-800">中</span></label>
+                <label class="flex items-center gap-2 text-xs"><input type="checkbox" value="low" checked onchange="applyFilter()"> <span class="px-1.5 py-0.5 rounded text-[10px] bg-green-200 text-green-800">低</span></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结果区域 -->
+    <div class="lg:col-span-3 space-y-4">
+        <!-- 统计栏 -->
+        <div id="stats-bar" class="grid grid-cols-6 gap-3 hidden">
+            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
+                <p id="stat-total" class="text-xl font-bold text-gray-800">0</p>
+                <p class="text-[10px] text-gray-500">差异总数</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
+                <p id="stat-added" class="text-xl font-bold text-red-600">0</p>
+                <p class="text-[10px] text-gray-500">新增</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
+                <p id="stat-removed" class="text-xl font-bold text-red-600">0</p>
+                <p class="text-[10px] text-gray-500">删除</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
+                <p id="stat-hierarchy" class="text-xl font-bold text-orange-600">0</p>
+                <p class="text-[10px] text-gray-500">层级变更</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
+                <p id="stat-quantity" class="text-xl font-bold text-yellow-600">0</p>
+                <p class="text-[10px] text-gray-500">数量变更</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
+                <p id="stat-spec" class="text-xl font-bold text-blue-600">0</p>
+                <p class="text-[10px] text-gray-500">规格变更</p>
+            </div>
+        </div>
+
+        <!-- 结果表格 -->
+        <div id="result-area" class="bg-white rounded-xl shadow-sm border hidden">
+            <div class="p-4 flex items-center justify-between border-b">
+                <h3 class="font-semibold">差异明细</h3>
+                <div class="flex gap-2">
+                    <button onclick="exportReport()" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700">导出Excel报告</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="border-b bg-gray-50 text-gray-600">
+                            <th class="px-2 py-2 text-left w-8">#</th>
+                            <th class="px-2 py-2 text-left w-12">类型</th>
+                            <th class="px-2 py-2 text-left w-16">分类</th>
+                            <th class="px-2 py-2 text-center w-10">严重度</th>
+                            <th class="px-2 py-2 text-left">物料号</th>
+                            <th class="px-2 py-2 text-left">物料描述</th>
+                            <th class="px-2 py-2 text-left">变更字段</th>
+                            <th class="px-2 py-2 text-left">原值(A)</th>
+                            <th class="px-2 py-2 text-left">新值(B)</th>
+                            <th class="px-2 py-2 text-center w-12">匹配度</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="font-semibold text-sm mb-3">比对历史</h3>
+            <div id="history-list"><p class="text-gray-400 text-xs">加载中...</p></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
+const CAT_MAP = {
+    material: '物料', quantity: '数量', reference: '位号',
+    specification: '规格', version: '版本', hierarchy: '层级',
+    consolidation: '物料整合', manufacturer: '制造商', mpn: 'MPN',
+    part_name: '描述'
+};
+const SEVERITY_MAP = { high: '高', medium: '中', low: '低' };
+
+let currentTaskId = null;
+let allResults = [];
+
+function loadBomSelects() {
+    fetch('/upload/api/list')
+        .then(r => r.json())
+        .then(data => {
+            const src = document.getElementById('source-bom');
+            const tgt = document.getElementById('target-bom');
+            const opts = '<option value="">-- 请选择 --</option>' +
+                data.boms.map(b => `<option value="${b.id}">${b.bom_name}（${b.bom_version || '无版本号'}）[${b.total_items} 条]</option>`).join('');
+            src.innerHTML = opts;
+            tgt.innerHTML = opts;
+
+            const params = new URLSearchParams(window.location.search);
+            const taskId = params.get('task_id');
+            if (taskId) loadResult(taskId);
+        });
+}
+
+function startCompare() {
+    const srcId = document.getElementById('source-bom').value;
+    const tgtId = document.getElementById('target-bom').value;
+    if (!srcId || !tgtId) return alert('请选择两个BOM进行比对');
+    if (srcId === tgtId) return alert('来源BOM和目标BOM不能相同');
+
+    const btn = document.getElementById('compare-btn');
+    const status = document.getElementById('compare-status');
+    btn.disabled = true;
+    btn.textContent = '比对中...';
+
+    fetch('/compare/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            source_bom_id: parseInt(srcId),
+            target_bom_id: parseInt(tgtId),
+            comparison_type: document.getElementById('compare-type').value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = '开始比对';
+        if (data.ok) {
+            status.innerHTML = '<span class="text-green-600">比对完成！</span>';
+            loadResult(data.task_id);
+        } else {
+            status.innerHTML = '<span class="text-red-600">' + data.msg + '</span>';
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '开始比对';
+        status.innerHTML = '<span class="text-red-600">网络错误</span>';
+    });
+}
+
+function loadResult(taskId) {
+    currentTaskId = taskId;
+    fetch('/compare/api/result/' + taskId)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) return;
+            allResults = data.results;
+            renderResults(allResults);
+            renderStats(allResults);
+            document.getElementById('stats-bar').classList.remove('hidden');
+            document.getElementById('result-area').classList.remove('hidden');
+            document.getElementById('filter-panel').classList.remove('hidden');
+        });
+}
+
+function getFilterCategory(r) {
+    if (r.diff_type === 'added' || r.diff_type === 'removed') return r.diff_type;
+    if (r.diff_category === 'hierarchy') return 'hierarchy';
+    if (r.diff_category === 'quantity') return 'quantity';
+    if (r.diff_category === 'specification' || r.diff_category === 'part_name') return 'specification';
+    return 'other';
+}
+
+function renderResults(results) {
+    const tbody = document.getElementById('result-body');
+    tbody.innerHTML = results.map((r, i) => {
+        const bg = r.severity === 'high' ? 'bg-red-50' : r.severity === 'medium' ? 'bg-yellow-50' : 'bg-green-50';
+        const typeColor = r.diff_type === 'added' ? 'text-red-600 font-medium' : r.diff_type === 'removed' ? 'text-red-600 font-medium' : 'text-yellow-700';
+        const cat = CAT_MAP[r.diff_category] || r.diff_category;
+        const fieldLabel = {
+            'parent_pn': '父件归属', 'level': '层级深度', 'part_number': '物料号',
+            'quantity': '数量', 'part_name': '描述', 'specification': '规格备注',
+            'version': '版本号', 'reference': '位号'
+        }[r.field_name] || r.field_name;
+        const pn = r.part_number_a || r.part_number_b;
+        const name = r.part_name_a || r.part_name_b || '';
+
+        return `<tr class="border-b ${bg} hover:opacity-80" data-type="${r.diff_type}" data-cat="${r.diff_category}" data-severity="${r.severity}">
+            <td class="px-2 py-2 text-gray-400">${i + 1}</td>
+            <td class="px-2 py-2 ${typeColor}">${TYPE_MAP[r.diff_type]}</td>
+            <td class="px-2 py-2"><span class="px-1 py-0.5 rounded text-[10px] ${r.diff_category === 'hierarchy' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}">${cat}</span></td>
+            <td class="px-2 py-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] ${r.severity === 'high' ? 'bg-red-200 text-red-800' : r.severity === 'medium' ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800'}">${SEVERITY_MAP[r.severity]}</span></td>
+            <td class="px-2 py-2 font-mono">${pn || '-'}</td>
+            <td class="px-2 py-2 text-gray-500 max-w-[200px] truncate" title="${name}">${name.substring(0, 50)}</td>
+            <td class="px-2 py-2">${fieldLabel}</td>
+            <td class="px-2 py-2 text-red-600 line-through max-w-[150px] truncate" title="${r.old_value || ''}">${r.old_value || '-'}</td>
+            <td class="px-2 py-2 text-green-700 font-medium max-w-[150px] truncate" title="${r.new_value || ''}">${r.new_value || '-'}</td>
+            <td class="px-2 py-2 text-center">${r.match_confidence}%</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderStats(results) {
+    document.getElementById('stat-total').textContent = results.length;
+    document.getElementById('stat-added').textContent = results.filter(r => r.diff_type === 'added').length;
+    document.getElementById('stat-removed').textContent = results.filter(r => r.diff_type === 'removed').length;
+    document.getElementById('stat-hierarchy').textContent = results.filter(r => r.diff_category === 'hierarchy').length;
+    document.getElementById('stat-quantity').textContent = results.filter(r => r.diff_category === 'quantity').length;
+    document.getElementById('stat-spec').textContent = results.filter(r => ['specification', 'part_name'].includes(r.diff_category)).length;
+}
+
+function applyFilter() {
+    const typeRadio = document.querySelector('input[name="filter-type"]:checked');
+    const typeVal = typeRadio ? typeRadio.value : 'all';
+    const sevChecked = Array.from(document.querySelectorAll('#filter-panel input[type=checkbox]:checked')).map(cb => cb.value);
+
+    const filtered = allResults.filter(r => {
+        // Type filter
+        if (typeVal !== 'all') {
+            const cat = getFilterCategory(r);
+            if (cat !== typeVal) return false;
+        }
+        // Severity filter
+        if (!sevChecked.includes(r.severity)) return false;
+        return true;
+    });
+
+    renderResults(filtered);
+}
+
+function exportReport() {
+    if (!currentTaskId) return alert('暂无可导出的比对结果');
+    window.location.href = '/report/api/export/' + currentTaskId;
+}
+
+function loadHistory() {
+    fetch('/compare/api/history')
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById('history-list');
+            if (!data.ok || !data.tasks.length) {
+                el.innerHTML = '<p class="text-gray-400 text-xs">暂无历史记录</p>';
+                return;
+            }
+            el.innerHTML = '<table class="w-full text-xs"><thead><tr class="border-b text-gray-400"><th class="text-left py-1">比对任务</th><th class="text-center py-1">差异数</th><th class="text-left py-1">时间</th></tr></thead><tbody>' +
+                data.tasks.map(t => `<tr class="border-b cursor-pointer hover:bg-gray-50" onclick="loadResult(${t.id})"><td class="py-1 text-blue-600 hover:underline">${t.task_name}</td><td class="py-1 text-center">${t.diff_count}</td><td class="py-1 text-gray-400">${t.created_at}</td></tr>`).join('') +
+                '</tbody></table>';
+        });
+}
+
+loadBomSelects();
+loadHistory();
+</script>
+{% endblock %}

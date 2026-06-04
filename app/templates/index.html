@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">BOM 数据比对工具</h1>
+    <p class="text-gray-500 mt-1">上传BOM文件，快速比对差异，生成差异报告</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <a href="/upload" class="bg-white rounded-xl p-6 shadow-sm border hover:border-blue-300 hover:shadow-md transition-all">
+        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+            <span class="text-blue-600 text-xl">&#8593;</span>
+        </div>
+        <h3 class="font-semibold text-gray-800">上传BOM</h3>
+        <p class="text-sm text-gray-500 mt-1">上传 Excel / CSV 格式的BOM文件</p>
+    </a>
+    <a href="/compare" class="bg-white rounded-xl p-6 shadow-sm border hover:border-blue-300 hover:shadow-md transition-all">
+        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3">
+            <span class="text-green-600 text-xl">&#8644;</span>
+        </div>
+        <h3 class="font-semibold text-gray-800">开始比对</h3>
+        <p class="text-sm text-gray-500 mt-1">选择两个BOM版本进行差异比对</p>
+    </a>
+    <a href="/compare" class="bg-white rounded-xl p-6 shadow-sm border hover:border-blue-300 hover:shadow-md transition-all">
+        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
+            <span class="text-purple-600 text-xl">&#128196;</span>
+        </div>
+        <h3 class="font-semibold text-gray-800">历史记录</h3>
+        <p class="text-sm text-gray-500 mt-1">查看之前的比对结果</p>
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border p-6">
+    <h2 class="font-semibold text-gray-800 mb-4">最近比对记录</h2>
+    <div id="history-list">
+        <p class="text-gray-400 text-sm">加载中...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/compare/api/history')
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById('history-list');
+            if (!data.ok || !data.tasks.length) {
+                el.innerHTML = '<p class="text-gray-400 text-sm">暂无比对记录</p>';
+                return;
+            }
+            el.innerHTML = '<table class="w-full text-sm"><thead><tr class="border-b text-gray-500"><th class="text-left py-2">比对任务</th><th class="text-left py-2">来源BOM</th><th class="text-left py-2">目标BOM</th><th class="text-center py-2">差异数</th><th class="text-left py-2">时间</th></tr></thead><tbody>' +
+                data.tasks.map(t => `<tr class="border-b hover:bg-gray-50"><td class="py-2"><a href="/compare?task_id=${t.id}" class="text-blue-600 hover:underline">${t.task_name}</a></td><td class="py-2">${t.source_name || '-'}</td><td class="py-2">${t.target_name || '-'}</td><td class="py-2 text-center"><span class="px-2 py-0.5 rounded-full text-xs ${t.diff_count > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${t.diff_count}</span></td><td class="py-2 text-gray-400">${t.created_at}</td></tr>`).join('') +
+                '</tbody></table>';
+        });
+});
+</script>
+{% endblock %}

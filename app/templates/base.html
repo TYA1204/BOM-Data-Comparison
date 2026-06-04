@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM 数据比对工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        .dragover { border: 2px dashed #3b82f6 !important; background: #eff6ff; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<nav class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="text-xl font-bold text-blue-600">BOM 数据比对</span>
+            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">v1.0</span>
+        </div>
+        <div class="flex gap-4 text-sm">
+            <a href="/" class="text-gray-600 hover:text-blue-600">首页</a>
+            <a href="/upload" class="text-gray-600 hover:text-blue-600">上传BOM</a>
+            <a href="/compare" class="text-gray-600 hover:text-blue-600">开始比对</a>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+</main>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

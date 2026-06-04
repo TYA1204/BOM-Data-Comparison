@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+*.egg-info/
+dist/
+build/
+
+# Flask
+instance/
+.webassets-cache
+session/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Project-specific
+*.db
+*.sqlite
+*.xlsx
+*.xls
+*.csv
+!app/templates/
+!app/static/
+
+# Logs
+*.log

@@ -1,0 +1,64 @@
+from flask import Blueprint, request, jsonify, render_template
+
+bp = Blueprint('compare', __name__)
+
+
+@bp.route('/')
+def compare_page():
+    return render_template('compare.html')
+
+
+@bp.route('/api/start', methods=['POST'])
+def start_comparison():
+    """Start a BOM comparison task."""
+    data = request.get_json()
+    source_bom_id = data.get('source_bom_id')
+    target_bom_id = data.get('target_bom_id')
+    comparison_type = data.get('comparison_type', 'version')
+
+    if not source_bom_id or not target_bom_id:
+        return jsonify({'ok': False, 'msg': '请选择来源BOM和目标BOM'}), 400
+
+    from app.services.differ import run_comparison
+    try:
+        task_id = run_comparison(source_bom_id, target_bom_id, comparison_type)
+        return jsonify({'ok': True, 'msg': '比对完成', 'task_id': task_id})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+@bp.route('/api/result/<int:task_id>')
+def get_result(task_id):
+    """Get comparison result for a task."""
+    from app.models import db
+    task = db.query_one(
+        'SELECT * FROM comparison_task WHERE id=?', (task_id,)
+    )
+    if not task:
+        return jsonify({'ok': False, 'msg': '未找到该比对任务'}), 404
+
+    results = db.query(
+        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY severity DESC, id',
+        (task_id,)
+    )
+    return jsonify({
+        'ok': True,
+        'task': dict(task),
+        'results': [dict(r) for r in results]
+    })
+
+
+@bp.route('/api/history')
+def task_history():
+    """List all comparison tasks."""
+    from app.models import db
+    tasks = db.query(
+        '''SELECT ct.*, 
+           (SELECT COUNT(*) FROM comparison_result WHERE task_id=ct.id) as diff_count,
+           sh.bom_name as source_name, th.bom_name as target_name
+           FROM comparison_task ct
+           LEFT JOIN bom_header sh ON ct.source_bom_id=sh.id
+           LEFT JOIN bom_header th ON ct.target_bom_id=th.id
+           ORDER BY ct.created_at DESC LIMIT 50'''
+    )
+    return jsonify({'ok': True, 'tasks': [dict(t) for t in tasks]})

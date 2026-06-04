@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">上传BOM文件</h1>
+        <p class="text-gray-500 mt-1">支持 Excel (.xlsx / .xls) 和 CSV 格式</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <h3 class="font-semibold mb-3">文件上传</h3>
+            <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-blue-400 transition-colors">
+                <p class="text-gray-500">将BOM文件拖拽到此处，或点击选择文件</p>
+                <p class="text-xs text-gray-400 mt-2">支持 .xlsx、.xls、.csv 格式（最大 50MB）</p>
+                <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden">
+            </div>
+            <div id="file-info" class="mt-3 hidden">
+                <p class="text-sm text-gray-600">已选择：<span id="file-name" class="font-medium"></span></p>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">BOM名称</label>
+                    <input type="text" id="bom-name" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="例如：机型A V1.0">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">版本号</label>
+                    <input type="text" id="bom-version" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="例如：V1.0">
+                </div>
+            </div>
+            <button id="upload-btn" onclick="uploadFile()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                上传并解析
+            </button>
+            <div id="upload-status" class="mt-3 text-sm"></div>
+        </div>
+
+        <div id="clean-stats-area" class="bg-white rounded-xl shadow-sm border p-6 hidden">
+            <h3 class="font-semibold mb-3">数据清洗结果</h3>
+            <div id="stats-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"></div>
+            <div id="level-dist" class="mb-4"></div>
+            <div id="dup-info" class="mb-4"></div>
+            <h4 class="font-medium text-sm mb-2">前10行数据预览</h4>
+            <div class="overflow-x-auto">
+                <table id="preview-table" class="w-full text-xs border-collapse">
+                    <thead id="preview-head"></thead>
+                    <tbody id="preview-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="component-export-area" class="bg-white rounded-xl shadow-sm border p-6 hidden">
+            <h3 class="font-semibold mb-3">按组件导出</h3>
+            <p class="text-xs text-gray-500 mb-3">勾选需要导出的组件（单位=ST），可自由组合导出到同一Excel。</p>
+            <div id="component-list" class="max-h-60 overflow-y-auto border rounded-lg p-3 mb-3"></div>
+            <div class="flex gap-2">
+                <button onclick="selectAllComponents(true)" class="text-xs bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">全选</button>
+                <button onclick="selectAllComponents(false)" class="text-xs bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">取消全选</button>
+                <button onclick="exportSelectedComponents()" class="ml-auto bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs hover:bg-green-700">导出选中组件</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border p-6">
+        <h3 class="font-semibold mb-3">已上传的BOM</h3>
+        <div id="bom-list">
+            <p class="text-gray-400 text-sm">加载中...</p>
+        </div>
+        <div id="dual-export-area" class="mt-4 hidden">
+            <hr class="my-3">
+            <h4 class="text-sm font-medium mb-2">批量导出</h4>
+            <div class="flex gap-2 items-center mb-2">
+                <select id="export-a" class="flex-1 border rounded-lg px-2 py-1 text-xs"></select>
+                <span class="text-gray-400 text-xs">vs</span>
+                <select id="export-b" class="flex-1 border rounded-lg px-2 py-1 text-xs"></select>
+            </div>
+            <button onclick="exportDualBoms()" class="w-full bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700 transition-colors">
+                导出两份BOM对比Excel
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var dropZone = document.getElementById('drop-zone');
+var fileInput = document.getElementById('file-input');
+var selectedFile = null;
+var currentBomId = null;
+
+dropZone.addEventListener('click', function() { fileInput.click(); });
+dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('dragover'); });
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', function(e) { if (e.target.files.length) selectFile(e.target.files[0]); });
+
+function selectFile(file) {
+    selectedFile = file;
+    document.getElementById('file-info').classList.remove('hidden');
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('bom-name').value = file.name.replace(/\.[^.]+$/, '');
+}
+
+function uploadFile() {
+    if (!selectedFile) { alert('请先选择文件'); return; }
+    var btn = document.getElementById('upload-btn');
+    var status = document.getElementById('upload-status');
+    btn.disabled = true;
+    btn.textContent = '上传中...';
+    status.innerHTML = '';
+    var fd = new FormData();
+    fd.append('file', selectedFile);
+    fd.append('bom_name', document.getElementById('bom-name').value);
+    fd.append('bom_version', document.getElementById('bom-version').value);
+    fetch('/upload/api', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.textContent = '上传并解析';
+            if (data.ok) {
+                status.innerHTML = '<span class="text-green-600">✓ ' + data.msg + '（BOM ID：' + data.bom_id + '）</span>';
+                currentBomId = data.bom_id;
+                selectedFile = null;
+                document.getElementById('file-info').classList.add('hidden');
+                if (data.stats) {
+                    try { showCleanStats(data.stats); } catch(e) { console.error('showCleanStats error:', e); }
+                    try { showComponentExport(data.bom_id); } catch(e) { console.error('showComponentExport error:', e); }
+                }
+                loadBomList();
+            } else {
+                status.innerHTML = '<span class="text-red-600">✗ ' + data.msg + '</span>';
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.textContent = '上传并解析';
+            status.innerHTML = '<span class="text-red-600">网络错误</span>';
+        });
+}
+
+function showCleanStats(stats) {
+    if (!stats) return;
+    document.getElementById('clean-stats-area').classList.remove('hidden');
+    var cards = [
+        { label: '总行数', value: stats.total_rows },
+        { label: '唯一物料数', value: stats.unique_count },
+        { label: '层级数', value: Object.keys(stats.level_dist || {}).length },
+        { label: '重复物料数', value: stats.dup_count }
+    ];
+    var cardsHtml = '';
+    for (var i = 0; i < cards.length; i++) {
+        cardsHtml += '<div class="bg-blue-50 rounded-lg p-3 text-center">' +
+            '<p class="text-xs text-gray-500">' + cards[i].label + '</p>' +
+            '<p class="text-lg font-bold text-blue-700">' + cards[i].value + '</p>' +
+            '</div>';
+    }
+    document.getElementById('stats-cards').innerHTML = cardsHtml;
+    if (stats.level_dist) {
+        var distParts = [];
+        var keys = Object.keys(stats.level_dist);
+        for (var j = 0; j < keys.length; j++) {
+            distParts.push('<span class="text-xs bg-gray-100 px-2 py-1 rounded">L' + keys[j] + '：' + stats.level_dist[keys[j]] + '行</span>');
+        }
+        document.getElementById('level-dist').innerHTML = '<p class="text-xs text-gray-600 mb-1">层级分布：</p><div class="flex flex-wrap gap-2">' + distParts.join('') + '</div>';
+    } else {
+        document.getElementById('level-dist').innerHTML = '';
+    }
+    if (stats.dup_count > 0) {
+        var dupParts = [];
+        var dupList = stats.dup_pns || [];
+        for (var k = 0; k < dupList.length; k++) {
+            dupParts.push('<span class="text-xs bg-orange-50 px-2 py-1 rounded">' + dupList[k] + '</span>');
+        }
+        document.getElementById('dup-info').innerHTML = '<p class="text-xs text-orange-600 mb-1">重复物料（前20个）：</p><div class="flex flex-wrap gap-2">' + dupParts.join('') + '</div>';
+    } else {
+        document.getElementById('dup-info').innerHTML = '<p class="text-xs text-green-600">无重复物料</p>';
+    }
+    var preview = stats.preview || [];
+    if (preview.length > 0) {
+        var headHtml = '<tr><th class="border px-2 py-1 bg-gray-50">层级</th><th class="border px-2 py-1 bg-gray-50">物料号</th><th class="border px-2 py-1 bg-gray-50">物料名称</th><th class="border px-2 py-1 bg-gray-50 text-right">用量</th><th class="border px-2 py-1 bg-gray-50">单位</th><th class="border px-2 py-1 bg-gray-50">父件</th></tr>';
+        document.getElementById('preview-head').innerHTML = headHtml;
+        var bodyHtml = '';
+        for (var m = 0; m < preview.length; m++) {
+            var row = preview[m];
+            bodyHtml += '<tr>' +
+                '<td class="border px-2 py-1">L' + row.level + '</td>' +
+                '<td class="border px-2 py-1 font-mono">' + row.part_number + '</td>' +
+                '<td class="border px-2 py-1">' + row.part_name + '</td>' +
+                '<td class="border px-2 py-1 text-right">' + row.quantity + '</td>' +
+                '<td class="border px-2 py-1">' + row.unit + '</td>' +
+                '<td class="border px-2 py-1 font-mono text-xs">' + (row.parent_pn || '-') + '</td>' +
+                '</tr>';
+        }
+        document.getElementById('preview-body').innerHTML = bodyHtml;
+    }
+}
+
+function showComponentExport(bomId) {
+    document.getElementById('component-export-area').classList.remove('hidden');
+    fetch('/upload/api/components/' + bomId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ok) return;
+            var listEl = document.getElementById('component-list');
+            var html = '';
+            var comps = data.components || [];
+            for (var i = 0; i < comps.length; i++) {
+                var c = comps[i];
+                html += '<label class="flex items-center gap-2 text-xs py-1 border-b hover:bg-gray-50 cursor-pointer">' +
+                    '<input type="checkbox" class="component-cb" value="' + c.part_number + '">' +
+                    '<span class="font-mono">' + c.part_number + '</span>' +
+                    '<span>' + c.part_name + '</span>' +
+                    '<span class="text-gray-400">（' + c.children_count + '个子件）</span>' +
+                    '</label>';
+            }
+            listEl.innerHTML = html;
+        })
+        .catch(function() {});
+}
+
+function selectAllComponents(check) {
+    var cbs = document.querySelectorAll('.component-cb');
+    for (var i = 0; i < cbs.length; i++) {
+        cbs[i].checked = check;
+    }
+}
+
+function exportSelectedComponents() {
+    var checked = document.querySelectorAll('.component-cb:checked');
+    if (!checked.length) { alert('请至少选择一个组件'); return; }
+    var params = new URLSearchParams();
+    params.append('bom_id', currentBomId);
+    for (var i = 0; i < checked.length; i++) {
+        params.append('components', checked[i].value);
+    }
+    window.location.href = '/upload/api/export-components?' + params.toString();
+}
+
+function loadBomList() {
+    fetch('/upload/api/list')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var el = document.getElementById('bom-list');
+            var dualArea = document.getElementById('dual-export-area');
+            if (!data.ok || !data.boms.length) {
+                el.innerHTML = '<p class="text-gray-400 text-sm">暂无BOM数据</p>';
+                dualArea.classList.add('hidden');
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < data.boms.length; i++) {
+                var b = data.boms[i];
+                html += '<div class="py-2 border-b last:border-0">' +
+                    '<div class="flex items-center justify-between">' +
+                        '<div>' +
+                            '<p class="text-sm font-medium">' + b.bom_name + '</p>' +
+                            '<p class="text-xs text-gray-400">' + (b.bom_version || '') + ' | ' + b.source_type + ' | ' + b.total_items + ' 条</p>' +
+                        '</div>' +
+                        '<button onclick="exportBom(' + b.id + ', \'' + b.bom_name + '\')" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">导出Excel</button>' +
+                    '</div>' +
+                '</div>';
+            }
+            el.innerHTML = html;
+            if (data.boms.length >= 2) {
+                dualArea.classList.remove('hidden');
+                var opts = '';
+                for (var j = 0; j < data.boms.length; j++) {
+                    opts += '<option value="' + data.boms[j].id + '">' + data.boms[j].bom_name + ' (' + data.boms[j].total_items + '条)</option>';
+                }
+                document.getElementById('export-a').innerHTML = opts;
+                document.getElementById('export-b').innerHTML = opts;
+                if (data.boms.length >= 2) document.getElementById('export-b').selectedIndex = 1;
+            }
+        });
+}
+
+function exportBom(bomId, name) {
+    window.location.href = '/upload/api/export/' + bomId;
+}
+
+function exportDualBoms() {
+    var a = document.getElementById('export-a').value;
+    var b = document.getElementById('export-b').value;
+    if (a === b) { alert('请选择两份不同的BOM'); return; }
+    window.location.href = '/upload/api/export-dual?bom_a=' + a + '&bom_b=' + b;
+}
+
+loadBomList();
+</script>
+{% endblock %}
