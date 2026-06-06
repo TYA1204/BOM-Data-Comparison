@@ -1,0 +1,50 @@
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5002
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 411-670-293
+ * Detected change in 'D:\\BOM Data Comparison\\app\\routes\\upload.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 411-670-293
+127.0.0.1 - - [04/Jun/2026 15:18:13] "GET /upload/api/components/6 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:20:59] "GET /upload/ HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:00] "GET /upload/api/list HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:00] "GET /upload/ HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:01] "GET /upload/api/list HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:01] "GET /upload/ HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:01] "GET /upload/ HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:02] "GET /upload/api/list HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:09] "POST /upload/api HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:09] "GET /upload/api/list HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:09] "GET /upload/api/components/10 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:21] "GET /upload/api/export-components?bom_id=10&components=N030103-025765-101 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:21:34] "GET /upload/api/export-components?bom_id=10&components=N030103-025765-101 HTTP/1.1" 200 -
+ * Detected change in 'D:\\BOM Data Comparison\\app\\services\\reporter.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 411-670-293
+ * Detected change in 'D:\\BOM Data Comparison\\app\\services\\reporter.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 411-670-293
+127.0.0.1 - - [04/Jun/2026 15:38:20] "GET /upload/ HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:38:20] "GET /upload/api/list HTTP/1.1" 200 -
+ * Detected change in 'D:\\BOM Data Comparison\\app\\services\\reporter.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 411-670-293
+127.0.0.1 - - [04/Jun/2026 15:42:12] "GET /upload/ HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:42:12] "GET /upload/api/list HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:42:21] "POST /upload/api HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:42:21] "GET /upload/api/list HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:42:21] "GET /upload/api/components/11 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:42:42] "GET /upload/api/export-components?bom_id=11&components=N030103-025812-001 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:42:42] "GET /upload/api/export-components?bom_id=11&components=N030103-025812-001 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:44:35] "GET /upload/api/export-components?bom_id=11&components=N030103-025765-101&components=N030103-025812-001&components=N030105-026361-001&components=N120103-000097-000 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:44:36] "GET /upload/api/export-components?bom_id=11&components=N030103-025765-101&components=N030103-025812-001&components=N030105-026361-001&components=N120103-000097-000 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:48:29] "GET /upload/api/export-components?bom_id=11&components=N030103-025765-101&components=N030103-025812-001&components=N030105-026361-001&components=N120103-000097-000 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jun/2026 15:48:34] "GET /upload/api/export-components?bom_id=11&components=N030103-025765-101&components=N030103-025812-001&components=N030105-026361-001&components=N120103-000097-000 HTTP/1.1" 200 -

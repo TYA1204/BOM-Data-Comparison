@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">已上传的 BOM</h1>
+        <p class="text-gray-500 mt-1">管理所有已上传的 BOM 文件，支持导出、删除、对比操作</p>
+    </div>
+    <a href="/upload" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">上传新 BOM</a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border p-6 mb-4">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm whitespace-nowrap">
+            <thead>
+                <tr class="bg-gray-50 sticky top-0">
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium w-10">
+                        <input type="checkbox" id="select-all" class="cursor-pointer" onclick="toggleSelectAll(this)">
+                    </th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">ID</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">类型</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">BOM 名称</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">版本</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">来源类型</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">条目数</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">上传时间</th>
+                    <th class="text-left px-3 py-2 text-gray-500 font-medium">操作</th>
+                </tr>
+            </thead>
+            <tbody id="bom-table-body"></tbody>
+        </table>
+    </div>
+    <div id="bom-empty" class="text-center py-8 text-gray-400 hidden">暂无 BOM 数据，<a href="/upload" class="text-blue-600 hover:underline">去上传</a></div>
+
+    <!-- 批量操作工具栏 -->
+    <div id="batch-toolbar" class="hidden mt-4 pt-3 border-t flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600">已选择 <strong id="selected-count" class="text-blue-600">0</strong> 项</span>
+        </div>
+        <button onclick="batchDelete()" class="bg-red-600 text-white text-xs px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            一键删除
+        </button>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border p-6 hidden" id="dual-export-card">
+    <h4 class="text-sm font-medium mb-2">批量导出对比</h4>
+    <p class="text-xs text-gray-500 mb-3">选择两份 BOM，导出到同一 Excel 进行对比。</p>
+    <div class="flex gap-2 items-center mb-3">
+        <select id="export-a" class="flex-1 border rounded-lg px-2 py-1.5 text-xs"></select>
+        <span class="text-gray-400 text-xs">vs</span>
+        <select id="export-b" class="flex-1 border rounded-lg px-2 py-1.5 text-xs"></select>
+    </div>
+    <button onclick="exportDualBoms()" class="w-full bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700 transition-colors">导出两份 BOM 对比 Excel</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var selectedIds = new Set();
+
+function updateBatchToolbar() {
+    var count = selectedIds.size;
+    document.getElementById('selected-count').textContent = count;
+    var toolbar = document.getElementById('batch-toolbar');
+    if (count > 0) {
+        toolbar.classList.remove('hidden');
+    } else {
+        toolbar.classList.add('hidden');
+    }
+}
+
+function toggleSelectAll(checkbox) {
+    var checked = checkbox.checked;
+    var items = document.querySelectorAll('.bom-checkbox');
+    items.forEach(function(cb) {
+        cb.checked = checked;
+        var id = parseInt(cb.dataset.id);
+        if (checked) {
+            selectedIds.add(id);
+        } else {
+            selectedIds.delete(id);
+        }
+    });
+    updateBatchToolbar();
+}
+
+function onRowCheckboxChange(checkbox) {
+    var id = parseInt(checkbox.dataset.id);
+    if (checkbox.checked) {
+        selectedIds.add(id);
+    } else {
+        selectedIds.delete(id);
+    }
+    // 更新全选框状态
+    var all = document.querySelectorAll('.bom-checkbox');
+    var checked = document.querySelectorAll('.bom-checkbox:checked');
+    document.getElementById('select-all').checked = (all.length > 0 && all.length === checked.length);
+    updateBatchToolbar();
+}
+
+function batchDelete() {
+    var ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    var names = [];
+    ids.forEach(function(id) {
+        var row = document.querySelector('.bom-checkbox[data-id="' + id + '"]');
+        if (row) {
+            var tr = row.closest('tr');
+            var nameCell = tr.querySelector('td:nth-child(3)');
+            if (nameCell) names.push(nameCell.textContent.trim());
+        }
+    });
+
+    var msg = '确定要删除以下 ' + ids.length + ' 个 BOM 吗？此操作不可恢复。';
+    if (names.length > 0) {
+        msg += '\n\n' + names.slice(0, 5).join('\n');
+        if (names.length > 5) msg += '\n... 等共 ' + names.length + ' 个';
+    }
+    if (!confirm(msg)) return;
+
+    fetch('/upload/api/boms/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            selectedIds.clear();
+            document.getElementById('select-all').checked = false;
+            loadBomList();
+        } else {
+            alert('删除失败：' + (data.msg || '未知错误'));
+        }
+    })
+    .catch(function() { alert('网络错误，请重试'); });
+}
+
+function loadBomList() {
+    fetch('/upload/api/list')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var tbody = document.getElementById('bom-table-body');
+            var emptyEl = document.getElementById('bom-empty');
+            var dualCard = document.getElementById('dual-export-card');
+            var batchToolbar = document.getElementById('batch-toolbar');
+            if (!data.ok || !data.boms || !data.boms.length) {
+                tbody.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                dualCard.classList.add('hidden');
+                batchToolbar.classList.add('hidden');
+                selectedIds.clear();
+                document.getElementById('select-all').checked = false;
+                return;
+            }
+            emptyEl.classList.add('hidden');
+
+            // Populate dual-export dropdowns
+            if (data.boms.length >= 2) {
+                dualCard.classList.remove('hidden');
+                var opts = '';
+                for (var j = 0; j < data.boms.length; j++) {
+                    opts += '<option value="' + data.boms[j].id + '">' + data.boms[j].bom_name + '（' + data.boms[j].total_items + ' 条）</option>';
+                }
+                document.getElementById('export-a').innerHTML = opts;
+                document.getElementById('export-b').innerHTML = opts;
+                if (data.boms.length >= 2) document.getElementById('export-b').selectedIndex = 1;
+            } else {
+                dualCard.classList.add('hidden');
+            }
+
+            // Render table rows
+            var html = '';
+            for (var i = 0; i < data.boms.length; i++) {
+                var b = data.boms[i];
+                var bgClass = (i % 2 === 0) ? '' : 'bg-gray-50';
+                var safeName = b.bom_name.replace(/'/g, "\\'");
+                var isSelected = selectedIds.has(b.id) ? 'checked' : '';
+                var typeLabel = (b.bom_type === 'primary')
+                    ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">主BOM</span>'
+                    : '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">副BOM</span>';
+                html += '<tr class="border-b hover:bg-blue-50 transition-colors ' + bgClass + '">' +
+                    '<td class="px-3 py-2.5">' +
+                        '<input type="checkbox" class="bom-checkbox cursor-pointer" data-id="' + b.id + '" ' + isSelected + ' onchange="onRowCheckboxChange(this)">' +
+                    '</td>' +
+                    '<td class="px-3 py-2.5 text-gray-400">' + b.id + '</td>' +
+                    '<td class="px-3 py-2.5">' + typeLabel + '</td>' +
+                    '<td class="px-3 py-2.5 font-medium text-gray-800">' + b.bom_name + '</td>' +
+                    '<td class="px-3 py-2.5 text-gray-500">' + (b.bom_version || '-') + '</td>' +
+                    '<td class="px-3 py-2.5 text-gray-500">' + b.source_type + '</td>' +
+                    '<td class="px-3 py-2.5 text-gray-400">' + b.total_items + '</td>' +
+                    '<td class="px-3 py-2.5 text-gray-400 text-xs">' + b.created_at + '</td>' +
+                    '<td class="px-3 py-2.5">' +
+                        '<button onclick="exportBom(' + b.id + ')" class="text-indigo-600 hover:text-indigo-800 underline text-xs mr-3">导出</button>' +
+                        '<button onclick="exportAllComponents(' + b.id + ')" class="text-emerald-600 hover:text-emerald-800 underline text-xs mr-3">全部组件</button>' +
+                        '<button onclick="deleteBom(' + b.id + ', \'' + safeName + '\')" class="text-red-600 hover:text-red-800 underline text-xs">删除</button>' +
+                    '</td>' +
+                '</tr>';
+            }
+            tbody.innerHTML = html;
+            updateBatchToolbar();
+        })
+        .catch(function() {
+            document.getElementById('bom-empty').classList.remove('hidden');
+        });
+}
+
+function exportBom(bomId) {
+    window.location.href = '/upload/api/export/' + bomId;
+}
+
+function exportAllComponents(bomId) {
+    window.location.href = '/upload/api/export-all-components/' + bomId;
+}
+
+function deleteBom(bomId, name) {
+    if (!confirm('确定要删除 BOM「' + name + '」吗？此操作不可恢复。')) return;
+    fetch('/upload/api/bom/' + bomId, { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                selectedIds.delete(bomId);
+                loadBomList();
+            } else {
+                alert('删除失败：' + (data.msg || '未知错误'));
+            }
+        })
+        .catch(function() { alert('网络错误，请重试'); });
+}
+
+function exportDualBoms() {
+    var a = document.getElementById('export-a').value;
+    var b = document.getElementById('export-b').value;
+    if (a === b) { alert('请选择两份不同的 BOM'); return; }
+    window.location.href = '/upload/api/export-dual?bom_a=' + a + '&bom_b=' + b;
+}
+
+loadBomList();
+</script>
+{% endblock %}
