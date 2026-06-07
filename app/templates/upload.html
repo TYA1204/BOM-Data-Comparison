@@ -82,12 +82,11 @@
                                    placeholder="例如：机型A V1.0">
                         </div>
                         <div>
-                            <label for="bom-version" class="block text-sm font-medium text-slate-600 mb-1.5">版本号</label>
-                            <input type="text" id="bom-version"
+                            <label for="bom-version" class="block text-sm font-medium text-slate-600 mb-1.5">导入日期</label>
+                            <input type="date" id="bom-version"
                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
                                           focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none
-                                          transition-all placeholder:text-slate-300"
-                                   placeholder="例如：V1.0">
+                                          transition-all">
                         </div>
                         <div>
                             <label for="bom-type" class="block text-sm font-medium text-slate-600 mb-1.5">BOM 类型</label>
@@ -113,35 +112,6 @@
                 </div>
             </div>
 
-            <!-- Data Preview (shows after upload) -->
-            <div id="preview-area" class="card hidden">
-                <div class="card__header">
-                    <h2 class="card__title">数据清洗结果</h2>
-                    <span id="preview-badge" class="badge badge--success">解析成功</span>
-                </div>
-                <div class="card__body">
-                    <!-- Stats Cards -->
-                    <div id="stats-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 stagger"></div>
-
-                    <!-- Level Distribution -->
-                    <div id="level-dist" class="mb-4"></div>
-
-                    <!-- Duplicate Info -->
-                    <div id="dup-info" class="mb-4"></div>
-
-                    <!-- Table Preview -->
-                    <div class="mt-5">
-                        <h4 class="text-sm font-semibold text-slate-700 mb-3">前 10 行数据预览</h4>
-                        <div class="table-container border border-slate-100 rounded-lg">
-                            <table id="preview-table" class="data-table text-xs">
-                                <thead id="preview-head"></thead>
-                                <tbody id="preview-body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Component Export (shows after upload) -->
             <div id="component-export-area" class="card hidden">
                 <div class="card__header">
@@ -150,7 +120,16 @@
                 </div>
                 <div class="card__body">
                     <p class="text-xs text-slate-500 mb-3">勾选需要导出的组件，可自由组合导出到同一张 Excel 表</p>
-                    <div id="component-list" class="max-h-64 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-50 mb-4"></div>
+                    <!-- 表头 -->
+                    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-t-lg border border-slate-100 text-xs text-slate-500 font-medium">
+                        <span class="w-4"></span><!-- checkbox -->
+                        <span class="w-7 text-center flex-shrink-0">#</span>
+                        <span class="font-mono w-52 flex-shrink-0">物料名称</span>
+                        <span class="flex-1">物料描述</span>
+                        <span class="w-10 text-center flex-shrink-0">用量</span>
+                        <span class="w-10 text-center flex-shrink-0">单位</span>
+                    </div>
+                    <div id="component-list" class="max-h-64 overflow-y-auto border-x border-b border-slate-100 rounded-b-lg divide-y divide-slate-50 mb-4"></div>
                     <div class="flex flex-wrap gap-2">
                         <button onclick="selectAllComponents(true)" class="btn btn--ghost btn--sm">全选</button>
                         <button onclick="selectAllComponents(false)" class="btn btn--ghost btn--sm">取消全选</button>
@@ -215,6 +194,9 @@ var currentBomId = null;
 
 // ── Drag & Drop ──
 BOMApp.ready(function () {
+    // 自动填入今日日期
+    document.getElementById('bom-version').value = new Date().toISOString().split('T')[0];
+
     var dropZone = document.getElementById('drop-zone');
     var fileInput = document.getElementById('file-input');
 
@@ -304,10 +286,7 @@ function uploadFile() {
                 selectedFile = null;
                 clearFile();
 
-                if (data.stats) {
-                    showCleanStats(data.stats);
-                    showComponentExport(data.bom_id);
-                }
+                showComponentExport(data.bom_id);
                 loadBomSidebar();
             } else {
                 statusEl.innerHTML =
@@ -323,78 +302,6 @@ function uploadFile() {
             progress.classList.add('hidden');
             BOMApp.Toast.error('网络错误，请重试');
         });
-}
-
-function showCleanStats(stats) {
-    if (!stats) return;
-    var area = document.getElementById('preview-area');
-    area.classList.remove('hidden');
-    area.classList.add('animate-slide-up');
-
-    // Stats cards
-    var cards = [
-        { label: '总行数', value: stats.total_rows, color: 'text-slate-700' },
-        { label: '唯一物料数', value: stats.unique_count, color: 'text-blue-600' },
-        { label: '层级数', value: Object.keys(stats.level_dist || {}).length, color: 'text-emerald-600' },
-        { label: '重复物料数', value: stats.dup_count, color: stats.dup_count > 0 ? 'text-amber-600' : 'text-emerald-600' }
-    ];
-    document.getElementById('stats-cards').innerHTML = cards.map(function (c) {
-        return '<div class="card p-3 text-center">' +
-            '<p class="text-2xl font-bold ' + c.color + '">' + BOMApp.formatNumber(c.value) + '</p>' +
-            '<p class="text-xs text-slate-400 mt-1">' + c.label + '</p>' +
-        '</div>';
-    }).join('');
-
-    // Level distribution
-    if (stats.level_dist) {
-        var keys = Object.keys(stats.level_dist);
-        document.getElementById('level-dist').innerHTML =
-            '<p class="text-xs text-slate-500 mb-1.5">层级分布：</p>' +
-            '<div class="flex flex-wrap gap-1.5">' +
-                keys.map(function (k) {
-                    return '<span class="badge badge--info">L' + k + '：' + stats.level_dist[k] + ' 行</span>';
-                }).join('') +
-            '</div>';
-    }
-
-    // Duplicate info
-    if (stats.dup_count > 0 && stats.dup_pns) {
-        document.getElementById('dup-info').innerHTML =
-            '<div class="bg-amber-50 border border-amber-100 rounded-lg p-3">' +
-                '<p class="text-xs text-amber-700 mb-2 font-medium">⚠ 重复物料（前20个）：</p>' +
-                '<div class="flex flex-wrap gap-1.5">' +
-                    stats.dup_pns.slice(0, 20).map(function (pn) {
-                        return '<span class="badge badge--warning">' + BOMApp.escapeHtml(pn) + '</span>';
-                    }).join('') +
-                '</div>' +
-            '</div>';
-    } else {
-        document.getElementById('dup-info').innerHTML =
-            '<div class="flex items-center gap-2 text-emerald-600 text-xs">' +
-                '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
-                '无重复物料' +
-            '</div>';
-    }
-
-    // Preview table
-    var preview = stats.preview || [];
-    if (preview.length > 0) {
-        document.getElementById('preview-head').innerHTML =
-            '<tr>' +
-                '<th>层级</th><th>物料号</th><th>物料名称</th>' +
-                '<th class="text-right">用量</th><th>单位</th><th>父件</th>' +
-            '</tr>';
-        document.getElementById('preview-body').innerHTML = preview.map(function (row) {
-            return '<tr>' +
-                '<td><span class="badge badge--neutral">L' + row.level + '</span></td>' +
-                '<td class="font-mono text-xs">' + BOMApp.escapeHtml(row.part_number) + '</td>' +
-                '<td class="max-w-[200px] truncate">' + BOMApp.escapeHtml(row.part_name || '') + '</td>' +
-                '<td class="text-right tabular-nums">' + row.quantity + '</td>' +
-                '<td class="text-slate-400">' + BOMApp.escapeHtml(row.unit || '') + '</td>' +
-                '<td class="font-mono text-xs text-slate-400">' + BOMApp.escapeHtml(row.parent_pn || '-') + '</td>' +
-            '</tr>';
-        }).join('');
-    }
 }
 
 function showComponentExport(bomId) {
@@ -413,12 +320,14 @@ function showComponentExport(bomId) {
                 return;
             }
 
-            listEl.innerHTML = comps.map(function (c) {
-                return '<label class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors">' +
+            listEl.innerHTML = comps.map(function (c, i) {
+                return '<label class="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors">' +
                     '<input type="checkbox" class="component-cb rounded" value="' + BOMApp.escapeHtml(c.part_number) + '">' +
-                    '<span class="font-mono text-xs font-medium">' + BOMApp.escapeHtml(c.part_number) + '</span>' +
-                    '<span class="text-sm flex-1 truncate">' + BOMApp.escapeHtml(c.part_name) + '</span>' +
-                    '<span class="text-xs text-slate-400 flex-shrink-0">' + c.children_count + ' 个子件</span>' +
+                    '<span class="w-7 text-center text-xs text-slate-400 flex-shrink-0">' + (i + 1) + '</span>' +
+                    '<span class="font-mono text-xs font-medium w-52 flex-shrink-0 truncate">' + BOMApp.escapeHtml(c.part_number) + '</span>' +
+                    '<span class="text-sm flex-1 truncate" title="' + BOMApp.escapeHtml(c.part_name) + '">' + BOMApp.escapeHtml(c.part_name) + '</span>' +
+                    '<span class="text-xs text-slate-500 w-10 text-center flex-shrink-0">' + (c.quantity || 1) + '</span>' +
+                    '<span class="badge badge--info w-10 text-center flex-shrink-0">' + (c.unit || 'ST') + '</span>' +
                 '</label>';
             }).join('');
         });
@@ -464,7 +373,7 @@ function loadBomSidebar() {
                         '<div class="min-w-0">' +
                             '<p class="text-sm font-medium text-slate-700 truncate">' + BOMApp.escapeHtml(b.bom_name) + '</p>' +
                             '<p class="text-xs text-slate-400 mt-0.5">' +
-                                BOMApp.escapeHtml(b.bom_version || '无版本号') +
+                                BOMApp.escapeHtml(b.bom_version || '-') +
                                 ' · ' + BOMApp.escapeHtml(b.source_type) +
                                 ' · ' + BOMApp.formatNumber(b.total_items) + ' 条' +
                             '</p>' +

@@ -82,7 +82,7 @@ def get_components(bom_id):
     """返回BOM中所有组件列表（基于层级结构：有子件的物料即为组件）。"""
     # 查询所有出现在 parent_pn 中的 part_number（即有子件的组件）
     rows = db.query(
-        '''SELECT DISTINCT i.part_number, i.part_name
+        '''SELECT DISTINCT i.part_number, i.part_name, i.unit, i.quantity
            FROM bom_item i
            WHERE i.bom_id=?
              AND EXISTS (
@@ -96,7 +96,7 @@ def get_components(bom_id):
     # 如果上面查不到（parent_pn 为空的情况），回退到查 unit='ST'
     if not rows:
         rows = db.query(
-            'SELECT part_number, part_name FROM bom_item WHERE bom_id=? AND unit=? ORDER BY line_no',
+            'SELECT part_number, part_name, unit, quantity FROM bom_item WHERE bom_id=? AND unit=? ORDER BY line_no',
             (bom_id, 'ST')
         )
 
@@ -110,6 +110,8 @@ def get_components(bom_id):
         components.append({
             'part_number': pn,
             'part_name': r['part_name'],
+            'unit': r['unit'] or 'ST',
+            'quantity': r['quantity'] or 1,
             'children_count': children_count
         })
     return jsonify({'ok': True, 'components': components})
