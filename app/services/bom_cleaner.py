@@ -32,7 +32,7 @@ from pathlib import Path
 # ==================== 配置 ====================
 
 PN_PATTERN = re.compile(r'^[A-Z]\d{6}-\d{6}-\d{2,3}\w*$')
-TOP_BOM_PATTERN = re.compile(r'^P[A-Z0-9]{2,}\d{2}[A-Z0-9]+\d{6,}$')
+TOP_BOM_PATTERN = re.compile(r'^P[A-Z0-9]{2,}\d{2}[A-Z0-9]+\d{4,}$')
 
 HEADER_KEYWORDS = [
     '用户：', '有效日期从', '顶层BOM号', '最后更改号',
@@ -55,19 +55,24 @@ def is_column_title_line(line):
     return bool(COL_TITLE_PATTERN.search(line))
 
 
-def is_title_row(cols):
+def is_title_row(cols, root_bom=None):
     """
     判断是否为子件展开标题行。
     格式: PN在col[0], 描述在col[10], 约11列。
     支持标准物料号(PN_PATTERN)和顶层BOM号(TOP_BOM_PATTERN)。
+    root_bom 用于兜底匹配：当正则不匹配时，直接字符串比较 col[0]。
     """
     if len(cols) < 10:
         return False
     col0 = cols[0].strip()
-    if not PN_PATTERN.match(col0) and not TOP_BOM_PATTERN.match(col0):
-        return False
-    col10 = cols[10].strip() if len(cols) > 10 else ''
-    return bool(col10)
+    # 1. 正则匹配标准格式
+    if PN_PATTERN.match(col0) or TOP_BOM_PATTERN.match(col0):
+        col10 = cols[10].strip() if len(cols) > 10 else ''
+        return bool(col10)
+    # 2. 兜底：直接和 root_bom 字符串比较（兼容尾数不足的正则边缘用例）
+    if root_bom and col0 == root_bom:
+        return True
+    return False
 
 
 def is_data_row(cols):
@@ -191,7 +196,7 @@ def build_sections(lines, root_bom):
             continue
         if is_header_line(line) or is_column_title_line(line):
             continue
-        if is_title_row(cols):
+        if is_title_row(cols, root_bom):
             title_positions.append((i, cols[0].strip()))
 
     # 对每个section（相邻标题行之间），收集其中的数据行PN
@@ -244,11 +249,14 @@ def derive_hierarchy(sections, root_bom):
             break
 
     if root_children is None:
-        # 如果root_bom没有独立的title section（因为它的展开在文件开头），
-        # 那么第一个section之前的所有数据行就是root的children
-        # 但实际上root_bom本身也有title行
-        # 备选方案：取第一个section之前的所有数据行
+        # Fallback: root_bom 没有独立 section 时，所有 section 标题的子件作为 L1
         root_children = []
+        for title_pn, children in sections:
+            for child_pn in children:
+                if child_pn not in pn_level:
+                    pn_level[child_pn] = 1
+                    pn_parent[child_pn] = root_bom
+            root_children.extend(children)
 
     pn_level = {}
     pn_parent = {}
@@ -328,7 +336,7 @@ def parse_bom_clean(file_path):
             continue
 
         # 子件展开标题行 → 切换当前section
-        if is_title_row(cols):
+        if is_title_row(cols, root_bom):
             current_section_pn = cols[0].strip()
             continue
 
@@ -419,6 +427,16 @@ def clean_bom_data(file_path):
             row['part_name'] = clean_part_name(row['part_name'])
             items.append(row)
 
+    # 校验层级完整性
+    orphans = validate_hierarchy(items, root_bom)
+    if orphans:
+        import logging
+        logging.getLogger('bom_cleaner').warning(
+            '发现 %d 条孤立记录无法追溯到根 BOM: %s',
+            len(orphans),
+            ', '.join(o['part_number'] for o in orphans[:10])
+        )
+
     # ---- 统计数据 ----
     total_rows = len(items)
     unique_pns = set(it['part_number'] for it in items)
@@ -457,6 +475,39 @@ def clean_bom_data(file_path):
     }
 
     return metadata, items, stats
+
+
+# ==================== 层级校验 ====================
+
+def validate_hierarchy(items, root_bom):
+    """校验所有子件都能通过 parent_pn 链追溯到根 BOM。
+    
+    Args:
+        items: 物料行列表，每行包含 part_number 和 parent_pn
+        root_bom: 根 BOM 编号
+    
+    Returns:
+        孤立记录列表（无法追溯到根 BOM 的记录）
+    """
+    parent_map = {it['part_number']: it.get('parent_pn', '') for it in items}
+    orphans = []
+    for it in items:
+        pn = it['part_number']
+        visited = set()
+        current = parent_map.get(pn, '')
+        # 跳过根 BOM 自身
+        if pn == root_bom:
+            continue
+        # 沿 parent_pn 链向上追溯
+        while current and current != root_bom:
+            if current in visited:
+                orphans.append({'part_number': pn, 'reason': '循环引用'})
+                break
+            visited.add(current)
+            current = parent_map.get(current, '')
+        if not current and pn != root_bom:
+            orphans.append({'part_number': pn, 'reason': '无法追溯到根 BOM'})
+    return orphans
 
 
 def parse_bom_clean(file_path):
