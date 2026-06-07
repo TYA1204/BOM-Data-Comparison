@@ -1,119 +1,220 @@
 {% extends "base.html" %}
+{% block title %}差异比对{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">BOM 差异比对</h1>
-    <p class="text-gray-500 mt-1">选择两个BOM进行对比，查看差异明细</p>
-</div>
+<div class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-    <!-- 配置面板 -->
-    <div class="lg:col-span-1 space-y-4">
-        <div class="bg-white rounded-xl shadow-sm border p-4">
-            <h3 class="font-semibold text-sm mb-3">选择BOM</h3>
-            <label class="block text-xs text-gray-500 mb-1">来源BOM（A）</label>
-            <select id="source-bom" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"></select>
-
-            <label class="block text-xs text-gray-500 mb-1">目标BOM（B）</label>
-            <select id="target-bom" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"></select>
-
-            <label class="block text-xs text-gray-500 mb-1">比对类型</label>
-            <select id="compare-type" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
-                <option value="version">版本比对</option>
-                <option value="cross_model">跨机型比对</option>
-            </select>
-
-            <button id="compare-btn" onclick="startCompare()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                开始比对
-            </button>
-            <div id="compare-status" class="mt-2 text-xs"></div>
-        </div>
-
-        <!-- 筛选面板 -->
-        <div id="filter-panel" class="bg-white rounded-xl shadow-sm border p-4 hidden">
-            <h3 class="font-semibold text-sm mb-3">差异筛选</h3>
-            <div class="space-y-1">
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="all" checked onchange="applyFilter()"> 全部</label>
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="added" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span> 新增物料</label>
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="removed" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span> 删除物料</label>
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="hierarchy" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-orange-500"></span> 层级/结构变更</label>
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="quantity" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span> 数量变更</label>
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="specification" onchange="applyFilter()"> <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span> 规格/描述变更</label>
-                <label class="flex items-center gap-2 text-xs"><input type="radio" name="filter-type" value="other" onchange="applyFilter()"> 其他变更</label>
-            </div>
-            <!-- 严重度筛选 -->
-            <h3 class="font-semibold text-sm mt-4 mb-2">严重度</h3>
-            <div class="space-y-1">
-                <label class="flex items-center gap-2 text-xs"><input type="checkbox" value="high" checked onchange="applyFilter()"> <span class="px-1.5 py-0.5 rounded text-[10px] bg-red-200 text-red-800">高</span></label>
-                <label class="flex items-center gap-2 text-xs"><input type="checkbox" value="medium" checked onchange="applyFilter()"> <span class="px-1.5 py-0.5 rounded text-[10px] bg-yellow-200 text-yellow-800">中</span></label>
-                <label class="flex items-center gap-2 text-xs"><input type="checkbox" value="low" checked onchange="applyFilter()"> <span class="px-1.5 py-0.5 rounded text-[10px] bg-green-200 text-green-800">低</span></label>
-            </div>
+    <!-- Page Header -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">BOM 差异比对</h1>
+            <p class="text-slate-500 text-sm mt-1">选择两份 BOM 进行智能差异分析，支持新增/删除/变更识别</p>
         </div>
     </div>
 
-    <!-- 结果区域 -->
-    <div class="lg:col-span-3 space-y-4">
-        <!-- 统计栏 -->
-        <div id="stats-bar" class="grid grid-cols-6 gap-3 hidden">
-            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
-                <p id="stat-total" class="text-xl font-bold text-gray-800">0</p>
-                <p class="text-[10px] text-gray-500">差异总数</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
-                <p id="stat-added" class="text-xl font-bold text-red-600">0</p>
-                <p class="text-[10px] text-gray-500">新增</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
-                <p id="stat-removed" class="text-xl font-bold text-red-600">0</p>
-                <p class="text-[10px] text-gray-500">删除</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
-                <p id="stat-hierarchy" class="text-xl font-bold text-orange-600">0</p>
-                <p class="text-[10px] text-gray-500">层级变更</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
-                <p id="stat-quantity" class="text-xl font-bold text-yellow-600">0</p>
-                <p class="text-[10px] text-gray-500">数量变更</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm border p-3 text-center">
-                <p id="stat-spec" class="text-xl font-bold text-blue-600">0</p>
-                <p class="text-[10px] text-gray-500">规格变更</p>
-            </div>
-        </div>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-        <!-- 结果表格 -->
-        <div id="result-area" class="bg-white rounded-xl shadow-sm border hidden">
-            <div class="p-4 flex items-center justify-between border-b">
-                <h3 class="font-semibold">差异明细</h3>
-                <div class="flex gap-2">
-                    <button onclick="exportReport()" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700">导出Excel报告</button>
+        <!-- Left Sidebar: Config + Filters -->
+        <div class="lg:col-span-1 space-y-4">
+            <!-- BOM Selection -->
+            <div class="card animate-slide-up">
+                <div class="card__header">
+                    <h2 class="card__title">选择 BOM</h2>
+                </div>
+                <div class="card__body space-y-3">
+                    <div>
+                        <label for="source-bom" class="block text-xs font-medium text-slate-500 mb-1.5">来源 BOM（基准）</label>
+                        <select id="source-bom"
+                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                                       focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
+                            <option value="">-- 请选择 --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="target-bom" class="block text-xs font-medium text-slate-500 mb-1.5">目标 BOM（对比）</label>
+                        <select id="target-bom"
+                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                                       focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
+                            <option value="">-- 请选择 --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="compare-type" class="block text-xs font-medium text-slate-500 mb-1.5">比对类型</label>
+                        <select id="compare-type"
+                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                                       focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
+                            <option value="version">版本比对</option>
+                            <option value="cross_model">跨机型比对</option>
+                        </select>
+                    </div>
+
+                    <button id="compare-btn" onclick="startCompare()"
+                            class="btn btn--primary w-full">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
+                            <polyline points="17 11 19 13 23 9"/>
+                        </svg>
+                        开始比对
+                    </button>
+                    <div id="compare-status" class="text-xs"></div>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs">
-                    <thead>
-                        <tr class="border-b bg-gray-50 text-gray-600">
-                            <th class="px-2 py-2 text-left w-8">#</th>
-                            <th class="px-2 py-2 text-left w-12">类型</th>
-                            <th class="px-2 py-2 text-left w-16">分类</th>
-                            <th class="px-2 py-2 text-center w-10">严重度</th>
-                            <th class="px-2 py-2 text-left">物料号</th>
-                            <th class="px-2 py-2 text-left">物料描述</th>
-                            <th class="px-2 py-2 text-left">变更字段</th>
-                            <th class="px-2 py-2 text-left">原值(A)</th>
-                            <th class="px-2 py-2 text-left">新值(B)</th>
-                            <th class="px-2 py-2 text-center w-12">匹配度</th>
-                        </tr>
-                    </thead>
-                    <tbody id="result-body"></tbody>
-                </table>
+
+            <!-- Filter Panel -->
+            <div id="filter-panel" class="card hidden animate-slide-up">
+                <div class="card__header">
+                    <h2 class="card__title">差异筛选</h2>
+                </div>
+                <div class="card__body">
+                    <!-- Type Filter -->
+                    <div class="mb-4">
+                        <p class="text-xs font-medium text-slate-500 mb-2">差异类型</p>
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="all" checked onchange="applyAllFilters()"> 全部差异
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="added" onchange="applyAllFilters()">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span> 新增物料
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="removed" onchange="applyAllFilters()">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span> 删除物料
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="hierarchy" onchange="applyAllFilters()">
+                                <span class="w-2 h-2 rounded-full bg-orange-400"></span> 层级/结构变更
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="quantity" onchange="applyAllFilters()">
+                                <span class="w-2 h-2 rounded-full bg-amber-400"></span> 数量变更
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="specification" onchange="applyAllFilters()">
+                                <span class="w-2 h-2 rounded-full bg-blue-400"></span> 规格/描述变更
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="radio" name="filter-type" value="other" onchange="applyAllFilters()"> 其他变更
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Severity Filter -->
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 mb-2">严重度</p>
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" value="high" checked onchange="applyAllFilters()" class="severity-cb">
+                                <span class="badge badge--danger">高</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" value="medium" checked onchange="applyAllFilters()" class="severity-cb">
+                                <span class="badge badge--warning">中</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" value="low" checked onchange="applyAllFilters()" class="severity-cb">
+                                <span class="badge badge--success">低</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="mt-4">
+                        <p class="text-xs font-medium text-slate-500 mb-2">搜索物料</p>
+                        <div class="relative">
+                            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="diff-search"
+                                   class="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs
+                                          focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none
+                                          placeholder:text-slate-300"
+                                   placeholder="物料编码/描述...">
+                        </div>
+                    </div>
+
+                    <button onclick="resetFilters()" class="btn btn--ghost btn--sm w-full mt-4 text-xs">
+                        重置筛选
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- 历史记录 -->
-        <div class="bg-white rounded-xl shadow-sm border p-4">
-            <h3 class="font-semibold text-sm mb-3">比对历史</h3>
-            <div id="history-list"><p class="text-gray-400 text-xs">加载中...</p></div>
+        <!-- Right: Results -->
+        <div class="lg:col-span-3 space-y-4">
+
+            <!-- Stats Bar -->
+            <div id="stats-bar" class="hidden animate-slide-up">
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 stagger">
+                    <div class="card p-3 text-center">
+                        <p id="stat-total" class="text-xl font-bold text-slate-800">0</p>
+                        <p class="text-[10px] text-slate-400">差异总数</p>
+                    </div>
+                    <div class="card p-3 text-center">
+                        <p id="stat-added" class="text-xl font-bold text-red-600">0</p>
+                        <p class="text-[10px] text-slate-400">新增</p>
+                    </div>
+                    <div class="card p-3 text-center">
+                        <p id="stat-removed" class="text-xl font-bold text-red-600">0</p>
+                        <p class="text-[10px] text-slate-400">删除</p>
+                    </div>
+                    <div class="card p-3 text-center">
+                        <p id="stat-hierarchy" class="text-xl font-bold text-orange-500">0</p>
+                        <p class="text-[10px] text-slate-400">层级变更</p>
+                    </div>
+                    <div class="card p-3 text-center">
+                        <p id="stat-quantity" class="text-xl font-bold text-amber-500">0</p>
+                        <p class="text-[10px] text-slate-400">数量变更</p>
+                    </div>
+                    <div class="card p-3 text-center">
+                        <p id="stat-spec" class="text-xl font-bold text-blue-600">0</p>
+                        <p class="text-[10px] text-slate-400">规格变更</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Table -->
+            <div id="result-area" class="card hidden animate-slide-up">
+                <div class="card__header">
+                    <h2 class="card__title">差异明细</h2>
+                    <div class="flex gap-2">
+                        <span id="filtered-count" class="text-xs text-slate-400 self-center"></span>
+                        <button onclick="exportReport()" class="btn btn--primary btn--sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            导出 Excel 报告
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table text-xs" role="table" aria-label="差异明细表" id="result-table">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600">
+                                <th class="w-8" data-sort="index">#</th>
+                                <th class="w-14" data-sort="diff_type">类型</th>
+                                <th class="w-16" data-sort="diff_category">分类</th>
+                                <th class="w-12" data-sort="severity">严重度</th>
+                                <th data-sort="part_number">物料号</th>
+                                <th data-sort="part_name">物料描述</th>
+                                <th data-sort="field_name">变更字段</th>
+                                <th data-sort="old_value">原值(A)</th>
+                                <th data-sort="new_value">新值(B)</th>
+                                <th class="w-14" data-sort="match_confidence">匹配度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="result-body"></tbody>
+                    </table>
+                </div>
+                <div class="card__body border-t border-slate-50" id="result-pagination"></div>
+            </div>
+
+            <!-- History -->
+            <div class="card animate-slide-up">
+                <div class="card__header">
+                    <h2 class="card__title">比对历史</h2>
+                </div>
+                <div class="card__body" id="history-list">
+                    <div class="loading-overlay"><span class="spinner"></span><span>加载历史记录...</span></div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -121,174 +222,288 @@
 
 {% block scripts %}
 <script>
-const TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
-const CAT_MAP = {
+var currentTaskId = null;
+var allResults = [];
+var filteredResults = [];
+var resultPage = 1;
+var RESULT_PAGE_SIZE = 50;
+
+var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
+var CAT_MAP = {
     material: '物料', quantity: '数量', reference: '位号',
     specification: '规格', version: '版本', hierarchy: '层级',
     consolidation: '物料整合', manufacturer: '制造商', mpn: 'MPN',
     part_name: '描述'
 };
-const SEVERITY_MAP = { high: '高', medium: '中', low: '低' };
+var SEVERITY_MAP = { high: '高', medium: '中', low: '低' };
+var FIELD_LABEL_MAP = {
+    parent_pn: '父件归属', level: '层级深度', part_number: '物料号',
+    quantity: '数量', part_name: '描述', specification: '规格备注',
+    version: '版本号', reference: '位号'
+};
 
-let currentTaskId = null;
-let allResults = [];
-
+// ── Load BOM selects ──
 function loadBomSelects() {
-    fetch('/upload/api/list')
-        .then(r => r.json())
-        .then(data => {
-            const src = document.getElementById('source-bom');
-            const tgt = document.getElementById('target-bom');
-            const opts = '<option value="">-- 请选择 --</option>' +
-                data.boms.map(b => `<option value="${b.id}">${b.bom_name}（${b.bom_version || '无版本号'}）[${b.total_items} 条]</option>`).join('');
-            src.innerHTML = opts;
-            tgt.innerHTML = opts;
+    BOMApp.API.get('/upload/api/list')
+        .then(function (data) {
+            if (!data.ok) return;
+            var opts = '<option value="">-- 请选择 --</option>' +
+                data.boms.map(function (b) {
+                    return '<option value="' + b.id + '">' +
+                        BOMApp.escapeHtml(b.bom_name) +
+                        '（' + BOMApp.escapeHtml(b.bom_version || '无版本') + '）[' + b.total_items + '条]</option>';
+                }).join('');
+            document.getElementById('source-bom').innerHTML = opts;
+            document.getElementById('target-bom').innerHTML = opts;
 
-            const params = new URLSearchParams(window.location.search);
-            const taskId = params.get('task_id');
-            if (taskId) loadResult(taskId);
+            // Load task from URL param
+            var params = new URLSearchParams(window.location.search);
+            var taskId = params.get('task_id');
+            if (taskId) loadResult(parseInt(taskId));
         });
 }
 
+// ── Start Comparison ──
 function startCompare() {
-    const srcId = document.getElementById('source-bom').value;
-    const tgtId = document.getElementById('target-bom').value;
-    if (!srcId || !tgtId) return alert('请选择两个BOM进行比对');
-    if (srcId === tgtId) return alert('来源BOM和目标BOM不能相同');
+    var srcId = document.getElementById('source-bom').value;
+    var tgtId = document.getElementById('target-bom').value;
 
-    const btn = document.getElementById('compare-btn');
-    const status = document.getElementById('compare-status');
-    btn.disabled = true;
-    btn.textContent = '比对中...';
+    if (!srcId || !tgtId) {
+        BOMApp.Toast.warning('请选择两份 BOM 进行比对');
+        return;
+    }
+    if (srcId === tgtId) {
+        BOMApp.Toast.warning('来源 BOM 和目标 BOM 不能相同');
+        return;
+    }
 
-    fetch('/compare/api/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            source_bom_id: parseInt(srcId),
-            target_bom_id: parseInt(tgtId),
-            comparison_type: document.getElementById('compare-type').value
-        })
+    var btn = document.getElementById('compare-btn');
+    var statusEl = document.getElementById('compare-status');
+    BOMApp.Loading.button(btn, true);
+    statusEl.innerHTML = '';
+
+    BOMApp.API.post('/compare/api/start', {
+        source_bom_id: parseInt(srcId),
+        target_bom_id: parseInt(tgtId),
+        comparison_type: document.getElementById('compare-type').value
     })
-    .then(r => r.json())
-    .then(data => {
-        btn.disabled = false;
-        btn.textContent = '开始比对';
+    .then(function (data) {
+        BOMApp.Loading.button(btn, false);
         if (data.ok) {
-            status.innerHTML = '<span class="text-green-600">比对完成！</span>';
+            statusEl.innerHTML = '<span class="text-emerald-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>比对完成</span>';
             loadResult(data.task_id);
         } else {
-            status.innerHTML = '<span class="text-red-600">' + data.msg + '</span>';
+            statusEl.innerHTML = '<span class="text-red-600">' + BOMApp.escapeHtml(data.msg) + '</span>';
+            BOMApp.Toast.error('比对失败：' + data.msg);
         }
     })
-    .catch(() => {
-        btn.disabled = false;
-        btn.textContent = '开始比对';
-        status.innerHTML = '<span class="text-red-600">网络错误</span>';
+    .catch(function () {
+        BOMApp.Loading.button(btn, false);
+        BOMApp.Toast.error('网络错误，请重试');
     });
 }
 
+// ── Load & Render Results ──
 function loadResult(taskId) {
     currentTaskId = taskId;
-    fetch('/compare/api/result/' + taskId)
-        .then(r => r.json())
-        .then(data => {
+    document.getElementById('result-area').classList.add('hidden');
+    document.getElementById('stats-bar').classList.add('hidden');
+
+    BOMApp.API.get('/compare/api/result/' + taskId)
+        .then(function (data) {
             if (!data.ok) return;
             allResults = data.results;
-            renderResults(allResults);
+            filteredResults = allResults;
+            resultPage = 1;
+
             renderStats(allResults);
+            applyAllFilters();
             document.getElementById('stats-bar').classList.remove('hidden');
             document.getElementById('result-area').classList.remove('hidden');
             document.getElementById('filter-panel').classList.remove('hidden');
+
+            BOMApp.Toast.success('已加载比对结果，共 ' + allResults.length + ' 项差异');
         });
-}
-
-function getFilterCategory(r) {
-    if (r.diff_type === 'added' || r.diff_type === 'removed') return r.diff_type;
-    if (r.diff_category === 'hierarchy') return 'hierarchy';
-    if (r.diff_category === 'quantity') return 'quantity';
-    if (r.diff_category === 'specification' || r.diff_category === 'part_name') return 'specification';
-    return 'other';
-}
-
-function renderResults(results) {
-    const tbody = document.getElementById('result-body');
-    tbody.innerHTML = results.map((r, i) => {
-        const bg = r.severity === 'high' ? 'bg-red-50' : r.severity === 'medium' ? 'bg-yellow-50' : 'bg-green-50';
-        const typeColor = r.diff_type === 'added' ? 'text-red-600 font-medium' : r.diff_type === 'removed' ? 'text-red-600 font-medium' : 'text-yellow-700';
-        const cat = CAT_MAP[r.diff_category] || r.diff_category;
-        const fieldLabel = {
-            'parent_pn': '父件归属', 'level': '层级深度', 'part_number': '物料号',
-            'quantity': '数量', 'part_name': '描述', 'specification': '规格备注',
-            'version': '版本号', 'reference': '位号'
-        }[r.field_name] || r.field_name;
-        const pn = r.part_number_a || r.part_number_b;
-        const name = r.part_name_a || r.part_name_b || '';
-
-        return `<tr class="border-b ${bg} hover:opacity-80" data-type="${r.diff_type}" data-cat="${r.diff_category}" data-severity="${r.severity}">
-            <td class="px-2 py-2 text-gray-400">${i + 1}</td>
-            <td class="px-2 py-2 ${typeColor}">${TYPE_MAP[r.diff_type]}</td>
-            <td class="px-2 py-2"><span class="px-1 py-0.5 rounded text-[10px] ${r.diff_category === 'hierarchy' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}">${cat}</span></td>
-            <td class="px-2 py-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] ${r.severity === 'high' ? 'bg-red-200 text-red-800' : r.severity === 'medium' ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800'}">${SEVERITY_MAP[r.severity]}</span></td>
-            <td class="px-2 py-2 font-mono">${pn || '-'}</td>
-            <td class="px-2 py-2 text-gray-500 max-w-[200px] truncate" title="${name}">${name.substring(0, 50)}</td>
-            <td class="px-2 py-2">${fieldLabel}</td>
-            <td class="px-2 py-2 text-red-600 line-through max-w-[150px] truncate" title="${r.old_value || ''}">${r.old_value || '-'}</td>
-            <td class="px-2 py-2 text-green-700 font-medium max-w-[150px] truncate" title="${r.new_value || ''}">${r.new_value || '-'}</td>
-            <td class="px-2 py-2 text-center">${r.match_confidence}%</td>
-        </tr>`;
-    }).join('');
 }
 
 function renderStats(results) {
     document.getElementById('stat-total').textContent = results.length;
-    document.getElementById('stat-added').textContent = results.filter(r => r.diff_type === 'added').length;
-    document.getElementById('stat-removed').textContent = results.filter(r => r.diff_type === 'removed').length;
-    document.getElementById('stat-hierarchy').textContent = results.filter(r => r.diff_category === 'hierarchy').length;
-    document.getElementById('stat-quantity').textContent = results.filter(r => r.diff_category === 'quantity').length;
-    document.getElementById('stat-spec').textContent = results.filter(r => ['specification', 'part_name'].includes(r.diff_category)).length;
+    document.getElementById('stat-added').textContent = results.filter(function (r) { return r.diff_type === 'added'; }).length;
+    document.getElementById('stat-removed').textContent = results.filter(function (r) { return r.diff_type === 'removed'; }).length;
+    document.getElementById('stat-hierarchy').textContent = results.filter(function (r) { return r.diff_category === 'hierarchy'; }).length;
+    document.getElementById('stat-quantity').textContent = results.filter(function (r) { return r.diff_category === 'quantity'; }).length;
+    document.getElementById('stat-spec').textContent = results.filter(function (r) { return ['specification', 'part_name'].includes(r.diff_category); }).length;
 }
 
-function applyFilter() {
-    const typeRadio = document.querySelector('input[name="filter-type"]:checked');
-    const typeVal = typeRadio ? typeRadio.value : 'all';
-    const sevChecked = Array.from(document.querySelectorAll('#filter-panel input[type=checkbox]:checked')).map(cb => cb.value);
+function renderResults(results) {
+    var tbody = document.getElementById('result-body');
 
-    const filtered = allResults.filter(r => {
-        // Type filter
-        if (typeVal !== 'all') {
-            const cat = getFilterCategory(r);
-            if (cat !== typeVal) return false;
-        }
-        // Severity filter
+    if (results.length === 0) {
+        tbody.innerHTML =
+            '<tr><td colspan="10">' +
+                '<div class="empty-state"><p class="empty-state__title">无匹配差异项</p><p class="empty-state__desc">尝试调整筛选条件</p></div>' +
+            '</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = results.map(function (r, i) {
+        var rowClass = '';
+        if (r.severity === 'high') rowClass = 'row--danger';
+        else if (r.severity === 'medium') rowClass = 'row--warning';
+
+        var typeColor = r.diff_type === 'added' ? 'text-red-600 font-semibold' :
+                        r.diff_type === 'removed' ? 'text-red-600 font-semibold' :
+                        'text-amber-700';
+        var cat = CAT_MAP[r.diff_category] || r.diff_category;
+        var catBadgeClass = r.diff_category === 'hierarchy' ? 'badge--warning' :
+                            r.diff_category === 'quantity' ? 'badge--warning' :
+                            ['specification', 'part_name'].includes(r.diff_category) ? 'badge--info' :
+                            'badge--neutral';
+        var fieldLabel = FIELD_LABEL_MAP[r.field_name] || r.field_name;
+        var sevBadgeClass = r.severity === 'high' ? 'badge--danger' :
+                            r.severity === 'medium' ? 'badge--warning' : 'badge--success';
+        var pn = r.part_number_a || r.part_number_b;
+        var name = r.part_name_a || r.part_name_b || '';
+
+        return '<tr class="' + rowClass + '" data-type="' + r.diff_type + '" data-cat="' + r.diff_category + '" data-severity="' + r.severity + '">' +
+            '<td class="text-slate-400">' + (i + 1) + '</td>' +
+            '<td class="' + typeColor + '">' + TYPE_MAP[r.diff_type] + '</td>' +
+            '<td><span class="badge ' + catBadgeClass + '">' + cat + '</span></td>' +
+            '<td class="text-center"><span class="badge ' + sevBadgeClass + '">' + SEVERITY_MAP[r.severity] + '</span></td>' +
+            '<td class="font-mono text-xs font-medium">' + BOMApp.escapeHtml(pn || '-') + '</td>' +
+            '<td class="text-slate-500 max-w-[180px] truncate" title="' + BOMApp.escapeHtml(name) + '">' + BOMApp.escapeHtml(name.substring(0, 50)) + '</td>' +
+            '<td class="text-slate-600">' + fieldLabel + '</td>' +
+            '<td class="text-red-600 line-through max-w-[120px] truncate" title="' + BOMApp.escapeHtml(r.old_value || '') + '">' + BOMApp.escapeHtml(r.old_value || '-') + '</td>' +
+            '<td class="text-emerald-700 font-medium max-w-[120px] truncate" title="' + BOMApp.escapeHtml(r.new_value || '') + '">' + BOMApp.escapeHtml(r.new_value || '-') + '</td>' +
+            '<td class="text-center text-slate-400">' + (r.match_confidence || '') + '%</td>' +
+        '</tr>';
+    }).join('');
+}
+
+// ── Filters ──
+function getFilterCategory(r) {
+    if (r.diff_type === 'added' || r.diff_type === 'removed') return r.diff_type;
+    if (r.diff_category === 'hierarchy') return 'hierarchy';
+    if (r.diff_category === 'quantity') return 'quantity';
+    if (['specification', 'part_name'].includes(r.diff_category)) return 'specification';
+    return 'other';
+}
+
+function applyAllFilters() {
+    var typeRadio = document.querySelector('input[name="filter-type"]:checked');
+    var typeVal = typeRadio ? typeRadio.value : 'all';
+    var sevChecked = Array.from(document.querySelectorAll('.severity-cb:checked')).map(function (cb) { return cb.value; });
+    var searchQuery = (document.getElementById('diff-search').value || '').toLowerCase().trim();
+
+    filteredResults = allResults.filter(function (r) {
+        if (typeVal !== 'all' && getFilterCategory(r) !== typeVal) return false;
         if (!sevChecked.includes(r.severity)) return false;
+        if (searchQuery) {
+            var pn = ((r.part_number_a || '') + (r.part_number_b || '')).toLowerCase();
+            var name = ((r.part_name_a || '') + (r.part_name_b || '')).toLowerCase();
+            if (pn.indexOf(searchQuery) === -1 && name.indexOf(searchQuery) === -1) return false;
+        }
         return true;
     });
 
-    renderResults(filtered);
+    resultPage = 1;
+    var pager = BOMApp.paginate(filteredResults, resultPage, RESULT_PAGE_SIZE);
+    renderResults(pager.items);
+    BOMApp.renderPagination(pager, document.getElementById('result-pagination'), function (page) {
+        resultPage = page;
+        var p = BOMApp.paginate(filteredResults, resultPage, RESULT_PAGE_SIZE);
+        renderResults(p.items);
+        BOMApp.renderPagination(p, document.getElementById('result-pagination'), function (pg) {
+            resultPage = pg;
+            var pp = BOMApp.paginate(filteredResults, resultPage, RESULT_PAGE_SIZE);
+            renderResults(pp.items);
+            document.getElementById('filtered-count').textContent =
+                filteredResults.length === allResults.length
+                    ? '共 ' + allResults.length + ' 项'
+                    : '筛选 ' + filteredResults.length + ' / ' + allResults.length + ' 项';
+        });
+    });
+
+    document.getElementById('filtered-count').textContent =
+        filteredResults.length === allResults.length
+            ? '共 ' + allResults.length + ' 项'
+            : '筛选 ' + filteredResults.length + ' / ' + allResults.length + ' 项';
 }
 
+function resetFilters() {
+    document.querySelector('input[name="filter-type"][value="all"]').checked = true;
+    document.querySelectorAll('.severity-cb').forEach(function (cb) { cb.checked = true; });
+    document.getElementById('diff-search').value = '';
+    applyAllFilters();
+}
+
+// ── Export ──
 function exportReport() {
-    if (!currentTaskId) return alert('暂无可导出的比对结果');
+    if (!currentTaskId) {
+        BOMApp.Toast.warning('暂无可导出的比对结果');
+        return;
+    }
     window.location.href = '/report/api/export/' + currentTaskId;
 }
 
+// ── History ──
 function loadHistory() {
-    fetch('/compare/api/history')
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('history-list');
-            if (!data.ok || !data.tasks.length) {
-                el.innerHTML = '<p class="text-gray-400 text-xs">暂无历史记录</p>';
+    BOMApp.API.get('/compare/api/history')
+        .then(function (data) {
+            if (!data.ok) return;
+            var tasks = data.tasks || [];
+            var el = document.getElementById('history-list');
+
+            if (tasks.length === 0) {
+                el.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">暂无历史记录</p>';
                 return;
             }
-            el.innerHTML = '<table class="w-full text-xs"><thead><tr class="border-b text-gray-400"><th class="text-left py-1">比对任务</th><th class="text-center py-1">差异数</th><th class="text-left py-1">时间</th></tr></thead><tbody>' +
-                data.tasks.map(t => `<tr class="border-b cursor-pointer hover:bg-gray-50" onclick="loadResult(${t.id})"><td class="py-1 text-blue-600 hover:underline">${t.task_name}</td><td class="py-1 text-center">${t.diff_count}</td><td class="py-1 text-gray-400">${t.created_at}</td></tr>`).join('') +
-                '</tbody></table>';
+
+            el.innerHTML =
+                '<div class="table-container">' +
+                '<table class="data-table text-xs">' +
+                    '<thead><tr><th>比对任务</th><th>来源</th><th>目标</th><th class="text-center">差异数</th><th>时间</th></tr></thead>' +
+                    '<tbody>' +
+                        tasks.map(function (t) {
+                            var diffBadge = (t.diff_count || 0) === 0
+                                ? '<span class="badge badge--success">0</span>'
+                                : '<span class="badge badge--danger">' + t.diff_count + '</span>';
+                            return '<tr class="cursor-pointer hover:bg-slate-50" onclick="loadResult(' + t.id + ')" tabindex="0" onkeydown="if(event.key===\'Enter\') loadResult(' + t.id + ')">' +
+                                '<td class="font-medium text-blue-600">' + BOMApp.escapeHtml(t.task_name) + '</td>' +
+                                '<td class="text-slate-500">' + BOMApp.escapeHtml(t.source_name || '-') + '</td>' +
+                                '<td class="text-slate-500">' + BOMApp.escapeHtml(t.target_name || '-') + '</td>' +
+                                '<td class="text-center">' + diffBadge + '</td>' +
+                                '<td class="text-slate-400">' + BOMApp.formatDate(t.created_at) + '</td>' +
+                            '</tr>';
+                        }).join('') +
+                    '</tbody>' +
+                '</table>' +
+                '</div>';
         });
 }
 
-loadBomSelects();
-loadHistory();
+// ── Init ──
+BOMApp.ready(function () {
+    // Search debounce
+    document.getElementById('diff-search').addEventListener('input', BOMApp.debounce(applyAllFilters, 250));
+
+    // Table sorting
+    BOMApp.initTableSort(document.getElementById('result-table'), function () {
+        return filteredResults;
+    }, function (sorted) {
+        filteredResults = sorted;
+        resultPage = 1;
+        var pager = BOMApp.paginate(filteredResults, resultPage, RESULT_PAGE_SIZE);
+        renderResults(pager.items);
+        BOMApp.renderPagination(pager, document.getElementById('result-pagination'), function (page) {
+            resultPage = page;
+            var p = BOMApp.paginate(filteredResults, resultPage, RESULT_PAGE_SIZE);
+            renderResults(p.items);
+        });
+    });
+
+    loadBomSelects();
+    loadHistory();
+});
 </script>
 {% endblock %}

@@ -31,10 +31,11 @@ def upload_file():
     from app.services.parser import parse_bom_file
     bom_name = request.form.get('bom_name', os.path.splitext(f.filename)[0])
     bom_version = request.form.get('bom_version', '')
+    bom_type = request.form.get('bom_type', 'primary')
     column_map_json = request.form.get('column_map', '')
 
     try:
-        result = parse_bom_file(save_path, bom_name, bom_version, column_map_json)
+        result = parse_bom_file(save_path, bom_name, bom_version, column_map_json, bom_type=bom_type)
         if isinstance(result, tuple):
             bom_id, stats = result
         else:
@@ -78,21 +79,37 @@ def export_dual_boms():
 
 @bp.route('/api/components/<int:bom_id>')
 def get_components(bom_id):
-    """返回BOM中所有组件（单位=ST）列表。"""
-    items = db.query(
-        'SELECT part_number, part_name FROM bom_item WHERE bom_id=? AND unit=? ORDER BY line_no',
-        (bom_id, 'ST')
+    """返回BOM中所有组件列表（基于层级结构：有子件的物料即为组件）。"""
+    # 查询所有出现在 parent_pn 中的 part_number（即有子件的组件）
+    rows = db.query(
+        '''SELECT DISTINCT i.part_number, i.part_name
+           FROM bom_item i
+           WHERE i.bom_id=?
+             AND EXISTS (
+               SELECT 1 FROM bom_item sub
+               WHERE sub.bom_id=? AND sub.parent_pn=i.part_number
+             )
+           ORDER BY i.line_no''',
+        (bom_id, bom_id)
     )
+
+    # 如果上面查不到（parent_pn 为空的情况），回退到查 unit='ST'
+    if not rows:
+        rows = db.query(
+            'SELECT part_number, part_name FROM bom_item WHERE bom_id=? AND unit=? ORDER BY line_no',
+            (bom_id, 'ST')
+        )
+
     components = []
-    for it in items:
-        pn = it['part_number']
+    for r in rows:
+        pn = r['part_number']
         children_count = db.query_one(
             'SELECT COUNT(*) as cnt FROM bom_item WHERE bom_id=? AND parent_pn=?',
             (bom_id, pn)
         )['cnt']
         components.append({
             'part_number': pn,
-            'part_name': it['part_name'],
+            'part_name': r['part_name'],
             'children_count': children_count
         })
     return jsonify({'ok': True, 'components': components})
@@ -115,3 +132,118 @@ def export_components():
     if not file_path or not os.path.exists(file_path):
         return jsonify({'ok': False, 'msg': '导出失败'}), 500
     return send_file(file_path, as_attachment=True)
+
+
+@bp.route('/api/export-all-components/<int:bom_id>')
+def export_all_components(bom_id):
+    """导出BOM中所有组件及其子件到Excel（基于层级结构识别）。"""
+    # 查询所有有子件的 part_number
+    items = db.query(
+        '''SELECT DISTINCT i.part_number FROM bom_item i
+           WHERE i.bom_id=?
+             AND EXISTS (
+               SELECT 1 FROM bom_item sub
+               WHERE sub.bom_id=? AND sub.parent_pn=i.part_number
+             )
+           ORDER BY i.line_no''',
+        (bom_id, bom_id)
+    )
+    pns = [it['part_number'] for it in items]
+
+    # 回退：如果上面查不到，尝试用 unit='ST'
+    if not pns:
+        items = db.query(
+            'SELECT part_number FROM bom_item WHERE bom_id=? AND unit=? ORDER BY line_no',
+            (bom_id, 'ST')
+        )
+        pns = [it['part_number'] for it in items]
+
+    if not pns:
+        return jsonify({'ok': False, 'msg': '该BOM没有可导出的组件'}), 400
+
+    from app.services.reporter import generate_components_export_excel
+    file_path = generate_components_export_excel(bom_id, pns)
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({'ok': False, 'msg': '导出失败'}), 500
+    return send_file(file_path, as_attachment=True)
+
+
+@bp.route('/api/bom/<int:bom_id>', methods=['DELETE'])
+def delete_bom(bom_id):
+    """删除单个BOM及其所有关联数据。"""
+    try:
+        db.execute('DELETE FROM bom_item WHERE bom_id=?', (bom_id,))
+        db.execute('DELETE FROM bom_header WHERE id=?', (bom_id,))
+        return jsonify({'ok': True, 'msg': '已删除'})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+@bp.route('/api/boms/delete', methods=['POST'])
+def batch_delete_boms():
+    """批量删除BOM。"""
+    data = request.get_json()
+    ids = data.get('ids', []) if data else []
+    if not ids:
+        return jsonify({'ok': False, 'msg': '请指定要删除的BOM'}), 400
+
+    try:
+        placeholders = ','.join(['?'] * len(ids))
+        db.execute(f'DELETE FROM bom_item WHERE bom_id IN ({placeholders})', tuple(ids))
+        db.execute(f'DELETE FROM bom_header WHERE id IN ({placeholders})', tuple(ids))
+        return jsonify({'ok': True, 'msg': f'已删除 {len(ids)} 个BOM'})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+@bp.route('/api/clear-database', methods=['POST'])
+def clear_database():
+    """一键清除所有 BOM 数据、比对结果和上传文件。"""
+    try:
+        # 统计清除前的数据量
+        bom_count = len(db.query('SELECT id FROM bom_header'))
+        task_count = len(db.query('SELECT id FROM comparison_task'))
+        result_count = len(db.query('SELECT id FROM comparison_result'))
+
+        # 清除比对结果
+        db.execute('DELETE FROM comparison_result')
+        # 清除比对任务
+        db.execute('DELETE FROM comparison_task')
+        # 清除 BOM 明细
+        db.execute('DELETE FROM bom_item')
+        # 清除 BOM 主表
+        db.execute('DELETE FROM bom_header')
+
+        # 清除上传文件
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', '')
+        if upload_folder and os.path.exists(upload_folder):
+            for f in os.listdir(upload_folder):
+                file_path = os.path.join(upload_folder, f)
+                if os.path.isfile(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass
+
+        # 清除报告文件
+        report_folder = current_app.config.get('REPORT_FOLDER', '')
+        if report_folder and os.path.exists(report_folder):
+            for f in os.listdir(report_folder):
+                file_path = os.path.join(report_folder, f)
+                if os.path.isfile(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass
+
+        return jsonify({
+            'ok': True,
+            'msg': f'已清除 {bom_count} 个BOM、{task_count} 个比对任务、{result_count} 条差异记录',
+            'details': {
+                'boms': bom_count,
+                'tasks': task_count,
+                'results': result_count
+            }
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500

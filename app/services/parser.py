@@ -338,7 +338,7 @@ def detect_columns(headers):
     return mapping
 
 
-def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
+def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_type='primary'):
     """Parse Excel/CSV/SAP BOM file and store in database.
 
     Returns bom_id.
@@ -363,11 +363,12 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
 
         # Insert bom_header
         cursor = db.execute('''
-            INSERT INTO bom_header (bom_name, bom_version, source_type, source_file, total_items, total_quantity)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file, total_items, total_quantity)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             bom_name,
             bom_version,
+            bom_type,
             os.path.splitext(file_path)[1].upper().replace('.', ''),
             os.path.basename(file_path),
             len(sap_items),
@@ -464,11 +465,12 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
 
     # Insert bom_header
     cursor = db.execute('''
-        INSERT INTO bom_header (bom_name, bom_version, source_type, source_file, total_items, total_quantity)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file, total_items, total_quantity)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (
         bom_name,
         bom_version,
+        bom_type,
         os.path.splitext(file_path)[1].upper().replace('.', ''),
         os.path.basename(file_path),
         len(df),
@@ -531,6 +533,6 @@ def preview_file(file_path):
 def get_uploaded_boms():
     """List all uploaded BOMs."""
     rows = db.query(
-        'SELECT id, bom_name, bom_version, source_type, source_file, total_items, created_at FROM bom_header ORDER BY created_at DESC'
+        'SELECT id, bom_name, bom_version, bom_type, source_type, source_file, total_items, created_at FROM bom_header ORDER BY created_at DESC'
     )
     return [dict(r) for r in rows]

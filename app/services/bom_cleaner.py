@@ -140,11 +140,22 @@ def extract_data_row(cols):
         if v and v != '#':
             references.append(v)
 
+    unit = get(24, '')
+
+    # 修复：某些 SAP 导出格式中 col[24] 为空，单位值混入 col[25+] 的首位
+    # 例: references = ["ST", "侧拉端子板"] → unit=ST, reference="侧拉端子板"
+    # 例: references = ["PC"] → unit=PC, reference=""
+    COMMON_UNITS = {'ST', 'PC', 'PCS', 'EA', 'M', 'MM', 'CM', 'G', 'KG', 'L', 'ML'}
+    if not unit and references:
+        first = references[0].strip().upper()
+        if first in COMMON_UNITS:
+            unit = references.pop(0)
+
     return {
         'part_number': get(2, ''),
         'part_name': get(10, ''),
         'quantity': float(get(17, '0') or '0'),
-        'unit': get(24, ''),
+        'unit': unit,
         'priority': get(19, ''),
         'ecn': get(22, ''),
         'reference': ' '.join(references),

@@ -6,3 +6,8 @@ bp = Blueprint('main', __name__)
 @bp.route('/')
 def index():
     return render_template('index.html')
+
+
+@bp.route('/bom_list')
+def bom_list():
+    return render_template('bom_list.html')

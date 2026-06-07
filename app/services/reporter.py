@@ -366,6 +366,33 @@ def generate_components_export_excel(bom_id, component_pns):
         sheet_items = comp_items + sorted(children, key=lambda x: x['line_no'])
 
         comp_name = comp_items[0]['part_name'] if comp_items else pn
+
+        # PC子件向上归并为父级ST组件名称
+        # 构建 item 查找表：part_number → item dict
+        item_lookup = {it['part_number']: it for it in sheet_items}
+
+        def find_st_ancestor_name(pn_to_find):
+            """向上追溯到最近的 ST 祖先组件，返回其名称。"""
+            current = pn_to_find
+            visited = set()
+            while current in item_lookup:
+                item = item_lookup[current]
+                if item['unit'] == 'ST':
+                    return item.get('part_name', '')
+                parent = item.get('parent_pn', '')
+                if not parent or parent in visited:
+                    break
+                visited.add(parent)
+                current = parent
+            return ''
+
+        for it in sheet_items:
+            if it['unit'] == 'ST':
+                continue  # ST组件本身保持不变
+            st_name = find_st_ancestor_name(it.get('parent_pn', ''))
+            if st_name:
+                it['part_name'] = st_name
+
         sheet_title = f"{pn[:15]}" if len(pn) > 15 else pn
         ws = wb.create_sheet(title=sheet_title)
 

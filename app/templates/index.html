@@ -1,57 +1,238 @@
 {% extends "base.html" %}
+{% block title %}首页{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">BOM 数据比对工具</h1>
-    <p class="text-gray-500 mt-1">上传BOM文件，快速比对差异，生成差异报告</p>
-</div>
+<div class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <a href="/upload" class="bg-white rounded-xl p-6 shadow-sm border hover:border-blue-300 hover:shadow-md transition-all">
-        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
-            <span class="text-blue-600 text-xl">&#8593;</span>
-        </div>
-        <h3 class="font-semibold text-gray-800">上传BOM</h3>
-        <p class="text-sm text-gray-500 mt-1">上传 Excel / CSV 格式的BOM文件</p>
-    </a>
-    <a href="/compare" class="bg-white rounded-xl p-6 shadow-sm border hover:border-blue-300 hover:shadow-md transition-all">
-        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3">
-            <span class="text-green-600 text-xl">&#8644;</span>
-        </div>
-        <h3 class="font-semibold text-gray-800">开始比对</h3>
-        <p class="text-sm text-gray-500 mt-1">选择两个BOM版本进行差异比对</p>
-    </a>
-    <a href="/compare" class="bg-white rounded-xl p-6 shadow-sm border hover:border-blue-300 hover:shadow-md transition-all">
-        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-            <span class="text-purple-600 text-xl">&#128196;</span>
-        </div>
-        <h3 class="font-semibold text-gray-800">历史记录</h3>
-        <p class="text-sm text-gray-500 mt-1">查看之前的比对结果</p>
-    </a>
-</div>
-
-<div class="bg-white rounded-xl shadow-sm border p-6">
-    <h2 class="font-semibold text-gray-800 mb-4">最近比对记录</h2>
-    <div id="history-list">
-        <p class="text-gray-400 text-sm">加载中...</p>
+    <!-- Hero Section -->
+    <div class="mb-8 animate-fade-in">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">BOM 数据比对</h1>
+        <p class="text-slate-500 mt-2 max-w-2xl">
+            上传 BOM 文件自动识别层级结构，一键比对差异项，生成结构化差异报告。
+            替代传统人工核验，效率提升 <strong class="text-slate-700">80%</strong> 以上。
+        </p>
     </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 stagger">
+        <a href="/upload"
+           class="card card--interactive p-5 flex items-center gap-4 group"
+           aria-label="上传BOM文件">
+            <div class="w-11 h-11 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0
+                        group-hover:bg-blue-100 transition-colors">
+                <svg class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-800">上传 BOM</h3>
+                <p class="text-xs text-slate-400 mt-0.5">拖拽上传 Excel / CSV 文件，自动解析列映射</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all ml-auto flex-shrink-0"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </a>
+
+        <a href="/compare"
+           class="card card--interactive p-5 flex items-center gap-4 group"
+           aria-label="开始BOM比对">
+            <div class="w-11 h-11 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0
+                        group-hover:bg-emerald-100 transition-colors">
+                <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="8.5" cy="7" r="4"/>
+                    <polyline points="17 11 19 13 23 9"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-800">开始比对</h3>
+                <p class="text-xs text-slate-400 mt-0.5">选择两份 BOM，智能识别新增/删除/变更差异</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all ml-auto flex-shrink-0"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </a>
+
+        <div class="card card--interactive p-5 flex items-center gap-4 group"
+             onclick="window.location.href='/compare'"
+             role="button" tabindex="0"
+             aria-label="查看历史比对记录"
+             onkeydown="if(event.key==='Enter') window.location.href='/compare'">
+            <div class="w-11 h-11 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0
+                        group-hover:bg-violet-100 transition-colors">
+                <svg class="w-5 h-5 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-800">历史记录</h3>
+                <p class="text-xs text-slate-400 mt-0.5">查看过往比对任务，追溯差异数据变更</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-300 group-hover:text-violet-500 group-hover:translate-x-0.5 transition-all ml-auto flex-shrink-0"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 stagger" id="stats-overview">
+        <div class="card p-4 text-center">
+            <p class="text-3xl font-bold text-slate-800 animate-count-up" id="stat-boms">—</p>
+            <p class="text-xs text-slate-400 mt-1">已上传 BOM</p>
+        </div>
+        <div class="card p-4 text-center">
+            <p class="text-3xl font-bold text-slate-800" id="stat-tasks">—</p>
+            <p class="text-xs text-slate-400 mt-1">比对任务</p>
+        </div>
+        <div class="card p-4 text-center">
+            <p class="text-3xl font-bold text-amber-600" id="stat-diffs">—</p>
+            <p class="text-xs text-slate-400 mt-1">累计差异项</p>
+        </div>
+        <div class="card p-4 text-center">
+            <p class="text-3xl font-bold text-emerald-600" id="stat-items">—</p>
+            <p class="text-xs text-slate-400 mt-1">物料条目</p>
+        </div>
+    </div>
+
+    <!-- Recent Comparisons -->
+    <div class="card">
+        <div class="card__header">
+            <h2 class="card__title">最近比对记录</h2>
+            <a href="/compare" class="text-xs text-blue-600 hover:text-blue-700 font-medium">查看全部 &rarr;</a>
+        </div>
+        <div class="card__body" id="recent-comparisons">
+            <div class="loading-overlay">
+                <span class="spinner"></span>
+                <span>加载比对记录...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats: BOMs at a glance -->
+    <div class="card mt-6">
+        <div class="card__header">
+            <h2 class="card__title">已上传 BOM 概览</h2>
+            <a href="/upload" class="text-xs text-blue-600 hover:text-blue-700 font-medium">管理 BOM &rarr;</a>
+        </div>
+        <div class="card__body" id="bom-overview">
+            <div class="loading-overlay">
+                <span class="spinner"></span>
+                <span>加载 BOM 列表...</span>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    fetch('/compare/api/history')
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('history-list');
-            if (!data.ok || !data.tasks.length) {
-                el.innerHTML = '<p class="text-gray-400 text-sm">暂无比对记录</p>';
+BOMApp.ready(function () {
+    // Load BOM list
+    BOMApp.API.get('/upload/api/list')
+        .then(function (data) {
+            if (!data.ok) return;
+            var boms = data.boms || [];
+
+            // Update stats
+            document.getElementById('stat-boms').textContent = boms.length;
+            var totalItems = boms.reduce(function (s, b) { return s + (b.total_items || 0); }, 0);
+            document.getElementById('stat-items').textContent = BOMApp.formatNumber(totalItems);
+
+            // Render BOM overview table
+            var overviewEl = document.getElementById('bom-overview');
+            if (boms.length === 0) {
+                overviewEl.innerHTML =
+                    '<div class="empty-state">' +
+                        '<div class="empty-state__icon">' +
+                            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+                        '</div>' +
+                        '<p class="empty-state__title">暂无 BOM 数据</p>' +
+                        '<p class="empty-state__desc">上传 Excel 或 CSV 格式的 BOM 文件开始使用</p>' +
+                        '<a href="/upload" class="btn btn--primary mt-4">上传 BOM</a>' +
+                    '</div>';
                 return;
             }
-            el.innerHTML = '<table class="w-full text-sm"><thead><tr class="border-b text-gray-500"><th class="text-left py-2">比对任务</th><th class="text-left py-2">来源BOM</th><th class="text-left py-2">目标BOM</th><th class="text-center py-2">差异数</th><th class="text-left py-2">时间</th></tr></thead><tbody>' +
-                data.tasks.map(t => `<tr class="border-b hover:bg-gray-50"><td class="py-2"><a href="/compare?task_id=${t.id}" class="text-blue-600 hover:underline">${t.task_name}</a></td><td class="py-2">${t.source_name || '-'}</td><td class="py-2">${t.target_name || '-'}</td><td class="py-2 text-center"><span class="px-2 py-0.5 rounded-full text-xs ${t.diff_count > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${t.diff_count}</span></td><td class="py-2 text-gray-400">${t.created_at}</td></tr>`).join('') +
-                '</tbody></table>';
+
+            overviewEl.innerHTML =
+                '<div class="table-container">' +
+                '<table class="data-table" role="table" aria-label="已上传BOM列表">' +
+                    '<thead><tr>' +
+                        '<th>BOM 名称</th><th>版本</th><th>条目数</th><th>类型</th><th>上传时间</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' +
+                        boms.slice(0, 10).map(function (b) {
+                            return '<tr>' +
+                                '<td class="font-medium">' + BOMApp.escapeHtml(b.bom_name) + '</td>' +
+                                '<td class="text-slate-500">' + BOMApp.escapeHtml(b.bom_version || '-') + '</td>' +
+                                '<td>' + BOMApp.formatNumber(b.total_items) + '</td>' +
+                                '<td><span class="badge badge--neutral">' + BOMApp.escapeHtml(b.source_type || 'Excel') + '</span></td>' +
+                                '<td class="text-slate-400 text-xs">' + BOMApp.formatDate(b.created_at) + '</td>' +
+                            '</tr>';
+                        }).join('') +
+                    '</tbody>' +
+                '</table>' +
+                '</div>';
+        })
+        .catch(function () {
+            document.getElementById('bom-overview').innerHTML =
+                '<div class="empty-state"><p class="empty-state__title">加载失败</p><p class="empty-state__desc">请检查网络连接后刷新页面</p></div>';
+        });
+
+    // Load comparison history
+    BOMApp.API.get('/compare/api/history')
+        .then(function (data) {
+            if (!data.ok) return;
+            var tasks = data.tasks || [];
+
+            // Update stats
+            document.getElementById('stat-tasks').textContent = tasks.length;
+            var totalDiffs = tasks.reduce(function (s, t) { return s + (t.diff_count || 0); }, 0);
+            document.getElementById('stat-diffs').textContent = BOMApp.formatNumber(totalDiffs);
+
+            // Render recent comparisons
+            var recentEl = document.getElementById('recent-comparisons');
+            if (tasks.length === 0) {
+                recentEl.innerHTML =
+                    '<div class="empty-state">' +
+                        '<p class="empty-state__title">暂无比对记录</p>' +
+                        '<p class="empty-state__desc">上传两份 BOM 后即可开始比对</p>' +
+                    '</div>';
+                return;
+            }
+
+            recentEl.innerHTML =
+                '<div class="table-container">' +
+                '<table class="data-table" role="table" aria-label="最近比对记录">' +
+                    '<thead><tr>' +
+                        '<th>比对任务</th><th>来源 BOM</th><th>目标 BOM</th><th class="text-center">差异数</th><th>时间</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' +
+                        tasks.slice(0, 5).map(function (t) {
+                            var severityBadge = (t.diff_count || 0) === 0
+                                ? '<span class="badge badge--success">' + t.diff_count + '</span>'
+                                : '<span class="badge badge--danger">' + t.diff_count + '</span>';
+                            return '<tr class="cursor-pointer" onclick="window.location.href=\'/compare?task_id=' + t.id + '\'" tabindex="0" role="link" onkeydown="if(event.key===\'Enter\') window.location.href=\'/compare?task_id=' + t.id + '\'">' +
+                                '<td class="font-medium text-blue-600">' + BOMApp.escapeHtml(t.task_name) + '</td>' +
+                                '<td class="text-slate-500">' + BOMApp.escapeHtml(t.source_name || '-') + '</td>' +
+                                '<td class="text-slate-500">' + BOMApp.escapeHtml(t.target_name || '-') + '</td>' +
+                                '<td class="text-center">' + severityBadge + '</td>' +
+                                '<td class="text-slate-400 text-xs">' + BOMApp.formatDate(t.created_at) + '</td>' +
+                            '</tr>';
+                        }).join('') +
+                    '</tbody>' +
+                '</table>' +
+                '</div>';
+        })
+        .catch(function () {
+            document.getElementById('recent-comparisons').innerHTML =
+                '<div class="empty-state"><p class="empty-state__title">加载失败</p></div>';
         });
 });
 </script>

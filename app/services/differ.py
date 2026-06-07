@@ -117,15 +117,26 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version'):
     matched_set_a = set()
     matched_set_b = set()
 
+    # 辅助函数：从候选匹配列表中选出 parent_pn 一致的项
+    def _pick_by_parent(candidates, target_parent):
+        target = str(target_parent or '').strip()
+        for cand in candidates:
+            if str(cand.get('parent_pn', '')).strip() == target:
+                return cand
+        return None  # 无匹配父件
+
     for item_a in items_a:
         pn_a = item_a['part_number'].strip().upper()
         matched_pn, score, matched_items_b = find_best_match(pn_a, index_b, config['MATCH_THRESHOLD_MEDIUM'])
 
         if matched_pn is not None and score >= config['MATCH_THRESHOLD_HIGH']:
+            # 从 B 的匹配候选中选取与 A 相同 parent_pn 的项
+            item_b = _pick_by_parent(matched_items_b, item_a.get('parent_pn', ''))
+            if item_b is None:
+                continue  # 无法按父件匹配 — 由 hierarchy 检测单独处理
+
             matched_set_a.add(pn_a)
             matched_set_b.add(matched_pn)
-
-            item_b = matched_items_b[0]  # take first match
 
             for field in comparable_fields:
                 val_a = str(item_a.get(field, '')).strip()
@@ -230,12 +241,17 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version'):
 
     # Detect N:1 consolidation (multiple A materials -> single B material)
     for pn_b, refs_b in pn_b_refs.items():
-        source_pns = set()
+        source_pns = set()  # PNs in A using these references
+        target_pns = set()  # PNs in B using these references
         for ref in refs_b:
             if ref in ref_a_map:
                 for item_a in ref_a_map[ref]:
                     source_pns.add(item_a['part_number'].strip().upper())
-        if len(source_pns) > 1:
+            if ref in ref_b_map:
+                for item_b in ref_b_map[ref]:
+                    target_pns.add(item_b['part_number'].strip().upper())
+        # 仅在 A 侧合并模式与 B 侧不同时，才认为是真正的物料整合变更
+        if len(source_pns) > 1 and source_pns != target_pns:
             diff_records.append({
                 'diff_type': 'modified',
                 'diff_category': 'consolidation',
@@ -255,10 +271,28 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version'):
         pn_a = item_a['part_number'].strip().upper()
         matched_pn, score, matched_items_b = find_best_match(pn_a, index_b, config['MATCH_THRESHOLD_HIGH'])
         if matched_pn is not None and score >= config['MATCH_THRESHOLD_HIGH']:
-            for ib in matched_items_b:
-                if ib['part_number'].strip().upper() == matched_pn:
-                    matched_pairs.append((item_a, ib, score))
-                    break
+            # 从 B 的匹配候选中选取与 A 相同 parent_pn 的项
+            ib = _pick_by_parent(matched_items_b, item_a.get('parent_pn', ''))
+            if ib is not None:
+                matched_pairs.append((item_a, ib, score))
+            else:
+                # 无匹配父件 — 这是真正的层级差异
+                ib_first = matched_items_b[0]
+                diff_records.append({
+                    'diff_type': 'modified',
+                    'diff_category': 'hierarchy',
+                    'severity': 'high',
+                    'part_number_a': item_a['part_number'],
+                    'part_number_b': ib_first['part_number'],
+                    'part_name_a': item_a['part_name'],
+                    'part_name_b': ib_first['part_name'],
+                    'field_name': 'parent_pn',
+                    'old_value': str(item_a.get('parent_pn', '')),
+                    'new_value': str(ib_first.get('parent_pn', '')),
+                    'quantity_a': item_a['quantity'],
+                    'quantity_b': ib_first['quantity'],
+                    'match_confidence': score,
+                })
 
     for item_a, item_b, score in matched_pairs:
         parent_a = str(item_a.get('parent_pn', '')).strip()

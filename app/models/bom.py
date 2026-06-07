@@ -5,6 +5,7 @@ def init_bom_tables(db):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             bom_name TEXT NOT NULL,
             bom_version TEXT DEFAULT '',
+            bom_type TEXT DEFAULT 'primary',
             source_type TEXT DEFAULT 'Excel',
             source_file TEXT DEFAULT '',
             total_items INTEGER DEFAULT 0,
@@ -13,6 +14,12 @@ def init_bom_tables(db):
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Add bom_type column if table already existed without it
+    try:
+        db.execute('ALTER TABLE bom_header ADD COLUMN bom_type TEXT DEFAULT "primary"')
+    except Exception:
+        pass  # Column already exists
 
     db.execute('''
         CREATE TABLE IF NOT EXISTS bom_item (
