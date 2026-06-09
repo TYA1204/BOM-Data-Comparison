@@ -29,7 +29,7 @@ def upload_file():
 
     # Parse BOM
     from app.services.parser import parse_bom_file
-    bom_name = request.form.get('bom_name', os.path.splitext(f.filename)[0])
+    bom_name = (request.form.get('bom_name', '') or '').strip() or os.path.splitext(f.filename)[0]
     bom_version = request.form.get('bom_version', '')
     bom_type = request.form.get('bom_type', 'primary')
     column_map_json = request.form.get('column_map', '')

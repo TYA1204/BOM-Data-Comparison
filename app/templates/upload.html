@@ -238,11 +238,9 @@ function selectFile(file) {
     document.getElementById('file-name').textContent = file.name;
     document.getElementById('file-size').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
 
-    // Auto-fill name
+    // Auto-fill name — always update when selecting a new file
     var nameInput = document.getElementById('bom-name');
-    if (!nameInput.value) {
-        nameInput.value = file.name.replace(/\.[^.]+$/, '');
-    }
+    nameInput.value = file.name.replace(/\.[^.]+$/, '');
 
     BOMApp.Toast.info('已选择文件：' + file.name);
 }
