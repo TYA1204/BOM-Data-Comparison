@@ -15,13 +15,19 @@ def start_comparison():
     source_bom_id = data.get('source_bom_id')
     target_bom_id = data.get('target_bom_id')
     comparison_type = data.get('comparison_type', 'version')
+    compare_mode = data.get('compare_mode', 'components_only')
+    selected_components = data.get('selected_components', {})
 
     if not source_bom_id or not target_bom_id:
         return jsonify({'ok': False, 'msg': '请选择来源BOM和目标BOM'}), 400
 
     from app.services.differ import run_comparison
     try:
-        task_id = run_comparison(source_bom_id, target_bom_id, comparison_type)
+        task_id = run_comparison(
+            source_bom_id, target_bom_id, comparison_type,
+            compare_mode=compare_mode,
+            selected_components=selected_components
+        )
         return jsonify({'ok': True, 'msg': '比对完成', 'task_id': task_id})
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)}), 500

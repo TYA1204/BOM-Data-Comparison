@@ -44,13 +44,70 @@ def _classify_ref_change(refs_a, items_a_by_ref, items_b_by_ref):
     return diffs
 
 
-def run_comparison(source_bom_id, target_bom_id, comparison_type='version'):
+def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
+                   compare_mode='components_only', selected_components=None):
     """Run BOM comparison between source (A) and target (B).
+
+    Args:
+        source_bom_id: 主BOM ID
+        target_bom_id: 副BOM ID
+        comparison_type: 'version' or 'cross_model'
+        compare_mode: 'components_only' (仅对比组件本身) or
+                      'include_children' (对比组件及下挂物料)
+        selected_components: dict {'source': [pn1,pn2], 'target': [pn3,pn4]}
 
     Returns task_id.
     """
+    if selected_components is None:
+        selected_components = {}
+
     items_a = _load_bom_items(source_bom_id)
     items_b = _load_bom_items(target_bom_id)
+
+    # --- Filter items by selected components ---
+    src_pns = set(selected_components.get('source', []) or [])
+    tgt_pns = set(selected_components.get('target', []) or [])
+
+    if src_pns or tgt_pns:
+        if compare_mode == 'components_only':
+            # Mode 1: Only compare component items themselves + their direct children
+            items_a = [it for it in items_a
+                       if it['part_number'] in src_pns
+                       or (it['parent_pn'] in src_pns and it['parent_pn'])]
+            items_b = [it for it in items_b
+                       if it['part_number'] in tgt_pns
+                       or (it['parent_pn'] in tgt_pns and it['parent_pn'])]
+        else:
+            # Mode 2: Include all items in the subtree of selected components
+            def _collect_subtree(items, root_pns):
+                """Collect all items whose ancestor is in root_pns."""
+                # Build parent → children map
+                children_map = {}
+                all_pns = set()
+                for it in items:
+                    ppn = it['parent_pn'] or ''
+                    if ppn:
+                        children_map.setdefault(ppn, []).append(it['part_number'])
+                    all_pns.add(it['part_number'])
+
+                # BFS/DFS to find all descendant PNs
+                reachable = set(root_pns)
+                queue = list(root_pns)
+                while queue:
+                    pn = queue.pop(0)
+                    for child in children_map.get(pn, []):
+                        if child not in reachable:
+                            reachable.add(child)
+                            queue.append(child)
+                return [it for it in items
+                        if it['part_number'] in reachable
+                        or it['part_number'] in root_pns]
+
+            items_a = _collect_subtree(items_a, src_pns)
+            items_b = _collect_subtree(items_b, tgt_pns)
+
+    if not items_a and not items_b:
+        raise ValueError('选择的组件下没有可对比的物料数据')
 
     index_a = build_match_index(items_a)
     index_b = build_match_index(items_b)
@@ -340,6 +397,14 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version'):
     source_bom = db.query_one('SELECT bom_name FROM bom_header WHERE id=?', (source_bom_id,))
     target_bom = db.query_one('SELECT bom_name FROM bom_header WHERE id=?', (target_bom_id,))
     task_name = f"{source_bom['bom_name']} vs {target_bom['bom_name']}"
+    if selected_components and (selected_components.get('source') or selected_components.get('target')):
+        filters = []
+        if selected_components.get('source'):
+            filters.append(f"主BOM {len(selected_components['source'])}个组件")
+        if selected_components.get('target'):
+            filters.append(f"副BOM {len(selected_components['target'])}个组件")
+        mode_tag = '组件级' if compare_mode == 'components_only' else '含子件'
+        task_name = f"{task_name} [{mode_tag}] {'&'.join(filters)}"
 
     cursor = db.execute('''
         INSERT INTO comparison_task (task_name, source_bom_id, target_bom_id, comparison_type, status)
