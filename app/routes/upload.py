@@ -216,6 +216,9 @@ def clear_database():
         # 清除 BOM 主表
         db.execute('DELETE FROM bom_header')
 
+        # 重置所有表的自增ID计数器（SQLite 的 sqlite_sequence 表）
+        db.execute("DELETE FROM sqlite_sequence")
+
         # 清除上传文件
         upload_folder = current_app.config.get('UPLOAD_FOLDER', '')
         if upload_folder and os.path.exists(upload_folder):
