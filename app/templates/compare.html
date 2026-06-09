@@ -12,193 +12,251 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <!-- ===== Layout: Sidebar + Main ===== -->
+    <div class="compare-layout">
 
-        <!-- Left Sidebar: Config + Filters -->
-        <div class="lg:col-span-1 space-y-4">
-            <!-- BOM Selection -->
-            <div class="card animate-slide-up">
-                <div class="card__header">
-                    <h2 class="card__title">选择 BOM</h2>
-                </div>
-                <div class="card__body space-y-3">
-                    <div>
-                        <label for="source-bom" class="block text-xs font-medium text-slate-500 mb-1.5">来源 BOM（基准）</label>
-                        <select id="source-bom"
-                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
-                                       focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
-                            <option value="">-- 请选择 --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="target-bom" class="block text-xs font-medium text-slate-500 mb-1.5">目标 BOM（对比）</label>
-                        <select id="target-bom"
-                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
-                                       focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
-                            <option value="">-- 请选择 --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="compare-type" class="block text-xs font-medium text-slate-500 mb-1.5">比对类型</label>
-                        <select id="compare-type"
-                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
-                                       focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
-                            <option value="version">版本比对</option>
-                            <option value="cross_model">跨机型比对</option>
-                        </select>
-                    </div>
+        <!-- Left Sidebar (Resizable) -->
+        <div class="sidebar-resizable" id="sidebar">
+            <div class="sidebar-handle" id="sidebar-handle" title="拖拽调整侧边栏宽度"></div>
+            <div class="sidebar-inner">
 
-                    <!-- Compare Mode -->
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5">对比范围</label>
-                        <div class="flex gap-4">
-                            <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="compare-mode" value="components_only" checked onchange="onCompareModeChange()">
-                                仅对比组件
-                            </label>
-                            <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="compare-mode" value="include_children" onchange="onCompareModeChange()">
-                                对比组件及下挂物料
-                            </label>
+                <!-- BOM Selection -->
+                <div class="card animate-slide-up">
+                    <div class="card__header">
+                        <h2 class="card__title">选择 BOM</h2>
+                    </div>
+                    <div class="card__body space-y-3">
+                        <div>
+                            <label for="source-bom" class="block text-xs font-medium text-slate-500 mb-1.5">来源 BOM（基准）</label>
+                            <select id="source-bom"
+                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                                           focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
+                                <option value="">-- 请选择 --</option>
+                            </select>
                         </div>
-                    </div>
+                        <div>
+                            <label for="target-bom" class="block text-xs font-medium text-slate-500 mb-1.5">目标 BOM（对比）</label>
+                            <select id="target-bom"
+                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                                           focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
+                                <option value="">-- 请选择 --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="compare-type" class="block text-xs font-medium text-slate-500 mb-1.5">比对类型</label>
+                            <select id="compare-type"
+                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                                           focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
+                                <option value="version">版本比对</option>
+                                <option value="cross_model">跨机型比对</option>
+                            </select>
+                        </div>
 
-                    <!-- Component Selection -->
-                    <div id="component-selection" class="hidden">
-                        <div class="border-t border-slate-100 pt-3 mt-1">
-                            <label class="block text-xs font-medium text-slate-600 mb-2">选择BOM组件</label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <!-- Source BOM Components -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-1.5">
-                                        <span class="text-[11px] text-slate-400" id="comp-source-label">主BOM组件</span>
-                                        <label class="flex items-center gap-1 text-[10px] text-slate-400 cursor-pointer hover:text-slate-600">
-                                            <input type="checkbox" class="comp-toggle-all" id="comp-toggle-source" onchange="toggleAllComponents('source')" checked> 全选
-                                        </label>
-                                    </div>
-                                    <div id="comp-list-source" class="border border-slate-200 rounded-lg overflow-y-auto max-h-[160px] bg-white">
-                                        <div class="p-3 text-xs text-slate-400 text-center">选择BOM后加载</div>
-                                    </div>
-                                </div>
-                                <!-- Target BOM Components -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-1.5">
-                                        <span class="text-[11px] text-slate-400" id="comp-target-label">副BOM组件</span>
-                                        <label class="flex items-center gap-1 text-[10px] text-slate-400 cursor-pointer hover:text-slate-600">
-                                            <input type="checkbox" class="comp-toggle-all" id="comp-toggle-target" onchange="toggleAllComponents('target')" checked> 全选
-                                        </label>
-                                    </div>
-                                    <div id="comp-list-target" class="border border-slate-200 rounded-lg overflow-y-auto max-h-[160px] bg-white">
-                                        <div class="p-3 text-xs text-slate-400 text-center">选择BOM后加载</div>
-                                    </div>
-                                </div>
+                        <!-- Compare Mode -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1.5">对比范围</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="compare-mode" value="components_only" checked onchange="onCompareModeChange()">
+                                    仅对比组件
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="compare-mode" value="include_children" onchange="onCompareModeChange()">
+                                    对比组件及下挂物料
+                                </label>
                             </div>
                         </div>
+
+                        <button id="compare-btn" onclick="startCompare()"
+                                class="btn btn--primary w-full">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
+                                <polyline points="17 11 19 13 23 9"/>
+                            </svg>
+                            开始比对
+                        </button>
+                        <div id="compare-status" class="text-xs"></div>
                     </div>
-
-                    <button id="compare-btn" onclick="startCompare()"
-                            class="btn btn--primary w-full">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
-                            <polyline points="17 11 19 13 23 9"/>
-                        </svg>
-                        开始比对
-                    </button>
-                    <div id="compare-status" class="text-xs"></div>
                 </div>
-            </div>
 
-            <!-- Filter Panel -->
-            <div id="filter-panel" class="card hidden animate-slide-up">
-                <div class="card__header">
-                    <h2 class="card__title">差异筛选</h2>
-                </div>
-                <div class="card__body">
-                    <!-- Type Filter -->
-                    <div class="mb-4">
-                        <p class="text-xs font-medium text-slate-500 mb-2">差异类型</p>
-                        <div class="space-y-1.5">
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="all" checked onchange="applyAllFilters()"> 全部差异
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="added" onchange="applyAllFilters()">
-                                <span class="w-2 h-2 rounded-full bg-red-500"></span> 新增物料
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="removed" onchange="applyAllFilters()">
-                                <span class="w-2 h-2 rounded-full bg-red-500"></span> 删除物料
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="hierarchy" onchange="applyAllFilters()">
-                                <span class="w-2 h-2 rounded-full bg-orange-400"></span> 层级/结构变更
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="quantity" onchange="applyAllFilters()">
-                                <span class="w-2 h-2 rounded-full bg-amber-400"></span> 数量变更
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="specification" onchange="applyAllFilters()">
-                                <span class="w-2 h-2 rounded-full bg-blue-400"></span> 规格/描述变更
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                <input type="radio" name="filter-type" value="other" onchange="applyAllFilters()"> 其他变更
-                            </label>
+                <!-- Filter Panel -->
+                <div id="filter-panel" class="card hidden animate-slide-up">
+                    <div class="card__header">
+                        <h2 class="card__title">差异筛选</h2>
+                    </div>
+                    <div class="card__body">
+                        <!-- Type Filter -->
+                        <div class="mb-4">
+                            <p class="text-xs font-medium text-slate-500 mb-2">差异类型</p>
+                            <div class="space-y-1.5">
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="all" checked onchange="applyAllFilters()"> 全部差异
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="added" onchange="applyAllFilters()">
+                                    <span class="w-2 h-2 rounded-full bg-green-500"></span> 新增物料
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="removed" onchange="applyAllFilters()">
+                                    <span class="w-2 h-2 rounded-full bg-red-500"></span> 删除物料
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="hierarchy" onchange="applyAllFilters()">
+                                    <span class="w-2 h-2 rounded-full bg-orange-400"></span> 层级/结构变更
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="quantity" onchange="applyAllFilters()">
+                                    <span class="w-2 h-2 rounded-full bg-amber-400"></span> 数量变更
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="specification" onchange="applyAllFilters()">
+                                    <span class="w-2 h-2 rounded-full bg-blue-400"></span> 规格/描述变更
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="filter-type" value="other" onchange="applyAllFilters()"> 其他变更
+                                </label>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Severity Filter -->
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 mb-2">严重度</p>
-                        <div class="space-y-1.5">
-                            <label class="flex items-center gap-2 text-xs cursor-pointer">
-                                <input type="checkbox" value="high" checked onchange="applyAllFilters()" class="severity-cb">
-                                <span class="badge badge--danger">高</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer">
-                                <input type="checkbox" value="medium" checked onchange="applyAllFilters()" class="severity-cb">
-                                <span class="badge badge--warning">中</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-xs cursor-pointer">
-                                <input type="checkbox" value="low" checked onchange="applyAllFilters()" class="severity-cb">
-                                <span class="badge badge--success">低</span>
-                            </label>
+                        <!-- Severity Filter -->
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 mb-2">严重度</p>
+                            <div class="space-y-1.5">
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" value="high" checked onchange="applyAllFilters()" class="severity-cb">
+                                    <span class="badge badge--danger">高</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" value="medium" checked onchange="applyAllFilters()" class="severity-cb">
+                                    <span class="badge badge--warning">中</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" value="low" checked onchange="applyAllFilters()" class="severity-cb">
+                                    <span class="badge badge--success">低</span>
+                                </label>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Search -->
-                    <div class="mt-4">
-                        <p class="text-xs font-medium text-slate-500 mb-2">搜索物料</p>
-                        <div class="relative">
-                            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" id="diff-search"
-                                   class="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs
-                                          focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none
-                                          placeholder:text-slate-300"
-                                   placeholder="物料编码/描述...">
+                        <!-- Search -->
+                        <div class="mt-4">
+                            <p class="text-xs font-medium text-slate-500 mb-2">搜索物料</p>
+                            <div class="relative">
+                                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" id="diff-search"
+                                       class="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs
+                                              focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none
+                                              placeholder:text-slate-300"
+                                       placeholder="物料编码/描述...">
+                            </div>
                         </div>
+
+                        <button onclick="resetFilters()" class="btn btn--ghost btn--sm w-full mt-4 text-xs">
+                            重置筛选
+                        </button>
                     </div>
-
-                    <button onclick="resetFilters()" class="btn btn--ghost btn--sm w-full mt-4 text-xs">
-                        重置筛选
-                    </button>
                 </div>
+
+                <!-- Compare History -->
+                <div class="card animate-slide-up">
+                    <div class="card__header">
+                        <h2 class="card__title">比对历史</h2>
+                    </div>
+                    <div class="card__body" id="history-list">
+                        <div class="loading-overlay"><span class="spinner"></span><span>加载历史记录...</span></div>
+                    </div>
+                </div>
+
             </div>
-
-            <!-- Compare History -->
-            <div class="card animate-slide-up">
-                <div class="card__header">
-                    <h2 class="card__title">比对历史</h2>
-                </div>
-                <div class="card__body" id="history-list">
-                    <div class="loading-overlay"><span class="spinner"></span><span>加载历史记录...</span></div>
-                </div>
-            </div>
-
         </div>
 
-        <!-- Right: Results -->
-        <div class="lg:col-span-3 space-y-4">
+        <!-- Main Content Area -->
+        <div class="main-content-area">
+
+            <!-- Component Selection Panel (Horizontal Table) -->
+            <div id="component-selection" class="comp-panels-grid hidden animate-slide-up">
+
+                <!-- Source BOM Component Panel -->
+                <div class="comp-panel" id="comp-panel-source">
+                    <div class="comp-panel__header">
+                        <div class="comp-panel__title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                            主BOM组件
+                            <span class="comp-panel__badge" id="comp-source-count">0 项</span>
+                        </div>
+                        <label class="comp-toggle-all-label">
+                            <input type="checkbox" id="comp-toggle-source" onchange="toggleAllComponents('source')" checked> 全选
+                        </label>
+                    </div>
+                    <div class="comp-toolbar">
+                        <div class="comp-search">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="comp-search-source" placeholder="搜索组件编码/名称..." oninput="filterComponentTable('source')">
+                        </div>
+                        <select id="comp-filter-source" class="comp-filter-select" onchange="filterComponentTable('source')">
+                            <option value="all">全部类型</option>
+                            <option value="has_children">有子件</option>
+                            <option value="no_children">无子件</option>
+                        </select>
+                    </div>
+                    <div class="comp-table-wrap">
+                        <table class="comp-table" id="comp-table-source">
+                            <thead>
+                                <tr>
+                                    <th class="col-checkbox"><span class="col-resize-handle" data-col="checkbox" data-table="source"></span></th>
+                                    <th class="col-code" data-col="code">组件编码<span class="col-resize-handle" data-col="code" data-table="source"></span></th>
+                                    <th class="col-name" data-col="name">组件名称<span class="col-resize-handle" data-col="name" data-table="source"></span></th>
+                                    <th class="col-quantity" data-col="quantity">数量<span class="col-resize-handle" data-col="quantity" data-table="source"></span></th>
+                                    <th class="col-unit" data-col="unit">单位<span class="col-resize-handle" data-col="unit" data-table="source"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="comp-body-source">
+                                <tr><td colspan="5"><div class="comp-empty">选择来源BOM后加载组件</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Target BOM Component Panel -->
+                <div class="comp-panel" id="comp-panel-target">
+                    <div class="comp-panel__header">
+                        <div class="comp-panel__title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                            副BOM组件
+                            <span class="comp-panel__badge" id="comp-target-count" style="background:#fff7ed;color:#ea580c;">0 项</span>
+                        </div>
+                        <label class="comp-toggle-all-label">
+                            <input type="checkbox" id="comp-toggle-target" onchange="toggleAllComponents('target')" checked> 全选
+                        </label>
+                    </div>
+                    <div class="comp-toolbar">
+                        <div class="comp-search">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="comp-search-target" placeholder="搜索组件编码/名称..." oninput="filterComponentTable('target')">
+                        </div>
+                        <select id="comp-filter-target" class="comp-filter-select" onchange="filterComponentTable('target')">
+                            <option value="all">全部类型</option>
+                            <option value="has_children">有子件</option>
+                            <option value="no_children">无子件</option>
+                        </select>
+                    </div>
+                    <div class="comp-table-wrap">
+                        <table class="comp-table" id="comp-table-target">
+                            <thead>
+                                <tr>
+                                    <th class="col-checkbox"><span class="col-resize-handle" data-col="checkbox" data-table="target"></span></th>
+                                    <th class="col-code" data-col="code">组件编码<span class="col-resize-handle" data-col="code" data-table="target"></span></th>
+                                    <th class="col-name" data-col="name">组件名称<span class="col-resize-handle" data-col="name" data-table="target"></span></th>
+                                    <th class="col-quantity" data-col="quantity">数量<span class="col-resize-handle" data-col="quantity" data-table="target"></span></th>
+                                    <th class="col-unit" data-col="unit">单位<span class="col-resize-handle" data-col="unit" data-table="target"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="comp-body-target">
+                                <tr><td colspan="5"><div class="comp-empty">选择目标BOM后加载组件</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
             <!-- Stats Bar -->
             <div id="stats-bar" class="hidden animate-slide-up">
@@ -257,6 +315,9 @@
 
         </div>
     </div>
+
+    <!-- Hidden Tooltip element -->
+    <div id="comp-tooltip" class="comp-tooltip" style="display:none;"></div>
 </div>
 {% endblock %}
 
@@ -267,6 +328,9 @@ var allResults = [];
 var filteredResults = [];
 var resultPage = 1;
 var RESULT_PAGE_SIZE = 200;
+
+// Component data cache
+var compData = { source: [], target: [] };
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
 var CAT_MAP = {
@@ -282,6 +346,151 @@ var FIELD_LABEL_MAP = {
     version: '版本号', reference: '位号'
 };
 
+// ====================================================================
+// Sidebar Resize (drag handle + localStorage)
+// ====================================================================
+(function initSidebarResize() {
+    var sidebar = document.getElementById('sidebar');
+    var handle = document.getElementById('sidebar-handle');
+    var STORAGE_KEY = 'bom-compare-sidebar-width';
+    var DEFAULT_WIDTH = 400;
+    var MIN_WIDTH = 320;
+
+    // Restore saved width
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        var w = parseInt(saved, 10);
+        if (w >= MIN_WIDTH) {
+            sidebar.style.setProperty('--sidebar-width', w + 'px');
+        }
+    } else {
+        sidebar.style.setProperty('--sidebar-width', DEFAULT_WIDTH + 'px');
+    }
+
+    var startX = 0;
+    var startWidth = 0;
+
+    handle.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        startX = e.clientX;
+        startWidth = sidebar.getBoundingClientRect().width;
+        handle.classList.add('sidebar-handle--dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        function onMouseMove(ev) {
+            var delta = ev.clientX - startX;
+            var newWidth = Math.max(MIN_WIDTH, Math.min(window.innerWidth * 0.45, startWidth + delta));
+            sidebar.style.setProperty('--sidebar-width', newWidth + 'px');
+        }
+
+        function onMouseUp() {
+            handle.classList.remove('sidebar-handle--dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            // Persist
+            var finalW = parseInt(sidebar.style.getPropertyValue('--sidebar-width'), 10);
+            if (finalW) localStorage.setItem(STORAGE_KEY, finalW);
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+})();
+
+// ====================================================================
+// Component Table Tooltip
+// ====================================================================
+var tooltipEl = document.getElementById('comp-tooltip');
+var tooltipTimer = null;
+
+function showCompTooltip(e, comp) {
+    clearTimeout(tooltipTimer);
+    var html =
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">编码</span><span class="comp-tooltip__value">' + BOMApp.escapeHtml(comp.part_number) + '</span></div>' +
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">名称</span><span class="comp-tooltip__value">' + BOMApp.escapeHtml(comp.part_name || '-') + '</span></div>' +
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">用量</span><span class="comp-tooltip__value">' + (comp.quantity != null ? comp.quantity : '-') + '</span></div>' +
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">单位</span><span class="comp-tooltip__value">' + BOMApp.escapeHtml(comp.unit || 'ST') + '</span></div>' +
+        (comp.children_count != null ? '<div class="comp-tooltip__row"><span class="comp-tooltip__label">子件</span><span class="comp-tooltip__value">' + comp.children_count + ' 项</span></div>' : '');
+    tooltipEl.innerHTML = html;
+    tooltipEl.style.display = 'block';
+
+    // Position near cursor
+    var x = e.clientX + 14;
+    var y = e.clientY - 10;
+    var tw = tooltipEl.offsetWidth;
+    var th = tooltipEl.offsetHeight;
+    if (x + tw > window.innerWidth - 10) x = e.clientX - tw - 14;
+    if (y + th > window.innerHeight - 10) y = e.clientY - th - 10;
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top = y + 'px';
+}
+
+function hideCompTooltip() {
+    tooltipTimer = setTimeout(function () {
+        tooltipEl.style.display = 'none';
+    }, 150);
+}
+
+tooltipEl.addEventListener('mouseenter', function () {
+    clearTimeout(tooltipTimer);
+});
+tooltipEl.addEventListener('mouseleave', function () {
+    tooltipEl.style.display = 'none';
+});
+
+// ====================================================================
+// Column Resize
+// ====================================================================
+(function initColumnResize() {
+    var colResizing = null;
+    var colStartX = 0;
+    var colStartW = 0;
+    var colTargetTh = null;
+
+    document.addEventListener('mousedown', function (e) {
+        var handle = e.target.closest('.col-resize-handle');
+        if (!handle) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var col = handle.getAttribute('data-col');
+        var tableSide = handle.getAttribute('data-table');
+        var tableId = 'comp-table-' + tableSide;
+        colTargetTh = document.querySelector('#' + tableId + ' th[data-col="' + col + '"]');
+        if (!colTargetTh) { colTargetTh = document.querySelector('#' + tableId + ' th.col-' + col); }
+
+        colResizing = { side: tableSide, col: col };
+        colStartX = e.clientX;
+        colStartW = colTargetTh ? colTargetTh.offsetWidth : 120;
+        handle.classList.add('col-resize-handle--dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (!colResizing) return;
+        var delta = e.clientX - colStartX;
+        var newW = Math.max(40, colStartW + delta);
+        var tableId = 'comp-table-' + colResizing.side;
+        var sel = '#' + tableId + ' th.col-' + colResizing.col;
+        var th = document.querySelector(sel);
+        if (th) th.style.width = newW + 'px';
+    });
+
+    document.addEventListener('mouseup', function () {
+        if (!colResizing) return;
+        var handles = document.querySelectorAll('.col-resize-handle--dragging');
+        handles.forEach(function (h) { h.classList.remove('col-resize-handle--dragging'); });
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        colResizing = null;
+        colTargetTh = null;
+    });
+})();
+
 // ── Load BOM selects ──
 function loadBomSelects() {
     BOMApp.API.get('/upload/api/list')
@@ -296,11 +505,9 @@ function loadBomSelects() {
             document.getElementById('source-bom').innerHTML = opts;
             document.getElementById('target-bom').innerHTML = opts;
 
-            // Attach change handlers
             document.getElementById('source-bom').addEventListener('change', onBomSelectChange);
             document.getElementById('target-bom').addEventListener('change', onBomSelectChange);
 
-            // Load task from URL param
             var params = new URLSearchParams(window.location.search);
             var taskId = params.get('task_id');
             if (taskId) loadResult(parseInt(taskId));
@@ -324,7 +531,6 @@ function startCompare() {
     var modeRadio = document.querySelector('input[name="compare-mode"]:checked');
     var compareMode = modeRadio ? modeRadio.value : 'components_only';
 
-    // Collect selected component PNs
     var selectedComponents = {
         source: getSelectedComponentPNs('source'),
         target: getSelectedComponentPNs('target')
@@ -358,7 +564,9 @@ function startCompare() {
     });
 }
 
-// ── Component Selection ──
+// ====================================================================
+// Component Selection — Table-based
+// ====================================================================
 function onBomSelectChange() {
     var srcId = document.getElementById('source-bom').value;
     var tgtId = document.getElementById('target-bom').value;
@@ -378,60 +586,127 @@ function onBomSelectChange() {
     }
 }
 
-function onCompareModeChange() {
-    // Component selection is always relevant; no special UI toggle needed
-}
+function onCompareModeChange() {}
 
 function loadComponents(bomId, side) {
-    var listEl = document.getElementById('comp-list-' + side);
-    listEl.innerHTML = '<div class="p-3 text-xs text-slate-400 text-center">加载中...</div>';
+    var listEl = document.getElementById('comp-body-' + side);
+    listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><span class="spinner spinner--sm"></span> 加载中...</div></td></tr>';
 
     BOMApp.API.get('/upload/api/components/' + bomId)
         .then(function (data) {
             if (!data.ok) {
-                listEl.innerHTML = '<div class="p-3 text-xs text-red-400 text-center">加载失败</div>';
+                listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><p class="comp-empty__desc" style="color:#ef4444;">加载失败</p></div></td></tr>';
                 return;
             }
             var comps = data.components || [];
+            compData[side] = comps;
+
+            // Update count badge
+            var countEl = document.getElementById('comp-' + side + '-count');
+            if (countEl) countEl.textContent = comps.length + ' 项';
+
             if (comps.length === 0) {
-                listEl.innerHTML = '<div class="p-3 text-xs text-slate-400 text-center">无组件数据</div>';
+                listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><svg class="comp-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg><p>无组件数据</p></div></td></tr>';
                 return;
             }
-            var html = '';
-            for (var i = 0; i < comps.length; i++) {
-                var c = comps[i];
-                html += '<label class="flex items-center gap-2 px-2.5 py-1.5 hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50 last:border-0">' +
-                    '<input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(c.part_number) + '" checked onchange="onCompCheckChange(\'' + side + '\')">' +
-                    '<span class="font-mono text-[11px] text-slate-700 flex-1 truncate" title="' + BOMApp.escapeHtml(c.part_number) + '">' + BOMApp.escapeHtml(c.part_number) + '</span>' +
-                    '<span class="text-[10px] text-slate-400 flex-shrink-0">' + (c.children_count || 0) + '项</span>' +
-                    '</label>';
-            }
-            listEl.innerHTML = html;
-            // Reset toggle-all checkbox
+
+            // Reset toggle
             var toggleEl = document.getElementById('comp-toggle-' + side);
             if (toggleEl) toggleEl.checked = true;
+
+            renderComponentTable(side);
         });
+}
+
+function renderComponentTable(side) {
+    var comps = compData[side] || [];
+    var tbody = document.getElementById('comp-body-' + side);
+
+    if (comps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="comp-empty">无组件数据</div></td></tr>';
+        return;
+    }
+
+    var html = '';
+    for (var i = 0; i < comps.length; i++) {
+        var c = comps[i];
+        html += '<tr class="comp-row" data-pn="' + BOMApp.escapeHtml(c.part_number) + '" data-side="' + side + '" data-children="' + (c.children_count || 0) + '">' +
+            '<td class="col-checkbox"><input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(c.part_number) + '" checked onchange="onCompCheckChange(\'' + side + '\')"></td>' +
+            '<td class="col-code" title="' + BOMApp.escapeHtml(c.part_number) + '">' + BOMApp.escapeHtml(c.part_number) + '</td>' +
+            '<td class="col-name" onmouseenter="showCompTooltip(event, compData[\'' + side + '\'][' + i + '])" onmouseleave="hideCompTooltip()">' + BOMApp.escapeHtml(c.part_name || '-') + '</td>' +
+            '<td class="col-quantity">' + (c.quantity != null ? c.quantity : '-') + '</td>' +
+            '<td class="col-unit">' + BOMApp.escapeHtml(c.unit || 'ST') + '</td>' +
+        '</tr>';
+    }
+    tbody.innerHTML = html;
+}
+
+// ── Component Table Search/Filter ──
+function filterComponentTable(side) {
+    var searchVal = (document.getElementById('comp-search-' + side).value || '').toLowerCase().trim();
+    var filterVal = document.getElementById('comp-filter-' + side).value;
+    var rows = document.querySelectorAll('#comp-body-' + side + ' .comp-row');
+    var visibleCount = 0;
+
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var pn = (row.getAttribute('data-pn') || '').toLowerCase();
+        var nameEl = row.querySelector('.col-name');
+        var name = (nameEl ? nameEl.textContent : '').toLowerCase();
+        var children = parseInt(row.getAttribute('data-children'), 10) || 0;
+
+        var matchSearch = true;
+        if (searchVal) {
+            matchSearch = pn.indexOf(searchVal) !== -1 || name.indexOf(searchVal) !== -1;
+        }
+
+        var matchFilter = true;
+        if (filterVal === 'has_children') {
+            matchFilter = children > 0;
+        } else if (filterVal === 'no_children') {
+            matchFilter = children === 0;
+        }
+
+        if (matchSearch && matchFilter) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    }
+
+    // Update count badge
+    var countEl = document.getElementById('comp-' + side + '-count');
+    var total = compData[side] ? compData[side].length : 0;
+    if (countEl) {
+        countEl.textContent = visibleCount === total ? total + ' 项' : visibleCount + ' / ' + total + ' 项';
+    }
 }
 
 function toggleAllComponents(side) {
     var checked = document.getElementById('comp-toggle-' + side).checked;
-    var cbs = document.querySelectorAll('.comp-' + side + '-cb');
+    var cbs = document.querySelectorAll('#comp-body-' + side + ' .comp-' + side + '-cb');
     for (var i = 0; i < cbs.length; i++) {
-        cbs[i].checked = checked;
+        if (cbs[i].closest('tr').style.display !== 'none') {
+            cbs[i].checked = checked;
+        }
     }
 }
 
 function onCompCheckChange(side) {
-    var cbs = document.querySelectorAll('.comp-' + side + '-cb');
+    var cbs = document.querySelectorAll('#comp-body-' + side + ' .comp-' + side + '-cb');
     var allChecked = true;
     for (var i = 0; i < cbs.length; i++) {
-        if (!cbs[i].checked) { allChecked = false; break; }
+        if (cbs[i].closest('tr').style.display !== 'none' && !cbs[i].checked) {
+            allChecked = false;
+            break;
+        }
     }
     document.getElementById('comp-toggle-' + side).checked = allChecked;
 }
 
 function getSelectedComponentPNs(side) {
-    var cbs = document.querySelectorAll('.comp-' + side + '-cb');
+    var cbs = document.querySelectorAll('#comp-body-' + side + ' .comp-' + side + '-cb');
     var pns = [];
     for (var i = 0; i < cbs.length; i++) {
         if (cbs[i].checked) pns.push(cbs[i].value);
@@ -479,45 +754,32 @@ function highlightDiff(oldVal, newVal) {
     var n = String(newVal);
     if (o === n) return '<span class="diff-new">' + BOMApp.escapeHtml(o) + '</span>';
 
-    // Simple character-level diff: find common prefix/suffix, highlight the rest
     var prefixLen = 0;
     var suffixLen = 0;
     var oLen = o.length;
     var nLen = n.length;
 
-    // Find longest common prefix
-    while (prefixLen < oLen && prefixLen < nLen && o[prefixLen] === n[prefixLen]) {
-        prefixLen++;
-    }
-
-    // Find longest common suffix (after prefix)
+    while (prefixLen < oLen && prefixLen < nLen && o[prefixLen] === n[prefixLen]) prefixLen++;
     while (suffixLen < oLen - prefixLen && suffixLen < nLen - prefixLen &&
-           o[oLen - 1 - suffixLen] === n[nLen - 1 - suffixLen]) {
-        suffixLen++;
-    }
+           o[oLen - 1 - suffixLen] === n[nLen - 1 - suffixLen]) suffixLen++;
 
     var oldMiddle = o.substring(prefixLen, oLen - suffixLen);
     var newMiddle = n.substring(prefixLen, nLen - suffixLen);
     var prefix = o.substring(0, prefixLen);
     var suffix = oLen - suffixLen > prefixLen ? o.substring(oLen - suffixLen) : '';
-    // Use newVal's suffix for display (they should be the same)
     var suffixN = nLen - suffixLen > prefixLen ? n.substring(nLen - suffixLen) : '';
 
     var html = '';
     if (prefix) html += BOMApp.escapeHtml(prefix);
     if (oldMiddle) html += '<mark class="diff-highlight">' + BOMApp.escapeHtml(oldMiddle) + '</mark>';
     if (suffix) html += BOMApp.escapeHtml(suffix);
-
     html += ' <span class="diff-arrow">→</span> ';
-
     if (prefix) html += BOMApp.escapeHtml(prefix);
     if (newMiddle) html += '<mark class="diff-highlight">' + BOMApp.escapeHtml(newMiddle) + '</mark>';
     if (suffixN) html += BOMApp.escapeHtml(suffixN);
-
     return html;
 }
 
-// ── Side-by-side diff cell ──
 function renderDiffCell(r) {
     var diffType = r.diff_type;
     var oldVal = r.old_value || '';
@@ -535,7 +797,6 @@ function renderDiffCell(r) {
                    '<div class="diff-old" title="' + BOMApp.escapeHtml(oldVal) + '">' + BOMApp.escapeHtml(oldVal) + '</div>' +
                '</div>';
     }
-    // modified
     return '<div class="diff-side-by-side">' +
                '<div class="diff-old" title="' + BOMApp.escapeHtml(oldVal) + '">' + BOMApp.escapeHtml(oldVal) + '</div>' +
                '<span class="diff-arrow">→</span>' +
@@ -543,54 +804,34 @@ function renderDiffCell(r) {
            '</div>';
 }
 
-// ── Render Results ──
 function renderResults(results) {
     var tbody = document.getElementById('result-body');
-
     if (results.length === 0) {
-        tbody.innerHTML =
-            '<tr><td colspan="9">' +
-                '<div class="empty-state"><p class="empty-state__title">无匹配差异项</p><p class="empty-state__desc">尝试调整筛选条件</p></div>' +
-            '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p class="empty-state__title">无匹配差异项</p><p class="empty-state__desc">尝试调整筛选条件</p></div></td></tr>';
         return;
     }
 
     tbody.innerHTML = results.map(function (r, i) {
-        // Row severity border
         var rowClass = '';
         if (r.severity === 'high') rowClass = 'row--border-danger';
         else if (r.severity === 'medium') rowClass = 'row--border-warning';
         else if (r.severity === 'low') rowClass = 'row--border-success';
 
-        // Type icon capsule
         var typeIcon = '';
-        if (r.diff_type === 'added') {
-            typeIcon = '<span class="diff-icon diff-icon--added">+ 新增</span>';
-        } else if (r.diff_type === 'removed') {
-            typeIcon = '<span class="diff-icon diff-icon--removed">- 删除</span>';
-        } else {
-            typeIcon = '<span class="diff-icon diff-icon--modified">~ 变更</span>';
-        }
+        if (r.diff_type === 'added') typeIcon = '<span class="diff-icon diff-icon--added">+ 新增</span>';
+        else if (r.diff_type === 'removed') typeIcon = '<span class="diff-icon diff-icon--removed">- 删除</span>';
+        else typeIcon = '<span class="diff-icon diff-icon--modified">~ 变更</span>';
 
-        // Category badge
         var cat = CAT_MAP[r.diff_category] || r.diff_category;
         var catBadgeClass = r.diff_category === 'hierarchy' ? 'badge--warning' :
                             r.diff_category === 'quantity' ? 'badge--warning' :
-                            ['specification', 'part_name'].includes(r.diff_category) ? 'badge--info' :
-                            'badge--neutral';
+                            ['specification', 'part_name'].includes(r.diff_category) ? 'badge--info' : 'badge--neutral';
 
-        // Field label
         var fieldLabel = FIELD_LABEL_MAP[r.field_name] || r.field_name;
-
-        // Severity badge
         var sevBadgeClass = r.severity === 'high' ? 'badge--danger' :
                             r.severity === 'medium' ? 'badge--warning' : 'badge--success';
-
-        // Part number & name
         var pn = r.part_number_a || r.part_number_b || '';
         var name = r.part_name_a || r.part_name_b || '';
-
-        // Diff comparison cell
         var diffCell = renderDiffCell(r);
 
         return '<tr class="' + rowClass + '" data-type="' + r.diff_type + '" data-cat="' + r.diff_category + '" data-severity="' + r.severity + '">' +
@@ -599,7 +840,7 @@ function renderResults(results) {
             '<td><span class="badge ' + catBadgeClass + '">' + cat + '</span></td>' +
             '<td class="text-center"><span class="badge ' + sevBadgeClass + '">' + SEVERITY_MAP[r.severity] + '</span></td>' +
             '<td class="font-mono text-xs font-medium">' + BOMApp.escapeHtml(pn) + '</td>' +
-            '<td class="text-slate-500 max-w-[200px] truncate" title="' + BOMApp.escapeHtml(name) + '">' + BOMApp.escapeHtml(name.length > 60 ? name.substring(0, 60) + '…' : name) + '</td>' +
+            '<td class="text-slate-500 max-w-[200px] truncate" title="' + BOMApp.escapeHtml(name) + '">' + BOMApp.escapeHtml(name.length > 60 ? name.substring(0, 60) + '\u2026' : name) + '</td>' +
             '<td class="text-slate-600 text-xs">' + fieldLabel + '</td>' +
             '<td>' + diffCell + '</td>' +
             '<td class="text-center text-slate-400 text-xs">' + (r.match_confidence || '') + '%</td>' +
@@ -664,7 +905,6 @@ function resetFilters() {
     applyAllFilters();
 }
 
-// ── Export ──
 function exportReport() {
     if (!currentTaskId) {
         BOMApp.Toast.warning('暂无可导出的比对结果');
@@ -673,19 +913,16 @@ function exportReport() {
     window.location.href = '/report/api/export/' + currentTaskId;
 }
 
-// ── History ──
 function loadHistory() {
     BOMApp.API.get('/compare/api/history')
         .then(function (data) {
             if (!data.ok) return;
             var tasks = data.tasks || [];
             var el = document.getElementById('history-list');
-
             if (tasks.length === 0) {
                 el.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">暂无历史记录</p>';
                 return;
             }
-
             el.innerHTML =
                 '<div class="table-container">' +
                 '<table class="data-table text-xs">' +
@@ -711,10 +948,8 @@ function loadHistory() {
 
 // ── Init ──
 BOMApp.ready(function () {
-    // Search debounce
     document.getElementById('diff-search').addEventListener('input', BOMApp.debounce(applyAllFilters, 250));
 
-    // Table sorting
     BOMApp.initTableSort(document.getElementById('result-table'), function () {
         return filteredResults;
     }, function (sorted) {
