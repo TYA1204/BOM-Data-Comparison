@@ -1,58 +1,135 @@
 @echo off
+setlocal enabledelayedexpansion
+chcp 65001 >nul 2>&1
+title BOM对比工具 v1.0
+
 REM ============================================================
-REM  BOM 对比工具 - 启动脚本（双击运行）
-REM  自动定位到 BAT 文件所在目录，无需修改路径
+REM  BOM Comparison Tool - Startup Script
+REM  Usage: double-click to start
 REM ============================================================
 
 cd /d "%~dp0"
 
-REM --- 检查 Python 是否可用 ---
-python --version >nul 2>&1
+REM --- Log startup ---
+set LOGFILE=%~dp0startup.log
+echo [%date% %time%] === BOM Tool Starting === > "%LOGFILE%"
+
+REM ============================================================
+REM Step 0: kill any process occupying port 5002
+REM ============================================================
+echo [INFO] Step 0: Checking port 5002 ...
+echo [%time%] Step 0: checking port 5002 >> "%LOGFILE%"
+
+set "FOUND=0"
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":5002 " 2^>nul ^| findstr "LISTENING" 2^>nul') do (
+    set "FOUND=1"
+    echo [INFO] Killing process PID=%%a on port 5002 --
+    echo [%time%] Killing PID %%a >> "%LOGFILE%"
+    taskkill /F /PID %%a >> "%LOGFILE%" 2>&1
+)
+if "!FOUND!"=="1" (
+    echo [INFO] Waiting 2 seconds for port release ...
+    ping 127.0.0.1 -n 3 >nul 2>&1
+) else (
+    echo [INFO] Port 5002 is free
+)
+
+REM ============================================================
+REM Step 1: ensure venv exists
+REM ============================================================
+echo [INFO] Step 1: Checking Python environment ...
+echo [%time%] Step 1: checking venv >> "%LOGFILE%"
+
+if not exist "venv\Scripts\python.exe" (
+    echo [SETUP] Creating virtual environment ...
+    echo [%time%] Creating venv >> "%LOGFILE%"
+    python -m venv venv
+    if errorlevel 1 (
+        echo [ERROR] Failed to create venv. Is Python installed?
+        echo [%time%] ERROR: venv creation failed >> "%LOGFILE%"
+        pause
+        exit /b 1
+    )
+    echo [SETUP] Installing dependencies, please wait ...
+    echo [%time%] Installing dependencies >> "%LOGFILE%"
+    call venv\Scripts\activate.bat
+    pip install -r requirements.txt
+    if errorlevel 1 (
+        echo [ERROR] Failed to install dependencies
+        echo [%time%] ERROR: pip install failed >> "%LOGFILE%"
+        pause
+        exit /b 1
+    )
+    echo [OK] Environment setup complete
+) else (
+    echo [INFO] Python venv found, skipping setup
+)
+
+REM ============================================================
+REM Step 2: verify Flask can be imported
+REM ============================================================
+echo [INFO] Step 2: Verifying Flask app ...
+echo [%time%] Step 2: verifying app >> "%LOGFILE%"
+venv\Scripts\python.exe -c "from app import create_app; create_app(); print('OK')" >> "%LOGFILE%" 2>&1
 if errorlevel 1 (
-    echo [错误] 未找到 Python，请先安装 Python 并添加到 PATH。
+    echo [ERROR] Failed to import the Flask app. Check startup.log for details.
+    echo [%time%] ERROR: app import failed >> "%LOGFILE%"
+    pause
+    exit /b 1
+)
+echo [OK] Flask app verified
+
+REM ============================================================
+REM Step 3: start Flask server
+REM ============================================================
+echo.
+echo     ==============================================
+echo       BOM Comparison Tool v1.0
+echo       URL: http://localhost:5002
+echo       Press Ctrl+C to stop
+echo     ==============================================
+echo.
+echo [%time%] Starting Flask on port 5002 >> "%LOGFILE%"
+
+REM Start Flask in a separate window
+start "BOM-Comparison-Tool" /MIN venv\Scripts\python.exe run.py
+
+REM Wait for Flask to be ready
+echo [INFO] Waiting for server to start ...
+set "READY=0"
+for /L %%i in (1,1,10) do (
+    if "!READY!"=="0" (
+        ping 127.0.0.1 -n 2 >nul 2>&1
+        netstat -ano 2>nul | findstr ":5002 " | findstr "LISTENING" >nul 2>&1
+        if not errorlevel 1 set "READY=1"
+    )
+)
+
+if "!READY!"=="0" (
+    echo [ERROR] Server failed to start within 10 seconds
+    echo [%time%] ERROR: server startup timeout >> "%LOGFILE%"
+    type "%LOGFILE%"
+    echo.
     pause
     exit /b 1
 )
 
-REM --- 检查虚拟环境，不存在则自动创建 ---
-if not exist "venv\" (
-    echo [初始化] 首次运行，正在创建虚拟环境...
-    python -m venv venv
-    if errorlevel 1 (
-        echo [错误] 创建虚拟环境失败。
-        pause
-        exit /b 1
-    )
-    echo [初始化] 正在安装依赖包（可能需要几分钟）...
-    call venv\Scripts\activate.bat
-    pip install -r requirements.txt
-    if errorlevel 1 (
-        echo [错误] 安装依赖失败，请检查 requirements.txt。
-        pause
-        exit /b 1
-    )
-    echo [完成] 环境初始化完成！
-)
+echo [OK] Server is running on http://localhost:5002
 
-REM --- 激活虚拟环境 ---
-call venv\Scripts\activate.bat
-
-REM --- 检查关键依赖是否已安装 ---
-python -c "import flask" >nul 2>&1
-if errorlevel 1 (
-    echo [提示] 检测到依赖未安装，正在安装...
-    pip install -r requirements.txt
-)
+REM ============================================================
+REM Step 4: open browser
+REM ============================================================
+echo [INFO] Opening browser ...
+start "" http://localhost:5002
 
 echo.
-echo ============================================================
-echo   BOM 对比工具 启动中...
-echo   访问地址: http://localhost:5002
-echo   按 Ctrl+C 停止服务
-echo ============================================================
+echo     ==============================================
+echo       Server is running. Opening browser now.
+echo       The server window will stay in background.
+echo       To stop: close the Python window or run
+echo       taskkill /F /IM python.exe
+echo     ==============================================
 echo.
-
-REM --- 启动 Flask ---
-python run.py
+echo [%time%] Browser opened, server running >> "%LOGFILE%"
 
 pause
