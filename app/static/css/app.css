@@ -705,11 +705,138 @@ code, .font-mono, [class*="font-mono"] {
 .data-table tbody tr.row--warning { background: #fffbeb; }
 
 /* --------------------------------------------------------------------------
-   Diff Highlighting
+   Diff Highlighting — Enhanced
    -------------------------------------------------------------------------- */
-.diff-added { background: #dcfce7; color: #166534; }
+.diff-added   { background: #dcfce7; color: #166534; }
 .diff-removed { background: #fee2e2; color: #991b1b; text-decoration: line-through; }
-.diff-modified { background: #fef9c3; color: #854d0e; }
+.diff-modified{ background: #fef9c3; color: #854d0e; }
+
+/* Diff type capsule badge */
+.diff-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.diff-icon--added   { background: #dcfce7; color: #16a34a; }
+.diff-icon--removed { background: #fee2e2; color: #dc2626; }
+.diff-icon--modified{ background: #ffedd5; color: #ea580c; }
+
+/* Side-by-side diff comparison */
+.diff-side-by-side {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    max-width: 420px;
+}
+.diff-old {
+    color: #dc2626;
+    text-decoration: line-through;
+    font-size: 12px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+}
+.diff-new {
+    color: #16a34a;
+    font-weight: 500;
+    font-size: 12px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+}
+.diff-arrow {
+    color: #94a3b8;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+.diff-highlight {
+    background: #fef08a;
+    color: #854d0e;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* Stat cards — color-coded */
+.stat-card {
+    border-radius: var(--border-radius-lg);
+    padding: 14px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+}
+.stat-card--added {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+.stat-card--added::before { background: #22c55e; }
+.stat-card--added .stat-number { color: #16a34a; }
+
+.stat-card--removed {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+.stat-card--removed::before { background: #ef4444; }
+.stat-card--removed .stat-number { color: #dc2626; }
+
+.stat-card--modified {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+}
+.stat-card--modified::before { background: #f97316; }
+.stat-card--modified .stat-number { color: #ea580c; }
+
+.stat-card--total {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+.stat-card--total::before { background: #3b82f6; }
+.stat-card--total .stat-number { color: #2563eb; }
+
+.stat-number {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    line-height: 1.2;
+}
+.stat-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+    font-weight: 500;
+}
+
+/* Row severity left border */
+.data-table tbody tr.row--border-danger  { border-left: 3px solid #dc2626; }
+.data-table tbody tr.row--border-warning { border-left: 3px solid #f59e0b; }
+.data-table tbody tr.row--border-success { border-left: 3px solid #22c55e; }
+
+/* Table row spacing optimization */
+.data-table tbody td {
+    padding: 10px 12px;
+    font-size: 13px;
+    vertical-align: top;
+}
+.data-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background var(--transition-fast);
+}
+.data-table tbody tr:hover {
+    background: #f8fafc;
+}
 
 /* --------------------------------------------------------------------------
    Responsive Utilities

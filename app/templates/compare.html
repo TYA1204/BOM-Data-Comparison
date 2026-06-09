@@ -143,30 +143,22 @@
 
             <!-- Stats Bar -->
             <div id="stats-bar" class="hidden animate-slide-up">
-                <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 stagger">
-                    <div class="card p-3 text-center">
-                        <p id="stat-total" class="text-xl font-bold text-slate-800">0</p>
-                        <p class="text-[10px] text-slate-400">差异总数</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger">
+                    <div class="stat-card stat-card--added">
+                        <p class="stat-number" id="stat-added">0</p>
+                        <p class="stat-label">+ 新增</p>
                     </div>
-                    <div class="card p-3 text-center">
-                        <p id="stat-added" class="text-xl font-bold text-red-600">0</p>
-                        <p class="text-[10px] text-slate-400">新增</p>
+                    <div class="stat-card stat-card--removed">
+                        <p class="stat-number" id="stat-removed">0</p>
+                        <p class="stat-label">- 删除</p>
                     </div>
-                    <div class="card p-3 text-center">
-                        <p id="stat-removed" class="text-xl font-bold text-red-600">0</p>
-                        <p class="text-[10px] text-slate-400">删除</p>
+                    <div class="stat-card stat-card--modified">
+                        <p class="stat-number" id="stat-modified">0</p>
+                        <p class="stat-label">~ 变更</p>
                     </div>
-                    <div class="card p-3 text-center">
-                        <p id="stat-hierarchy" class="text-xl font-bold text-orange-500">0</p>
-                        <p class="text-[10px] text-slate-400">层级变更</p>
-                    </div>
-                    <div class="card p-3 text-center">
-                        <p id="stat-quantity" class="text-xl font-bold text-amber-500">0</p>
-                        <p class="text-[10px] text-slate-400">数量变更</p>
-                    </div>
-                    <div class="card p-3 text-center">
-                        <p id="stat-spec" class="text-xl font-bold text-blue-600">0</p>
-                        <p class="text-[10px] text-slate-400">规格变更</p>
+                    <div class="stat-card stat-card--total">
+                        <p class="stat-number" id="stat-total">0</p>
+                        <p class="stat-label">‡ 总量</p>
                     </div>
                 </div>
             </div>
@@ -188,14 +180,13 @@
                         <thead>
                             <tr class="bg-slate-50 text-slate-600">
                                 <th class="w-8" data-sort="index">#</th>
-                                <th class="w-14" data-sort="diff_type">类型</th>
-                                <th class="w-16" data-sort="diff_category">分类</th>
-                                <th class="w-12" data-sort="severity">严重度</th>
+                                <th class="w-20" data-sort="diff_type">类型</th>
+                                <th class="w-20" data-sort="diff_category">分类</th>
+                                <th class="w-16" data-sort="severity">严重度</th>
                                 <th data-sort="part_number">物料号</th>
                                 <th data-sort="part_name">物料描述</th>
                                 <th data-sort="field_name">变更字段</th>
-                                <th data-sort="old_value">原值(A)</th>
-                                <th data-sort="new_value">新值(B)</th>
+                                <th data-sort="comparison">变更对比</th>
                                 <th class="w-14" data-sort="match_confidence">匹配度</th>
                             </tr>
                         </thead>
@@ -226,7 +217,7 @@ var currentTaskId = null;
 var allResults = [];
 var filteredResults = [];
 var resultPage = 1;
-var RESULT_PAGE_SIZE = 50;
+var RESULT_PAGE_SIZE = 200;
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
 var CAT_MAP = {
@@ -330,52 +321,143 @@ function renderStats(results) {
     document.getElementById('stat-total').textContent = results.length;
     document.getElementById('stat-added').textContent = results.filter(function (r) { return r.diff_type === 'added'; }).length;
     document.getElementById('stat-removed').textContent = results.filter(function (r) { return r.diff_type === 'removed'; }).length;
-    document.getElementById('stat-hierarchy').textContent = results.filter(function (r) { return r.diff_category === 'hierarchy'; }).length;
-    document.getElementById('stat-quantity').textContent = results.filter(function (r) { return r.diff_category === 'quantity'; }).length;
-    document.getElementById('stat-spec').textContent = results.filter(function (r) { return ['specification', 'part_name'].includes(r.diff_category); }).length;
+    document.getElementById('stat-modified').textContent = results.filter(function (r) { return r.diff_type === 'modified'; }).length;
 }
 
+// ── Character-level Diff Highlighting ──
+function highlightDiff(oldVal, newVal) {
+    if (!oldVal && !newVal) return '-';
+    if (!oldVal) return '<span class="diff-new">' + BOMApp.escapeHtml(newVal) + '</span>';
+    if (!newVal) return '<span class="diff-old">' + BOMApp.escapeHtml(oldVal) + '</span>';
+
+    var o = String(oldVal);
+    var n = String(newVal);
+    if (o === n) return '<span class="diff-new">' + BOMApp.escapeHtml(o) + '</span>';
+
+    // Simple character-level diff: find common prefix/suffix, highlight the rest
+    var prefixLen = 0;
+    var suffixLen = 0;
+    var oLen = o.length;
+    var nLen = n.length;
+
+    // Find longest common prefix
+    while (prefixLen < oLen && prefixLen < nLen && o[prefixLen] === n[prefixLen]) {
+        prefixLen++;
+    }
+
+    // Find longest common suffix (after prefix)
+    while (suffixLen < oLen - prefixLen && suffixLen < nLen - prefixLen &&
+           o[oLen - 1 - suffixLen] === n[nLen - 1 - suffixLen]) {
+        suffixLen++;
+    }
+
+    var oldMiddle = o.substring(prefixLen, oLen - suffixLen);
+    var newMiddle = n.substring(prefixLen, nLen - suffixLen);
+    var prefix = o.substring(0, prefixLen);
+    var suffix = oLen - suffixLen > prefixLen ? o.substring(oLen - suffixLen) : '';
+    // Use newVal's suffix for display (they should be the same)
+    var suffixN = nLen - suffixLen > prefixLen ? n.substring(nLen - suffixLen) : '';
+
+    var html = '';
+    if (prefix) html += BOMApp.escapeHtml(prefix);
+    if (oldMiddle) html += '<mark class="diff-highlight">' + BOMApp.escapeHtml(oldMiddle) + '</mark>';
+    if (suffix) html += BOMApp.escapeHtml(suffix);
+
+    html += ' <span class="diff-arrow">→</span> ';
+
+    if (prefix) html += BOMApp.escapeHtml(prefix);
+    if (newMiddle) html += '<mark class="diff-highlight">' + BOMApp.escapeHtml(newMiddle) + '</mark>';
+    if (suffixN) html += BOMApp.escapeHtml(suffixN);
+
+    return html;
+}
+
+// ── Side-by-side diff cell ──
+function renderDiffCell(r) {
+    var diffType = r.diff_type;
+    var oldVal = r.old_value || '';
+    var newVal = r.new_value || '';
+
+    if (diffType === 'added') {
+        return '<div class="diff-side-by-side">' +
+                   '<span class="diff-icon diff-icon--added">+ 新增</span>' +
+                   '<div class="diff-new" title="' + BOMApp.escapeHtml(newVal) + '">' + BOMApp.escapeHtml(newVal) + '</div>' +
+               '</div>';
+    }
+    if (diffType === 'removed') {
+        return '<div class="diff-side-by-side">' +
+                   '<span class="diff-icon diff-icon--removed">- 删除</span>' +
+                   '<div class="diff-old" title="' + BOMApp.escapeHtml(oldVal) + '">' + BOMApp.escapeHtml(oldVal) + '</div>' +
+               '</div>';
+    }
+    // modified
+    return '<div class="diff-side-by-side">' +
+               '<div class="diff-old" title="' + BOMApp.escapeHtml(oldVal) + '">' + BOMApp.escapeHtml(oldVal) + '</div>' +
+               '<span class="diff-arrow">→</span>' +
+               '<div class="diff-new" title="' + BOMApp.escapeHtml(newVal) + '">' + BOMApp.escapeHtml(newVal) + '</div>' +
+           '</div>';
+}
+
+// ── Render Results ──
 function renderResults(results) {
     var tbody = document.getElementById('result-body');
 
     if (results.length === 0) {
         tbody.innerHTML =
-            '<tr><td colspan="10">' +
+            '<tr><td colspan="9">' +
                 '<div class="empty-state"><p class="empty-state__title">无匹配差异项</p><p class="empty-state__desc">尝试调整筛选条件</p></div>' +
             '</td></tr>';
         return;
     }
 
     tbody.innerHTML = results.map(function (r, i) {
+        // Row severity border
         var rowClass = '';
-        if (r.severity === 'high') rowClass = 'row--danger';
-        else if (r.severity === 'medium') rowClass = 'row--warning';
+        if (r.severity === 'high') rowClass = 'row--border-danger';
+        else if (r.severity === 'medium') rowClass = 'row--border-warning';
+        else if (r.severity === 'low') rowClass = 'row--border-success';
 
-        var typeColor = r.diff_type === 'added' ? 'text-red-600 font-semibold' :
-                        r.diff_type === 'removed' ? 'text-red-600 font-semibold' :
-                        'text-amber-700';
+        // Type icon capsule
+        var typeIcon = '';
+        if (r.diff_type === 'added') {
+            typeIcon = '<span class="diff-icon diff-icon--added">+ 新增</span>';
+        } else if (r.diff_type === 'removed') {
+            typeIcon = '<span class="diff-icon diff-icon--removed">- 删除</span>';
+        } else {
+            typeIcon = '<span class="diff-icon diff-icon--modified">~ 变更</span>';
+        }
+
+        // Category badge
         var cat = CAT_MAP[r.diff_category] || r.diff_category;
         var catBadgeClass = r.diff_category === 'hierarchy' ? 'badge--warning' :
                             r.diff_category === 'quantity' ? 'badge--warning' :
                             ['specification', 'part_name'].includes(r.diff_category) ? 'badge--info' :
                             'badge--neutral';
+
+        // Field label
         var fieldLabel = FIELD_LABEL_MAP[r.field_name] || r.field_name;
+
+        // Severity badge
         var sevBadgeClass = r.severity === 'high' ? 'badge--danger' :
                             r.severity === 'medium' ? 'badge--warning' : 'badge--success';
-        var pn = r.part_number_a || r.part_number_b;
+
+        // Part number & name
+        var pn = r.part_number_a || r.part_number_b || '';
         var name = r.part_name_a || r.part_name_b || '';
 
+        // Diff comparison cell
+        var diffCell = renderDiffCell(r);
+
         return '<tr class="' + rowClass + '" data-type="' + r.diff_type + '" data-cat="' + r.diff_category + '" data-severity="' + r.severity + '">' +
-            '<td class="text-slate-400">' + (i + 1) + '</td>' +
-            '<td class="' + typeColor + '">' + TYPE_MAP[r.diff_type] + '</td>' +
+            '<td class="text-slate-400 text-sm">' + (i + 1) + '</td>' +
+            '<td>' + typeIcon + '</td>' +
             '<td><span class="badge ' + catBadgeClass + '">' + cat + '</span></td>' +
             '<td class="text-center"><span class="badge ' + sevBadgeClass + '">' + SEVERITY_MAP[r.severity] + '</span></td>' +
-            '<td class="font-mono text-xs font-medium">' + BOMApp.escapeHtml(pn || '-') + '</td>' +
-            '<td class="text-slate-500 max-w-[180px] truncate" title="' + BOMApp.escapeHtml(name) + '">' + BOMApp.escapeHtml(name.substring(0, 50)) + '</td>' +
-            '<td class="text-slate-600">' + fieldLabel + '</td>' +
-            '<td class="text-red-600 line-through max-w-[120px] truncate" title="' + BOMApp.escapeHtml(r.old_value || '') + '">' + BOMApp.escapeHtml(r.old_value || '-') + '</td>' +
-            '<td class="text-emerald-700 font-medium max-w-[120px] truncate" title="' + BOMApp.escapeHtml(r.new_value || '') + '">' + BOMApp.escapeHtml(r.new_value || '-') + '</td>' +
-            '<td class="text-center text-slate-400">' + (r.match_confidence || '') + '%</td>' +
+            '<td class="font-mono text-xs font-medium">' + BOMApp.escapeHtml(pn) + '</td>' +
+            '<td class="text-slate-500 max-w-[200px] truncate" title="' + BOMApp.escapeHtml(name) + '">' + BOMApp.escapeHtml(name.length > 60 ? name.substring(0, 60) + '…' : name) + '</td>' +
+            '<td class="text-slate-600 text-xs">' + fieldLabel + '</td>' +
+            '<td>' + diffCell + '</td>' +
+            '<td class="text-center text-slate-400 text-xs">' + (r.match_confidence || '') + '%</td>' +
         '</tr>';
     }).join('');
 }
