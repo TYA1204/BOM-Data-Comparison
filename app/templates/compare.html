@@ -2,7 +2,7 @@
 {% block title %}差异比对{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+<div class="mx-auto px-4 md:px-6 py-6 md:py-8" style="max-width:96vw">
 
     <!-- Page Header -->
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in">
@@ -62,9 +62,34 @@
                                 </label>
                                 <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
                                     <input type="radio" name="compare-mode" value="include_children" onchange="onCompareModeChange()">
-                                    对比组件及下挂物料
+                                    组件及下挂物料
+                                </label>
+                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
+                                    <input type="radio" name="compare-mode" value="full" onchange="onCompareModeChange()">
+                                    全量对比（所有物料）
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- Only Assemblies -->
+                        <div class="mb-2">
+                            <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
+                                <input type="checkbox" id="exclude-leaves">
+                                <span class="font-medium text-slate-600">仅对比成品模块</span>
+                                <span class="text-slate-400">（排除最深子件）</span>
+                            </label>
+                        </div>
+
+                        <!-- Exclude Parents -->
+                        <div>
+                            <label for="exclude-parents" class="block text-xs font-medium text-slate-500 mb-1.5">
+                                排除物料号（含全部子件一起排除）
+                            </label>
+                            <textarea id="exclude-parents" rows="2"
+                                      class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs
+                                             focus:border-orange-400 focus:ring-2 focus:ring-orange-50 outline-none bg-white
+                                             placeholder:text-slate-300 resize-none"
+                                      placeholder="输入要排除的PN，逗号或换行分隔"></textarea>
                         </div>
 
                         <button id="compare-btn" onclick="startCompare()"
@@ -101,19 +126,8 @@
                                     <span class="w-2 h-2 rounded-full bg-red-500"></span> 删除物料
                                 </label>
                                 <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                    <input type="radio" name="filter-type" value="hierarchy" onchange="applyAllFilters()">
-                                    <span class="w-2 h-2 rounded-full bg-orange-400"></span> 层级/结构变更
-                                </label>
-                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
                                     <input type="radio" name="filter-type" value="quantity" onchange="applyAllFilters()">
                                     <span class="w-2 h-2 rounded-full bg-amber-400"></span> 数量变更
-                                </label>
-                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                    <input type="radio" name="filter-type" value="specification" onchange="applyAllFilters()">
-                                    <span class="w-2 h-2 rounded-full bg-blue-400"></span> 规格/描述变更
-                                </label>
-                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
-                                    <input type="radio" name="filter-type" value="other" onchange="applyAllFilters()"> 其他变更
                                 </label>
                             </div>
                         </div>
@@ -190,9 +204,9 @@
                     <div class="comp-toolbar">
                         <div class="comp-search">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" id="comp-search-source" placeholder="搜索组件编码/名称..." oninput="filterComponentTable('source')">
+                            <input type="text" id="comp-search-source" placeholder="搜索组件编码/名称..." oninput="filterComponentTree('source')">
                         </div>
-                        <select id="comp-filter-source" class="comp-filter-select" onchange="filterComponentTable('source')">
+                        <select id="comp-filter-source" class="comp-filter-select" onchange="filterComponentTree('source')">
                             <option value="all">全部类型</option>
                             <option value="has_children">有子件</option>
                             <option value="no_children">无子件</option>
@@ -231,9 +245,9 @@
                     <div class="comp-toolbar">
                         <div class="comp-search">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" id="comp-search-target" placeholder="搜索组件编码/名称..." oninput="filterComponentTable('target')">
+                            <input type="text" id="comp-search-target" placeholder="搜索组件编码/名称..." oninput="filterComponentTree('target')">
                         </div>
-                        <select id="comp-filter-target" class="comp-filter-select" onchange="filterComponentTable('target')">
+                        <select id="comp-filter-target" class="comp-filter-select" onchange="filterComponentTree('target')">
                             <option value="all">全部类型</option>
                             <option value="has_children">有子件</option>
                             <option value="no_children">无子件</option>
@@ -263,20 +277,36 @@
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger">
                     <div class="stat-card stat-card--added">
                         <p class="stat-number" id="stat-added">0</p>
-                        <p class="stat-label">+ 新增</p>
+                        <p class="stat-label" id="stat-label-added">+ 新增</p>
                     </div>
                     <div class="stat-card stat-card--removed">
                         <p class="stat-number" id="stat-removed">0</p>
-                        <p class="stat-label">- 删除</p>
+                        <p class="stat-label" id="stat-label-removed">- 删除</p>
                     </div>
                     <div class="stat-card stat-card--modified">
                         <p class="stat-number" id="stat-modified">0</p>
-                        <p class="stat-label">~ 变更</p>
+                        <p class="stat-label" id="stat-label-modified">~ 变更</p>
                     </div>
                     <div class="stat-card stat-card--total">
                         <p class="stat-number" id="stat-total">0</p>
                         <p class="stat-label">‡ 总量</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Rework Mode Toggle (always visible after compare) -->
+            <div id="rework-bar" class="hidden animate-slide-up">
+                <div class="card p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-medium text-slate-600">🔧 差异视角</span>
+                        <label class="relative inline-flex items-center cursor-pointer" title="切换返工视角：新增→需拆除，删除→需补装">
+                            <input type="checkbox" id="rework-toggle" class="sr-only peer" onchange="toggleReworkMode()">
+                            <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-orange-400 peer-focus:ring-2 peer-focus:ring-orange-200 transition-colors"></div>
+                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4"></div>
+                        </label>
+                        <span class="text-sm text-slate-500" id="rework-mode-label">BOM 差异对比</span>
+                    </div>
+                    <span class="text-xs text-slate-400" id="rework-hint">关闭时：新增/删除/变更 · 开启时：需拆除/需补装/用量调整</span>
                 </div>
             </div>
 
@@ -286,7 +316,11 @@
                     <h2 class="card__title">差异明细</h2>
                     <div class="flex gap-2">
                         <span id="filtered-count" class="text-xs text-slate-400 self-center"></span>
-                        <button onclick="exportReport()" class="btn btn--primary btn--sm">
+                        <button onclick="exportReworkReport()" id="btn-export-rework" class="btn btn--sm" style="background:#f97316;color:white;display:none;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            导出返工变更单
+                        </button>
+                        <button onclick="exportReport()" id="btn-export-diff" class="btn btn--primary btn--sm">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             导出 Excel 报告
                         </button>
@@ -328,23 +362,15 @@ var allResults = [];
 var filteredResults = [];
 var resultPage = 1;
 var RESULT_PAGE_SIZE = 200;
+var reworkMode = false;
 
 // Component data cache
 var compData = { source: [], target: [] };
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
-var CAT_MAP = {
-    material: '物料', quantity: '数量', reference: '位号',
-    specification: '规格', version: '版本', hierarchy: '层级',
-    consolidation: '物料整合', manufacturer: '制造商', mpn: 'MPN',
-    part_name: '描述'
-};
+var CAT_MAP = { material: '物料', quantity: '数量' };
 var SEVERITY_MAP = { high: '高', medium: '中', low: '低' };
-var FIELD_LABEL_MAP = {
-    parent_pn: '父件归属', level: '层级深度', part_number: '物料号',
-    quantity: '数量', part_name: '描述', specification: '规格备注',
-    version: '版本号', reference: '位号'
-};
+var FIELD_LABEL_MAP = { quantity: '用量', part_number: '物料号' };
 
 // ====================================================================
 // Sidebar Resize (drag handle + localStorage)
@@ -531,22 +557,41 @@ function startCompare() {
     var modeRadio = document.querySelector('input[name="compare-mode"]:checked');
     var compareMode = modeRadio ? modeRadio.value : 'components_only';
 
-    var selectedComponents = {
-        source: getSelectedComponentPNs('source'),
-        target: getSelectedComponentPNs('target')
-    };
+    // Full mode: skip component filtering, compare all items
+    var selectedComponents = {};
+    if (compareMode !== 'full') {
+        selectedComponents = {
+            source: getSelectedComponentPNs('source'),
+            target: getSelectedComponentPNs('target')
+        };
+    }
 
     var btn = document.getElementById('compare-btn');
     var statusEl = document.getElementById('compare-status');
     BOMApp.Loading.button(btn, true);
     statusEl.innerHTML = '';
 
+    // Parse exclude parents
+    var excludeRaw = document.getElementById('exclude-parents').value.trim();
+    var excludeParents = [];
+    if (excludeRaw) {
+        excludeParents = excludeRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+    }
+
+    var excludeLeaves = document.getElementById('exclude-leaves').checked;
+
+    // Unchecked parent PNs -> skip_pns (uncheck to skip that PN from diff results)
+    var skipPns = getUncheckedParentPNs('source').concat(getUncheckedParentPNs('target'));
+
     BOMApp.API.post('/compare/api/start', {
         source_bom_id: parseInt(srcId),
         target_bom_id: parseInt(tgtId),
         comparison_type: document.getElementById('compare-type').value,
         compare_mode: compareMode,
-        selected_components: selectedComponents
+        selected_components: selectedComponents,
+        exclude_parents: excludeParents,
+        exclude_leaves: excludeLeaves,
+        skip_pns: skipPns
     })
     .then(function (data) {
         BOMApp.Loading.button(btn, false);
@@ -586,101 +631,315 @@ function onBomSelectChange() {
     }
 }
 
-function onCompareModeChange() {}
+function onCompareModeChange() {
+    var mode = document.querySelector('input[name="compare-mode"]:checked').value;
+    var panel = document.getElementById('component-selection');
+    if (mode === 'full') {
+        panel.style.opacity = '0.35';
+    } else {
+        panel.style.opacity = '';
+    }
+}
 
 function loadComponents(bomId, side) {
     var listEl = document.getElementById('comp-body-' + side);
-    listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><span class="spinner spinner--sm"></span> 加载中...</div></td></tr>';
+    listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><span class="spinner spinner--sm"></span> loading...</div></td></tr>';
 
-    BOMApp.API.get('/upload/api/components/' + bomId)
+    BOMApp.API.get('/upload/api/bom-tree/' + bomId)
         .then(function (data) {
             if (!data.ok) {
-                listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><p class="comp-empty__desc" style="color:#ef4444;">加载失败</p></div></td></tr>';
+                listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><p class="comp-empty__desc" style="color:#ef4444;">load failed</p></div></td></tr>';
                 return;
             }
-            var comps = data.components || [];
-            compData[side] = comps;
+            var tree = data.tree || [];
+            compData[side] = tree;
 
-            // Update count badge
             var countEl = document.getElementById('comp-' + side + '-count');
-            if (countEl) countEl.textContent = comps.length + ' 项';
+            if (countEl) countEl.textContent = (data.total_items || tree.length) + ' items';
 
-            if (comps.length === 0) {
-                listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><svg class="comp-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg><p>无组件数据</p></div></td></tr>';
+            if (tree.length === 0) {
+                listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><svg class="comp-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg><p>no data</p></div></td></tr>';
                 return;
             }
 
-            // Reset toggle
             var toggleEl = document.getElementById('comp-toggle-' + side);
             if (toggleEl) toggleEl.checked = true;
 
-            renderComponentTable(side);
+            renderComponentTree(side);
+        })
+        .catch(function(err) {
+            listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><p class="comp-empty__desc" style="color:#ef4444;">error: ' + (err.message || 'unknown') + '</p></div></td></tr>';
         });
 }
 
-function renderComponentTable(side) {
-    var comps = compData[side] || [];
+// ── Tree Rendering ──
+function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
+    var tree = compData[side] || [];
     var tbody = document.getElementById('comp-body-' + side);
+    if (!expandedSet) expandedSet = {};
+    if (!searchTerm) searchTerm = '';
+    if (!filterVal) filterVal = 'all';
 
-    if (comps.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5"><div class="comp-empty">无组件数据</div></td></tr>';
-        return;
-    }
-
-    var html = '';
-    for (var i = 0; i < comps.length; i++) {
-        var c = comps[i];
-        html += '<tr class="comp-row" data-pn="' + BOMApp.escapeHtml(c.part_number) + '" data-side="' + side + '" data-children="' + (c.children_count || 0) + '">' +
-            '<td class="col-checkbox"><input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(c.part_number) + '" checked onchange="onCompCheckChange(\'' + side + '\')"></td>' +
-            '<td class="col-code" title="' + BOMApp.escapeHtml(c.part_number) + '">' + BOMApp.escapeHtml(c.part_number) + '</td>' +
-            '<td class="col-name" onmouseenter="showCompTooltip(event, compData[\'' + side + '\'][' + i + '])" onmouseleave="hideCompTooltip()">' + BOMApp.escapeHtml(c.part_name || '-') + '</td>' +
-            '<td class="col-quantity">' + (c.quantity != null ? c.quantity : '-') + '</td>' +
-            '<td class="col-unit">' + BOMApp.escapeHtml(c.unit || 'ST') + '</td>' +
-        '</tr>';
-    }
-    tbody.innerHTML = html;
-}
-
-// ── Component Table Search/Filter ──
-function filterComponentTable(side) {
-    var searchVal = (document.getElementById('comp-search-' + side).value || '').toLowerCase().trim();
-    var filterVal = document.getElementById('comp-filter-' + side).value;
-    var rows = document.querySelectorAll('#comp-body-' + side + ' .comp-row');
+    var seq = 0;
+    var defaultExpand = Object.keys(expandedSet).length === 0 && !searchTerm && filterVal === 'all';
     var visibleCount = 0;
 
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var pn = (row.getAttribute('data-pn') || '').toLowerCase();
-        var nameEl = row.querySelector('.col-name');
-        var name = (nameEl ? nameEl.textContent : '').toLowerCase();
-        var children = parseInt(row.getAttribute('data-children'), 10) || 0;
+    function renderNodes(nodes, depth) {
+        var out = '';
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var hasKids = n.children && n.children.length > 0;
+            var pn = n.part_number;
+            var expanded = !!expandedSet[pn];
+            if (defaultExpand && hasKids) expanded = false;
+            if (searchTerm && hasKids && !expanded) {
+                var cpnList = collectDescendantPNs(n);
+                var anyMatch = false;
+                for (var j = 0; j < cpnList.length; j++) {
+                    if (cpnList[j].indexOf(searchTerm) !== -1) { anyMatch = true; break; }
+                }
+                if (anyMatch) expanded = true;
+            }
 
-        var matchSearch = true;
-        if (searchVal) {
-            matchSearch = pn.indexOf(searchVal) !== -1 || name.indexOf(searchVal) !== -1;
-        }
+            seq++;
+            var indent = depth * 18;
+            var toggleHtml = '';
+            if (hasKids) {
+                toggleHtml = '<span class="tree-toggle ' + (expanded ? 'tree-toggle--open' : '') + '" data-pn="' + BOMApp.escapeHtml(pn) + '" data-side="' + side + '">' + (expanded ? '▾' : '▸') + '</span>';
+            } else {
+                toggleHtml = '<span class="tree-toggle tree-toggle--void"></span>';
+            }
 
-        var matchFilter = true;
-        if (filterVal === 'has_children') {
-            matchFilter = children > 0;
-        } else if (filterVal === 'no_children') {
-            matchFilter = children === 0;
-        }
+            var matchesSearch = !searchTerm || rowMatches(n, searchTerm);
+            var matchesFilter = filterVal === 'all' || (filterVal === 'has_children' ? hasKids : !hasKids);
+            var hideRow = (searchTerm && !matchesSearch && !(expanded && hasKids)) || !matchesFilter;
+            if (!hideRow) visibleCount++;
 
-        if (matchSearch && matchFilter) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
+            out += '<tr class="comp-row tree-row" data-pn="' + BOMApp.escapeHtml(pn) + '" data-side="' + side + '" data-depth="' + depth + '" data-has-children="' + (hasKids ? '1' : '0') + '" data-expanded="' + (expanded ? '1' : '0') + '"' + (hideRow ? ' style="display:none"' : '') + '>' +
+                '<td class="col-checkbox">' + (hasKids ? '<input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(pn) + '" checked onchange="onCompCheckChange(\'' + side + '\', this)">' : '') + '</td>' +
+                '<td class="col-code" title="' + BOMApp.escapeHtml(pn) + '" style="padding-left:' + (indent + 8) + 'px">' + toggleHtml + BOMApp.escapeHtml(pn) + '</td>' +
+                '<td class="col-name" onmouseenter="showCompTooltipNode(event, n)" onmouseleave="hideCompTooltip()">' + BOMApp.escapeHtml((n.part_name || '-').substring(0, 80)) + '</td>' +
+                '<td class="col-quantity">' + (n.quantity != null ? n.quantity : '-') + '</td>' +
+                '<td class="col-unit">' + BOMApp.escapeHtml(n.unit || 'ST') + (hasKids ? ' <span class="comp-panel__badge" style="font-size:10px">' + n.children.length + '</span>' : '') + '</td>' +
+            '</tr>';
+
+            if (hasKids && expanded) {
+                out += renderNodes(n.children, depth + 1);
+            }
         }
+        return out;
     }
 
-    // Update count badge
+    // Sort target tree to follow source BOM PN order
+    if (side === 'target' && compData.source && compData.source.length > 0) {
+        sortTreeBySource(tree, compData.source);
+    }
+
+    tbody.innerHTML = renderNodes(tree, 0);
+
+    // Update count
     var countEl = document.getElementById('comp-' + side + '-count');
-    var total = compData[side] ? compData[side].length : 0;
-    if (countEl) {
-        countEl.textContent = visibleCount === total ? total + ' 项' : visibleCount + ' / ' + total + ' 项';
+    var totalTree = countTreeNodes(tree);
+    if (countEl) countEl.textContent = visibleCount === totalTree ? totalTree + ' items' : visibleCount + ' / ' + totalTree + ' items';
+
+    // Bind toggle clicks
+    tbody.querySelectorAll('.tree-toggle:not(.tree-toggle--void)').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var pn = this.dataset.pn;
+            var side2 = this.dataset.side;
+            var current = this.classList.contains('tree-toggle--open');
+            if (current) {
+                collapseTreeNode(side2, pn);
+            } else {
+                expandTreeNode(side2, pn);
+            }
+        });
+    });
+}
+
+function collectDescendantPNs(node) {
+    var pns = [];
+    if (node.children) {
+        for (var i = 0; i < node.children.length; i++) {
+            pns.push(node.children[i].part_number.toLowerCase());
+            pns = pns.concat(collectDescendantPNs(node.children[i]));
+        }
     }
+    return pns;
+}
+
+function countTreeNodes(nodes) {
+    var n = 0;
+    for (var i = 0; i < nodes.length; i++) {
+        n++;
+        if (nodes[i].children) n += countTreeNodes(nodes[i].children);
+    }
+    return n;
+}
+
+function buildPNOrderMap(tree) {
+    var map = {};
+    var idx = 0;
+    function walk(nodes) {
+        for (var i = 0; i < nodes.length; i++) {
+            map[nodes[i].part_number] = idx++;
+            if (nodes[i].children) walk(nodes[i].children);
+        }
+    }
+    walk(tree);
+    return map;
+}
+
+function sortTreeBySource(targetTree, sourceTree) {
+    // Build per-parent order maps from source: parentPN -> {childPN: index}
+    var parentChildOrder = {};
+    var parentNameOrder = {};  // parentPN -> {childNamePrefix: index}
+    function indexSourceByParent(nodes) {
+        for (var i = 0; i < nodes.length; i++) {
+            var pn = nodes[i].part_number;
+            if (nodes[i].children && nodes[i].children.length > 0) {
+                var orderPN = {};
+                var orderName = {};
+                for (var j = 0; j < nodes[i].children.length; j++) {
+                    var child = nodes[i].children[j];
+                    orderPN[child.part_number] = j;
+                    orderName[child.part_name] = j;
+                }
+                parentChildOrder[pn] = orderPN;
+                parentNameOrder[pn] = orderName;
+            }
+            if (nodes[i].children) indexSourceByParent(nodes[i].children);
+        }
+    }
+    indexSourceByParent(sourceTree);
+
+    // Build source parent name -> PN mapping (for cross-PN parent matching)
+    var srcNameToPN = {};
+    function mapNames(nodes) {
+        for (var i = 0; i < nodes.length; i++) {
+            srcNameToPN[nodes[i].part_name] = nodes[i].part_number;
+            if (nodes[i].children) mapNames(nodes[i].children);
+        }
+    }
+    mapNames(sourceTree);
+
+    // Fallback global order
+    var globalOrder = buildPNOrderMap(sourceTree);
+
+    // Helper: strip product codes (containing digits: 8TB01, 85Q7H, RTD2886NSF-CG)
+    // but preserve pure-alpha names (CHUANGWEI-RGB, SKYWORTH)
+    function nameCore(name) {
+        return (name || '')
+            .replace(/\b[A-Z]*[0-9][A-Z0-9\-]*\b/g, '')  // codes with >=1 digit
+            .replace(/\s+\d+\s*$/g, '')                    // trailing standalone number
+            .replace(/\s+/g, ' ')                          // normalize spaces
+            .trim();
+    }
+
+    function sortNodes(nodes, parentPn, parentName) {
+        var orderMap = {};
+        var nameOrderMap = {};
+        if (parentPn) {
+            orderMap = parentChildOrder[parentPn] || {};
+            nameOrderMap = parentNameOrder[parentPn] || {};
+            // Cross-PN parent matching by name
+            if (Object.keys(orderMap).length === 0 && parentName) {
+                // Try exact name match first
+                var srcPPN = srcNameToPN[parentName];
+                if (!srcPPN) {
+                    // Try name prefix/core match
+                    var pnCore = nameCore(parentName);
+                    for (var k in srcNameToPN) {
+                        if (nameCore(k) === pnCore) { srcPPN = srcNameToPN[k]; break; }
+                    }
+                }
+                if (srcPPN) {
+                    orderMap = parentChildOrder[srcPPN] || {};
+                    nameOrderMap = parentNameOrder[srcPPN] || {};
+                }
+            }
+        }
+
+        nodes.sort(function(a, b) {
+            // 1) Exact PN match
+            var oa = orderMap[a.part_number];
+            var ob = orderMap[b.part_number];
+            if (oa != null && ob != null) return oa - ob;
+            if (oa != null) return -1;
+            if (ob != null) return 1;
+
+            // 2) Exact name match
+            oa = nameOrderMap[a.part_name];
+            ob = nameOrderMap[b.part_name];
+            if (oa != null && ob != null) return oa - ob;
+            if (oa != null) return -1;
+            if (ob != null) return 1;
+
+            // 3) Name core prefix match
+            var ca = nameCore(a.part_name);
+            var cb = nameCore(b.part_name);
+            oa = nameOrderMap[ca]; ob = nameOrderMap[cb];
+            if (oa == null) {
+                for (var nk in nameOrderMap) { if (nameCore(nk) === ca) { oa = nameOrderMap[nk]; break; } }
+            }
+            if (ob == null) {
+                for (var nkk in nameOrderMap) { if (nameCore(nkk) === cb) { ob = nameOrderMap[nkk]; break; } }
+            }
+            if (oa != null && ob != null) return oa - ob;
+            if (oa != null) return -1;
+            if (ob != null) return 1;
+
+            // 4) Global PN order fallback
+            oa = globalOrder[a.part_number] != null ? globalOrder[a.part_number] : 99999;
+            ob = globalOrder[b.part_number] != null ? globalOrder[b.part_number] : 99999;
+            return oa - ob;
+        });
+        for (var i = 0; i < nodes.length; i++) {
+            if (nodes[i].children && nodes[i].children.length > 0) {
+                sortNodes(nodes[i].children, nodes[i].part_number, nodes[i].part_name);
+            }
+        }
+    }
+    sortNodes(targetTree, null, null);
+}
+
+function rowMatches(node, term) {
+    return (node.part_number || '').toLowerCase().indexOf(term) !== -1 ||
+           (node.part_name || '').toLowerCase().indexOf(term) !== -1;
+}
+
+// Tree expand/collapse state: { source: {pn: true}, target: {pn: true} }
+var treeExpanded = { source: {}, target: {} };
+
+function expandTreeNode(side, pn) {
+    treeExpanded[side][pn] = true;
+    rebuildTreeView(side);
+}
+
+function collapseTreeNode(side, pn) {
+    delete treeExpanded[side][pn];
+    rebuildTreeView(side);
+}
+
+function getExpandedState(side) {
+    return treeExpanded[side] || {};
+}
+
+function rebuildTreeView(side) {
+    var expanded = getExpandedState(side);
+    var searchVal = (document.getElementById('comp-search-' + side).value || '').toLowerCase().trim();
+    var filterVal = document.getElementById('comp-filter-' + side).value;
+    renderComponentTree(side, expanded, searchVal, filterVal);
+}
+
+// ── Search/Filter ──
+function filterComponentTree(side) {
+    rebuildTreeView(side);
+}
+
+function filterComponentTable(side) {
+    filterComponentTree(side);
 }
 
 function toggleAllComponents(side) {
@@ -693,15 +952,35 @@ function toggleAllComponents(side) {
     }
 }
 
-function onCompCheckChange(side) {
-    var cbs = document.querySelectorAll('#comp-body-' + side + ' .comp-' + side + '-cb');
-    var allChecked = true;
-    for (var i = 0; i < cbs.length; i++) {
-        if (cbs[i].closest('tr').style.display !== 'none' && !cbs[i].checked) {
-            allChecked = false;
-            break;
+function onCompCheckChange(side, el) {
+    // Propagate to children
+    var row = el.closest('tr');
+    var pn = row.dataset.pn;
+    var depth = parseInt(row.dataset.depth);
+    var checked = el.checked;
+    var tbody = document.getElementById('comp-body-' + side);
+    var rows = tbody.querySelectorAll('.tree-row');
+    var found = false;
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (r.dataset.pn === pn) {
+            found = true;
+            continue;
+        }
+        if (found) {
+            var d = parseInt(r.dataset.depth);
+            if (d <= depth) break;
+            var cb = r.querySelector('.comp-' + side + '-cb');
+            if (cb) cb.checked = checked;
         }
     }
+
+    // Update toggle-all state
+    var cbs = tbody.querySelectorAll('.comp-' + side + '-cb');
+    var allChecked = true;
+    cbs.forEach(function(cb) {
+        if (cb.closest('tr').style.display !== 'none' && !cb.checked) allChecked = false;
+    });
     document.getElementById('comp-toggle-' + side).checked = allChecked;
 }
 
@@ -714,11 +993,39 @@ function getSelectedComponentPNs(side) {
     return pns;
 }
 
+function getUncheckedParentPNs(side) {
+    var cbs = document.querySelectorAll('#comp-body-' + side + ' .comp-' + side + '-cb');
+    var pns = [];
+    for (var i = 0; i < cbs.length; i++) {
+        if (!cbs[i].checked) pns.push(cbs[i].value);
+    }
+    return pns;
+}
+
+function showCompTooltipNode(e, node) {
+    clearTimeout(tooltipTimer);
+    var html =
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">PN</span><span class="comp-tooltip__value">' + BOMApp.escapeHtml(node.part_number) + '</span></div>' +
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">name</span><span class="comp-tooltip__value">' + BOMApp.escapeHtml(node.part_name || '-') + '</span></div>' +
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">qty</span><span class="comp-tooltip__value">' + (node.quantity != null ? node.quantity : '-') + '</span></div>' +
+        '<div class="comp-tooltip__row"><span class="comp-tooltip__label">unit</span><span class="comp-tooltip__value">' + BOMApp.escapeHtml(node.unit || 'ST') + '</span></div>' +
+        (node.children_count != null ? '<div class="comp-tooltip__row"><span class="comp-tooltip__label">children</span><span class="comp-tooltip__value">' + node.children_count + '</span></div>' : '');
+    tooltipEl.innerHTML = html;
+    tooltipEl.style.display = 'block';
+    var x = e.clientX + 14, y = e.clientY - 10;
+    var tw = tooltipEl.offsetWidth, th = tooltipEl.offsetHeight;
+    if (x + tw > window.innerWidth - 10) x = e.clientX - tw - 14;
+    if (y + th > window.innerHeight - 10) y = e.clientY - th - 10;
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top = y + 'px';
+}
+
 // ── Load & Render Results ──
 function loadResult(taskId) {
     currentTaskId = taskId;
     document.getElementById('result-area').classList.add('hidden');
     document.getElementById('stats-bar').classList.add('hidden');
+    document.getElementById('rework-bar').classList.add('hidden');
 
     BOMApp.API.get('/compare/api/result/' + taskId)
         .then(function (data) {
@@ -730,6 +1037,7 @@ function loadResult(taskId) {
             renderStats(allResults);
             applyAllFilters();
             document.getElementById('stats-bar').classList.remove('hidden');
+            document.getElementById('rework-bar').classList.remove('hidden');
             document.getElementById('result-area').classList.remove('hidden');
             document.getElementById('filter-panel').classList.remove('hidden');
 
@@ -817,15 +1125,14 @@ function renderResults(results) {
         else if (r.severity === 'medium') rowClass = 'row--border-warning';
         else if (r.severity === 'low') rowClass = 'row--border-success';
 
+        var typeLabels = reworkMode ? REWORK_TYPE_MAP : NORMAL_TYPE_MAP;
         var typeIcon = '';
-        if (r.diff_type === 'added') typeIcon = '<span class="diff-icon diff-icon--added">+ 新增</span>';
-        else if (r.diff_type === 'removed') typeIcon = '<span class="diff-icon diff-icon--removed">- 删除</span>';
-        else typeIcon = '<span class="diff-icon diff-icon--modified">~ 变更</span>';
+        if (r.diff_type === 'added') typeIcon = '<span class="diff-icon diff-icon--added">🗑 ' + typeLabels.added + '</span>';
+        else if (r.diff_type === 'removed') typeIcon = '<span class="diff-icon diff-icon--removed">📦 ' + typeLabels.removed + '</span>';
+        else typeIcon = '<span class="diff-icon diff-icon--modified">📐 ' + typeLabels.modified + '</span>';
 
         var cat = CAT_MAP[r.diff_category] || r.diff_category;
-        var catBadgeClass = r.diff_category === 'hierarchy' ? 'badge--warning' :
-                            r.diff_category === 'quantity' ? 'badge--warning' :
-                            ['specification', 'part_name'].includes(r.diff_category) ? 'badge--info' : 'badge--neutral';
+	        var catBadgeClass = r.diff_category === 'quantity' ? 'badge--warning' : 'badge--neutral';
 
         var fieldLabel = FIELD_LABEL_MAP[r.field_name] || r.field_name;
         var sevBadgeClass = r.severity === 'high' ? 'badge--danger' :
@@ -851,9 +1158,7 @@ function renderResults(results) {
 // ── Filters ──
 function getFilterCategory(r) {
     if (r.diff_type === 'added' || r.diff_type === 'removed') return r.diff_type;
-    if (r.diff_category === 'hierarchy') return 'hierarchy';
     if (r.diff_category === 'quantity') return 'quantity';
-    if (['specification', 'part_name'].includes(r.diff_category)) return 'specification';
     return 'other';
 }
 
@@ -911,6 +1216,43 @@ function exportReport() {
         return;
     }
     window.location.href = '/report/api/export/' + currentTaskId;
+}
+
+function exportReworkReport() {
+    if (!currentTaskId) {
+        BOMApp.Toast.warning('暂无可导出的返工结果');
+        return;
+    }
+    window.location.href = '/report/api/export-rework/' + currentTaskId;
+}
+
+// ── Rework Mode Toggle ──
+var REWORK_TYPE_MAP = { added: '需拆除', removed: '需补装', modified: '用量调整' };
+var NORMAL_TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
+
+function toggleReworkMode() {
+    reworkMode = document.getElementById('rework-toggle').checked;
+    var labelEl = document.getElementById('rework-mode-label');
+
+    if (reworkMode) {
+        labelEl.textContent = '返工视角（实物→目标）';
+        document.getElementById('btn-export-rework').style.display = '';
+        document.getElementById('btn-export-diff').style.display = 'none';
+    } else {
+        labelEl.textContent = 'BOM 差异对比';
+        document.getElementById('btn-export-rework').style.display = 'none';
+        document.getElementById('btn-export-diff').style.display = '';
+    }
+
+    // Update stat labels
+    document.getElementById('stat-label-added').textContent = reworkMode ? '🗑 需拆除' : '+ 新增';
+    document.getElementById('stat-label-removed').textContent = reworkMode ? '📦 需补装' : '- 删除';
+    document.getElementById('stat-label-modified').textContent = reworkMode ? '📐 用量调整' : '~ 变更';
+
+    // Re-render results with new labels
+    if (filteredResults.length > 0 || allResults.length > 0) {
+        applyAllFilters();
+    }
 }
 
 function loadHistory() {

@@ -17,6 +17,9 @@ def start_comparison():
     comparison_type = data.get('comparison_type', 'version')
     compare_mode = data.get('compare_mode', 'components_only')
     selected_components = data.get('selected_components', {})
+    exclude_parents = data.get('exclude_parents', [])
+    exclude_leaves = data.get('exclude_leaves', False)
+    skip_pns = data.get('skip_pns', [])
 
     if not source_bom_id or not target_bom_id:
         return jsonify({'ok': False, 'msg': '请选择来源BOM和目标BOM'}), 400
@@ -26,7 +29,10 @@ def start_comparison():
         task_id = run_comparison(
             source_bom_id, target_bom_id, comparison_type,
             compare_mode=compare_mode,
-            selected_components=selected_components
+            selected_components=selected_components,
+            exclude_parents=exclude_parents,
+            exclude_leaves=exclude_leaves,
+            skip_pns=skip_pns
         )
         return jsonify({'ok': True, 'msg': '比对完成', 'task_id': task_id})
     except Exception as e:

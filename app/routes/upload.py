@@ -117,6 +117,50 @@ def get_components(bom_id):
     return jsonify({'ok': True, 'components': components})
 
 
+@bp.route('/api/bom-tree/<int:bom_id>')
+def get_bom_tree(bom_id):
+    """返回BOM完整层级树结构（用于前端折叠展示）。"""
+    items = db.query(
+        'SELECT part_number, part_name, unit, quantity, level, parent_pn, line_no '
+        'FROM bom_item WHERE bom_id=? ORDER BY line_no',
+        (bom_id,)
+    )
+    items = [dict(r) for r in items]
+    if not items:
+        return jsonify({'ok': True, 'tree': []})
+
+    # Build parent -> children map
+    children_map = {}
+    for it in items:
+        ppn = (it['parent_pn'] or '').strip()
+        if ppn not in children_map:
+            children_map[ppn] = []
+        children_map[ppn].append(it)
+
+    # Identify root items: level=1 or parent not in items list
+    all_pns = set(it['part_number'].strip() for it in items)
+    root_items = [it for it in items
+                  if int(it.get('level', 0)) == 1
+                  or (it.get('parent_pn', '') or '').strip() not in all_pns]
+
+    def build_node(it):
+        pn = it['part_number'].strip()
+        kids = children_map.get(pn, [])
+        return {
+            'part_number': it['part_number'],
+            'part_name': it.get('part_name', ''),
+            'quantity': it.get('quantity', 0),
+            'unit': it.get('unit', ''),
+            'level': it.get('level', 0),
+            'line_no': it.get('line_no', 0),
+            'children_count': len(kids),
+            'children': [build_node(c) for c in kids]
+        }
+
+    tree = [build_node(r) for r in root_items]
+    return jsonify({'ok': True, 'tree': tree, 'total_items': len(items)})
+
+
 @bp.route('/api/export-components', methods=['GET', 'POST'])
 def export_components():
     """按选中的组件导出Excel（组件+子件）。支持 GET/POST。"""
