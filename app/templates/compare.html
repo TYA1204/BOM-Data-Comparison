@@ -311,6 +311,10 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             导出 Excel 报告
                         </button>
+                        <button onclick="exportChangeNotice()" id="btn-export-docx" class="btn btn--sm" style="background:#1E40AF;color:white;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            导出 Word 更改通知单
+                        </button>
                     </div>
                 </div>
                 <div class="table-container">
@@ -1190,6 +1194,34 @@ function exportReport() {
         return;
     }
     window.location.href = '/report/api/export/' + currentTaskId;
+}
+
+function exportChangeNotice() {
+    if (!currentTaskId) {
+        BOMApp.Toast.warning('请先执行 BOM 比对');
+        return;
+    }
+    var btn = document.getElementById('btn-export-docx');
+    var origText = btn.textContent;
+    btn.textContent = '生成中...';
+    btn.disabled = true;
+
+    BOMApp.API.get('/compare/api/change-notice/' + currentTaskId)
+        .then(function(data) {
+            btn.textContent = origText;
+            btn.disabled = false;
+            if (data.ok) {
+                window.location.href = '/compare/api/download-change-notice/' + currentTaskId;
+                BOMApp.Toast.success('Word 更改通知单已生成，正在下载');
+            } else {
+                BOMApp.Toast.error('生成失败：' + data.msg);
+            }
+        })
+        .catch(function() {
+            btn.textContent = origText;
+            btn.disabled = false;
+            BOMApp.Toast.error('网络错误，请重试');
+        });
 }
 
 function exportReworkReport() {

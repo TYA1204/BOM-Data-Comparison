@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, request, jsonify, render_template
 
 bp = Blueprint('compare', __name__)
@@ -74,3 +75,49 @@ def task_history():
            ORDER BY ct.created_at DESC LIMIT 50'''
     )
     return jsonify({'ok': True, 'tasks': [dict(t) for t in tasks]})
+
+
+@bp.route('/api/change-notice/<int:task_id>')
+def generate_change_notice(task_id):
+    """Generate 整机清机更改通知单 for a comparison task."""
+    from app.services.change_notice import generate_change_notice as gen_docx, generate_change_notice_excel
+
+    fmt = request.args.get('format', 'docx')
+
+    try:
+        if fmt == 'xlsx':
+            path = generate_change_notice_excel(task_id)
+        else:
+            path = gen_docx(task_id)
+
+        filename = os.path.basename(path)
+        return jsonify({
+            'ok': True,
+            'file': filename,
+            'path': path,
+            'format': fmt,
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+@bp.route('/api/download-change-notice/<int:task_id>')
+def download_change_notice(task_id):
+    """Generate 整机清机更改通知单 and stream as file download."""
+    from flask import send_file
+    from app.services.change_notice import generate_change_notice as gen_docx, generate_change_notice_excel
+
+    fmt = request.args.get('format', 'docx')
+
+    try:
+        if fmt == 'xlsx':
+            path = generate_change_notice_excel(task_id)
+            mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        else:
+            path = gen_docx(task_id)
+            mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+        filename = os.path.basename(path)
+        return send_file(path, mimetype=mime, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500
