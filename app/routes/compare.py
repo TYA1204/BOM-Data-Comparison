@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, current_app
 
 bp = Blueprint('compare', __name__)
 
@@ -80,15 +80,17 @@ def task_history():
 @bp.route('/api/change-notice/<int:task_id>')
 def generate_change_notice(task_id):
     """Generate 整机清机更改通知单 for a comparison task."""
+    from flask import current_app
     from app.services.change_notice import generate_change_notice as gen_docx, generate_change_notice_excel
 
     fmt = request.args.get('format', 'docx')
+    db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
 
     try:
         if fmt == 'xlsx':
-            path = generate_change_notice_excel(task_id)
+            path = generate_change_notice_excel(task_id, db_path=db_path)
         else:
-            path = gen_docx(task_id)
+            path = gen_docx(task_id, db_path=db_path)
 
         filename = os.path.basename(path)
         return jsonify({
@@ -108,13 +110,14 @@ def download_change_notice(task_id):
     from app.services.change_notice import generate_change_notice as gen_docx, generate_change_notice_excel
 
     fmt = request.args.get('format', 'docx')
+    db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
 
     try:
         if fmt == 'xlsx':
-            path = generate_change_notice_excel(task_id)
+            path = generate_change_notice_excel(task_id, db_path=db_path)
             mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         else:
-            path = gen_docx(task_id)
+            path = gen_docx(task_id, db_path=db_path)
             mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
         filename = os.path.basename(path)

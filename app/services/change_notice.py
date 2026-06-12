@@ -14,7 +14,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # ── Constants ──────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DB_PATH = os.path.join(PROJECT_ROOT, 'data', 'bom_compare.db')
 TEMPLATE_PATH = os.path.join(PROJECT_ROOT, '整机清机更改通知单.docx')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'reports')
 
@@ -137,7 +136,7 @@ def get_diff_rows(conn, task_id):
         '''SELECT * FROM comparison_result WHERE task_id=?
            ORDER BY CASE diff_type
                WHEN 'added' THEN 1 WHEN 'removed' THEN 2 ELSE 3
-           END, COALESCE(level_a, level_b), COALESCE(parent_pn_a, parent_pn_b)''',
+           END, COALESCE(parent_pn_a, parent_pn_b)''',
         (task_id,)
     ).fetchall()
 
@@ -280,9 +279,31 @@ def group_diffs_by_parent(diff_rows):
 # ── Word Generation ────────────────────────────────────────
 
 
-def generate_change_notice(task_id: int, output_name: str = None):
+def _ensure_template():
+    """如果模板文件不存在，自动创建一个基础模板。"""
+    if os.path.exists(TEMPLATE_PATH):
+        return
+    doc = Document()
+    # 段落0: 表单编号
+    p0 = doc.add_paragraph()
+    p0.add_run('SKY-RKZXS-07')
+    # 段落1: 标题
+    p1 = doc.add_paragraph()
+    p1.add_run('更 改 通 知 单')
+    # 表格: 6行 x 10列
+    table = doc.add_table(rows=6, cols=10)
+    # 第3行第1列作为更改内容区域
+    # （模板填充逻辑依赖此结构）
+    os.makedirs(os.path.dirname(TEMPLATE_PATH), exist_ok=True)
+    doc.save(TEMPLATE_PATH)
+
+
+def generate_change_notice(task_id: int, output_name: str = None, db_path: str = None):
     """Generate change notice by filling the official template."""
-    conn = sqlite3.connect(DB_PATH)
+    _ensure_template()  # 确保模板存在
+    if db_path is None:
+        db_path = os.path.join(PROJECT_ROOT, 'data', 'bom_compare.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
     task = conn.execute('SELECT * FROM comparison_task WHERE id=?', (task_id,)).fetchone()
@@ -509,8 +530,10 @@ def _extract_core(bom_name):
 
 # ── Excel Export ────────────────────────────────────────────
 
-def generate_change_notice_excel(task_id: int, output_name: str = None):
+def generate_change_notice_excel(task_id: int, output_name: str = None, db_path: str = None):
     """Generate a professional Excel change notice matching the official form layout."""
+    if db_path is None:
+        db_path = os.path.join(PROJECT_ROOT, 'data', 'bom_compare.db')
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -518,7 +541,7 @@ def generate_change_notice_excel(task_id: int, output_name: str = None):
     except ImportError:
         raise ImportError('openpyxl required. pip install openpyxl')
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     task = conn.execute('SELECT * FROM comparison_task WHERE id=?', (task_id,)).fetchone()
     if not task:
@@ -528,7 +551,7 @@ def generate_change_notice_excel(task_id: int, output_name: str = None):
 
     src_name = _extract_model(diff_rows[0]['pn']) if diff_rows else 'N/A'  # fallback
     # Better: get from DB
-    conn2 = sqlite3.connect(DB_PATH); conn2.row_factory = sqlite3.Row
+    conn2 = sqlite3.connect(db_path); conn2.row_factory = sqlite3.Row
     sn = conn2.execute('SELECT bom_name FROM bom_header WHERE id=?', (task['source_bom_id'],)).fetchone()
     tn = conn2.execute('SELECT bom_name FROM bom_header WHERE id=?', (task['target_bom_id'],)).fetchone()
     conn2.close()
