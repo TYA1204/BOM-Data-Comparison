@@ -2,8 +2,58 @@ import os
 import re
 import json
 import pandas as pd
+from datetime import datetime
 from flask import current_app
 from app.models import db
+
+
+# ==================== Date Normalization ====================
+
+def _normalize_date(val):
+    """Normalize various date formats to YYYY-MM-DD string.
+    Handles: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD, DD.MM.YYYY, MM-DD-YYYY, etc.
+    Returns original value as string if unparseable.
+    """
+    if val is None:
+        return ''
+    s = str(val).strip()
+    if not s or s.lower() in ('nan', 'none', 'null', 'nat'):
+        return ''
+
+    # Already in YYYY-MM-DD format
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', s):
+        return s
+
+    # YYYY/MM/DD
+    if re.match(r'^\d{4}/\d{2}/\d{2}$', s):
+        return s.replace('/', '-')
+
+    # YYYYMMDD
+    m = re.match(r'^(\d{4})(\d{2})(\d{2})$', s)
+    if m:
+        return f'{m.group(1)}-{m.group(2)}-{m.group(3)}'
+
+    # DD.MM.YYYY or DD-MM-YYYY
+    for sep in ('.', '-'):
+        m = re.match(r'^(\d{2})\\' + sep + r'(\d{2})\\' + sep + r'(\d{4})$', s)
+        if m:
+            return f'{m.group(3)}-{m.group(2)}-{m.group(1)}'
+
+    # MM-DD-YYYY
+    m = re.match(r'^(\d{2})-(\d{2})-(\d{4})$', s)
+    if m:
+        return f'{m.group(3)}-{m.group(1)}-{m.group(2)}'
+
+    # Try datetime parse as last resort
+    for fmt in ('%Y-%m-%d', '%Y/%m/%d', '%d.%m.%Y', '%d/%m/%Y', '%m/%d/%Y',
+                '%Y-%m-%d %H:%M:%S', '%Y/%m/%d %H:%M:%S'):
+        try:
+            dt = datetime.strptime(s, fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+
+    return s  # Return original if all fail
 
 
 # ==================== SAP BOM 展开 Table Parser ====================
@@ -361,10 +411,17 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_
         if not bom_version:
             bom_version = sap_metadata.get('ecn', bom_version)
 
-        # Insert bom_header
+        # Insert bom_header with metadata
+        valid_from = _normalize_date(sap_metadata.get('valid_date', ''))
+        bom_number = sap_metadata.get('bom_number', '')
+        ecn_val = sap_metadata.get('ecn', '')
+        bom_status = sap_metadata.get('status', '')
+        bom_plant = sap_metadata.get('plant', '')
+
         cursor = db.execute('''
-            INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file, total_items, total_quantity)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file,
+                total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             bom_name,
             bom_version,
@@ -372,7 +429,12 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_
             os.path.splitext(file_path)[1].upper().replace('.', ''),
             os.path.basename(file_path),
             len(sap_items),
-            len(sap_items)
+            len(sap_items),
+            valid_from,
+            bom_number,
+            ecn_val,
+            bom_status,
+            bom_plant,
         ))
         bom_id = cursor.lastrowid
 
@@ -463,10 +525,23 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_
             parents.append(parent)
         df['parent_pn'] = parents
 
-    # Insert bom_header
+    # Insert bom_header with metadata
+    # Extract metadata fields for standard files (first non-empty value per column)
+    meta_fields = ['valid_from', 'bom_number', 'ecn', 'bom_status', 'bom_plant']
+    meta_values = {}
+    for mf in meta_fields:
+        if mf in df.columns:
+            vals = df[mf].dropna().astype(str).str.strip()
+            vals = vals[vals != '']
+            meta_values[mf] = vals.iloc[0] if len(vals) > 0 else ''
+        else:
+            meta_values[mf] = ''
+    meta_values['valid_from'] = _normalize_date(meta_values['valid_from'])
+
     cursor = db.execute('''
-        INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file, total_items, total_quantity)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file,
+            total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         bom_name,
         bom_version,
@@ -474,7 +549,12 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_
         os.path.splitext(file_path)[1].upper().replace('.', ''),
         os.path.basename(file_path),
         len(df),
-        len(df)
+        len(df),
+        meta_values['valid_from'],
+        meta_values['bom_number'],
+        meta_values['ecn'],
+        meta_values['bom_status'],
+        meta_values['bom_plant'],
     ))
     bom_id = cursor.lastrowid
 
@@ -533,6 +613,8 @@ def preview_file(file_path):
 def get_uploaded_boms():
     """List all uploaded BOMs."""
     rows = db.query(
-        'SELECT id, bom_name, bom_version, bom_type, source_type, source_file, total_items, created_at FROM bom_header ORDER BY created_at DESC'
+        'SELECT id, bom_name, bom_version, bom_type, source_type, source_file, '
+        'total_items, created_at, valid_from, bom_number, ecn, bom_status, bom_plant '
+        'FROM bom_header ORDER BY created_at DESC'
     )
     return [dict(r) for r in rows]

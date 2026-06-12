@@ -10,6 +10,11 @@ def init_bom_tables(db):
             source_file TEXT DEFAULT '',
             total_items INTEGER DEFAULT 0,
             total_quantity INTEGER DEFAULT 0,
+            valid_from TEXT DEFAULT '',
+            bom_number TEXT DEFAULT '',
+            ecn TEXT DEFAULT '',
+            bom_status TEXT DEFAULT '',
+            bom_plant TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -20,6 +25,19 @@ def init_bom_tables(db):
         db.execute('ALTER TABLE bom_header ADD COLUMN bom_type TEXT DEFAULT "primary"')
     except Exception:
         pass  # Column already exists
+
+    # Add metadata columns for BOM list display (non-item fields)
+    for col, default in [
+        ('valid_from', "TEXT DEFAULT ''"),
+        ('bom_number', "TEXT DEFAULT ''"),
+        ('ecn', "TEXT DEFAULT ''"),
+        ('bom_status', "TEXT DEFAULT ''"),
+        ('bom_plant', "TEXT DEFAULT ''"),
+    ]:
+        try:
+            db.execute(f'ALTER TABLE bom_header ADD COLUMN {col} {default}')
+        except Exception:
+            pass  # Column already exists
 
     db.execute('''
         CREATE TABLE IF NOT EXISTS bom_item (

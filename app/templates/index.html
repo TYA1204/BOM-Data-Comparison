@@ -164,15 +164,20 @@ BOMApp.ready(function () {
                 '<div class="table-container">' +
                 '<table class="data-table" role="table" aria-label="已上传BOM列表">' +
                     '<thead><tr>' +
-                        '<th>BOM 名称</th><th>版本</th><th>条目数</th><th>类型</th><th>上传时间</th>' +
+                        '<th>BOM 名称</th><th>版本</th><th class="text-xs">有效日期从</th><th class="text-xs">顶层BOM号</th><th class="text-xs">最后更改号</th><th>条目数</th><th>类型</th><th>BOM状态</th><th class="text-xs">BOM工厂</th><th>上传时间</th>' +
                     '</tr></thead>' +
                     '<tbody>' +
                         boms.slice(0, 10).map(function (b) {
                             return '<tr>' +
                                 '<td class="font-medium">' + BOMApp.escapeHtml(b.bom_name) + '</td>' +
                                 '<td class="text-slate-500">' + BOMApp.escapeHtml(b.bom_version || '-') + '</td>' +
+                                '<td class="text-slate-500 text-xs">' + BOMApp.formatDateOnly(b.valid_from) + '</td>' +
+                                '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.bom_number || '-') + '</td>' +
+                                '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.ecn || '暂无数据') + '</td>' +
                                 '<td>' + BOMApp.formatNumber(b.total_items) + '</td>' +
                                 '<td><span class="badge badge--neutral">' + BOMApp.escapeHtml(b.source_type || 'Excel') + '</span></td>' +
+                                '<td>' + BOMApp.getStatusBadge(b.bom_status) + '</td>' +
+                                '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.bom_plant || '-') + '</td>' +
                                 '<td class="text-slate-400 text-xs">' + BOMApp.formatDate(b.created_at) + '</td>' +
                             '</tr>';
                         }).join('') +

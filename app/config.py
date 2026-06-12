@@ -36,6 +36,17 @@ class Config:
         'level': ['Level', 'level', 'LEVEL', '层级', 'BOM Level', 'BOM Level'],
         'parent': ['Parent', 'parent', 'PARENT', '父件', 'Parent Part', 'Parent PN',
                    'Upper Level', '上层物料'],
+        # Metadata fields (display only, not imported to bom_item)
+        'valid_from': ['有效日期从', '有效日期', '生效日期', '生效日期从',
+                       'Valid From', 'Valid Date', 'Effective Date'],
+        'bom_number': ['顶层BOM号', 'BOM号', 'BOM编号', 'BOM Number',
+                       'Top BOM', 'Parent BOM', 'Header BOM'],
+        'ecn': ['最后更改号', '更改号', 'ECN', '变更号', '更改编号',
+                'Change Number', 'ECO', 'Engineering Change'],
+        'bom_status': ['BOM状态', '状态', 'Status', 'BOM Status',
+                       'Lifecycle', '生命周期'],
+        'bom_plant': ['BOM工厂', '工厂', 'Plant', 'Werks', '工厂编码',
+                      '工厂名称', 'Plant Code', 'Manufacturing Plant'],
     }
 
     # Fuzzy match thresholds

@@ -89,13 +89,18 @@
                         <th data-sort="bom_name">BOM 名称</th>
                         <th data-sort="bom_version">版本</th>
                         <th data-sort="source_type">来源</th>
+                        <th data-sort="valid_from" class="text-xs">有效日期从</th>
+                        <th data-sort="bom_number" class="text-xs">顶层BOM号</th>
+                        <th data-sort="ecn" class="text-xs">最后更改号</th>
                         <th data-sort="total_items">条目数</th>
+                        <th data-sort="bom_status">BOM状态</th>
+                        <th data-sort="bom_plant" class="text-xs">BOM工厂</th>
                         <th data-sort="created_at">上传时间</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="bom-table-body">
-                    <tr><td colspan="9"><div class="loading-overlay"><span class="spinner"></span><span>加载 BOM 列表...</span></div></td></tr>
+                    <tr><td colspan="14"><div class="loading-overlay"><span class="spinner"></span><span>加载 BOM 列表...</span></div></td></tr>
                 </tbody>
             </table>
         </div>
@@ -142,7 +147,7 @@ function loadBomList() {
         })
         .catch(function () {
             document.getElementById('bom-table-body').innerHTML =
-                '<tr><td colspan="9"><div class="empty-state"><p class="empty-state__title">加载失败</p><p class="empty-state__desc">请检查网络连接后刷新</p></div></td></tr>';
+                '<tr><td colspan="14"><div class="empty-state"><p class="empty-state__title">加载失败</p><p class="empty-state__desc">请检查网络连接后刷新</p></div></td></tr>';
         });
 }
 
@@ -192,7 +197,7 @@ function renderTable(boms) {
     if (boms.length === 0) {
         var hasSearch = (document.getElementById('bom-search').value || '').trim();
         tbody.innerHTML =
-            '<tr><td colspan="9">' +
+            '<tr><td colspan="14">' +
                 '<div class="empty-state">' +
                     '<div class="empty-state__icon">' +
                         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
@@ -217,7 +222,12 @@ function renderTable(boms) {
             '<td class="font-medium text-slate-800 truncate max-w-[200px]" title="' + BOMApp.escapeHtml(b.bom_name) + '">' + BOMApp.escapeHtml(b.bom_name) + '</td>' +
             '<td class="text-slate-500">' + BOMApp.escapeHtml(b.bom_version || '-') + '</td>' +
             '<td class="text-slate-500">' + BOMApp.escapeHtml(b.source_type) + '</td>' +
+            '<td class="text-slate-500 text-xs">' + BOMApp.formatDateOnly(b.valid_from) + '</td>' +
+            '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.bom_number || '-') + '</td>' +
+            '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.ecn || '暂无数据') + '</td>' +
             '<td class="tabular-nums">' + BOMApp.formatNumber(b.total_items) + '</td>' +
+            '<td>' + BOMApp.getStatusBadge(b.bom_status) + '</td>' +
+            '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.bom_plant || '-') + '</td>' +
             '<td class="text-slate-400 text-xs">' + BOMApp.formatDate(b.created_at) + '</td>' +
             '<td>' +
                 '<div class="flex items-center gap-1">' +

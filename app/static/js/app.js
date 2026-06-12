@@ -425,6 +425,40 @@
     }
   }
 
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    // If already YYYY-MM-DD, return as-is in zh-CN format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+    try {
+      var d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  function getStatusBadge(status) {
+    if (!status) return '<span class="badge badge--neutral">暂无数据</span>';
+    var s = status.toString().trim();
+    // Green: active/effective/live statuses
+    if (/^(生效|激活|Active|Live|Released|已发布)$/i.test(s)) {
+      return '<span class="badge badge--success">' + escapeHtml(s) + '</span>';
+    }
+    // Red: inactive/obsolete/expired statuses
+    if (/^(失效|废弃|Obsolete|Expired|Inactive|已作废)$/i.test(s)) {
+      return '<span class="badge badge--danger">' + escapeHtml(s) + '</span>';
+    }
+    // Orange: pending/review/frozen
+    if (/^(待审核|冻结|Pending|Frozen|Under Review|审核中)$/i.test(s)) {
+      return '<span class="badge badge--warning">' + escapeHtml(s) + '</span>';
+    }
+    // Blue: other known statuses
+    return '<span class="badge badge--info">' + escapeHtml(s) + '</span>';
+  }
+
   function debounce(fn, delay) {
     var timer;
     return function () {
@@ -507,6 +541,8 @@
     escapeHtml: escapeHtml,
     formatNumber: formatNumber,
     formatDate: formatDate,
+    formatDateOnly: formatDateOnly,
+    getStatusBadge: getStatusBadge,
     debounce: debounce,
     paginate: paginate,
     renderPagination: renderPagination,
