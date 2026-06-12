@@ -695,6 +695,10 @@ code, .font-mono, [class*="font-mono"] {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-color-light);
   color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 .data-table tbody tr {
   transition: background var(--transition-fast);

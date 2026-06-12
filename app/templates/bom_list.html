@@ -36,7 +36,7 @@
                            class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm
                                   focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none
                                   transition-all placeholder:text-slate-300"
-                           placeholder="搜索 BOM 名称或版本号..."
+                           placeholder="搜索上传文件名或BOM名称..."
                            aria-label="搜索 BOM">
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
@@ -86,10 +86,9 @@
                         </th>
                         <th data-sort="id">ID</th>
                         <th data-sort="bom_type">类型</th>
-                        <th data-sort="bom_name">BOM 名称</th>
-                        <th data-sort="bom_version">版本</th>
+                        <th data-sort="bom_name">上传文件名</th>
                         <th data-sort="source_type">来源</th>
-                        <th data-sort="valid_from" class="text-xs">有效日期从</th>
+                        <th data-sort="valid_from" class="text-xs">BOM激活日期</th>
                         <th data-sort="bom_number" class="text-xs">顶层BOM号</th>
                         <th data-sort="ecn" class="text-xs">最后更改号</th>
                         <th data-sort="total_items">条目数</th>
@@ -100,7 +99,7 @@
                     </tr>
                 </thead>
                 <tbody id="bom-table-body">
-                    <tr><td colspan="14"><div class="loading-overlay"><span class="spinner"></span><span>加载 BOM 列表...</span></div></td></tr>
+                    <tr><td colspan="13"><div class="loading-overlay"><span class="spinner"></span><span>加载 BOM 列表...</span></div></td></tr>
                 </tbody>
             </table>
         </div>
@@ -147,7 +146,7 @@ function loadBomList() {
         })
         .catch(function () {
             document.getElementById('bom-table-body').innerHTML =
-                '<tr><td colspan="14"><div class="empty-state"><p class="empty-state__title">加载失败</p><p class="empty-state__desc">请检查网络连接后刷新</p></div></td></tr>';
+                '<tr><td colspan="13"><div class="empty-state"><p class="empty-state__title">加载失败</p><p class="empty-state__desc">请检查网络连接后刷新</p></div></td></tr>';
         });
 }
 
@@ -159,8 +158,8 @@ function applyAllFilters() {
         if (type !== 'all' && b.bom_type !== type) return false;
         if (query) {
             var name = (b.bom_name || '').toLowerCase();
-            var version = (b.bom_version || '').toLowerCase();
-            if (name.indexOf(query) === -1 && version.indexOf(query) === -1) return false;
+            var file = (b.source_file || '').toLowerCase();
+            if (name.indexOf(query) === -1 && file.indexOf(query) === -1) return false;
         }
         return true;
     });
@@ -181,7 +180,7 @@ function applyAllFilters() {
     if (allBoms.length >= 2) {
         dualCard.classList.remove('hidden');
         var opts = allBoms.map(function (b) {
-            return '<option value="' + b.id + '">' + BOMApp.escapeHtml(b.bom_name) + '（' + b.total_items + '条）</option>';
+            return '<option value="' + b.id + '">' + BOMApp.escapeHtml(b.source_file || b.bom_name) + '（' + b.total_items + '条）</option>';
         }).join('');
         document.getElementById('export-a').innerHTML = opts;
         document.getElementById('export-b').innerHTML = opts;
@@ -197,7 +196,7 @@ function renderTable(boms) {
     if (boms.length === 0) {
         var hasSearch = (document.getElementById('bom-search').value || '').trim();
         tbody.innerHTML =
-            '<tr><td colspan="14">' +
+            '<tr><td colspan="13">' +
                 '<div class="empty-state">' +
                     '<div class="empty-state__icon">' +
                         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
@@ -219,8 +218,7 @@ function renderTable(boms) {
             '<td><input type="checkbox" class="bom-checkbox cursor-pointer rounded" data-id="' + b.id + '" ' + isSelected + ' onchange="onRowCheckboxChange(this)"></td>' +
             '<td class="text-slate-400 text-xs">' + b.id + '</td>' +
             '<td>' + typeBadge + '</td>' +
-            '<td class="font-medium text-slate-800 truncate max-w-[200px]" title="' + BOMApp.escapeHtml(b.bom_name) + '">' + BOMApp.escapeHtml(b.bom_name) + '</td>' +
-            '<td class="text-slate-500">' + BOMApp.escapeHtml(b.bom_version || '-') + '</td>' +
+            '<td class="font-medium text-slate-800 truncate max-w-[200px]" title="' + BOMApp.escapeHtml(b.source_file || b.bom_name) + '">' + BOMApp.escapeHtml(b.source_file || b.bom_name) + '</td>' +
             '<td class="text-slate-500">' + BOMApp.escapeHtml(b.source_type) + '</td>' +
             '<td class="text-slate-500 text-xs">' + BOMApp.formatDateOnly(b.valid_from) + '</td>' +
             '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.bom_number || '-') + '</td>' +
@@ -233,7 +231,7 @@ function renderTable(boms) {
                 '<div class="flex items-center gap-1">' +
                     '<button onclick="exportBom(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出Excel">导出</button>' +
                     '<button onclick="exportAllComponents(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出全部组件">组件</button>' +
-                    '<button onclick="deleteBom(' + b.id + ', \'' + BOMApp.escapeHtml(b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-red-500 hover:text-red-700" title="删除">删除</button>' +
+                    '<button onclick="deleteBom(' + b.id + ', \'' + BOMApp.escapeHtml(b.source_file || b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-red-500 hover:text-red-700" title="删除">删除</button>' +
                 '</div>' +
             '</td>' +
         '</tr>';
