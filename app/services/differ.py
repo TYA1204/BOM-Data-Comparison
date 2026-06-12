@@ -181,6 +181,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 'reference_b': item_b.get('reference', ''),
                 'quantity_b': item_b['quantity'],
                 'match_confidence': 0,
+                'parent_pn_b': item_b.get('parent_pn', ''),
             })
 
     # =================================================================
@@ -200,6 +201,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 'reference_a': item_a.get('reference', ''),
                 'quantity_a': item_a['quantity'],
                 'match_confidence': 0,
+                'parent_pn_a': item_a.get('parent_pn', ''),
             })
 
     # =================================================================
@@ -242,6 +244,8 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 'reference_a': item_a.get('reference', ''),
                 'reference_b': item_b.get('reference', ''),
                 'match_confidence': 100,
+                'parent_pn_a': item_a.get('parent_pn', ''),
+                'parent_pn_b': item_b.get('parent_pn', ''),
             })
 
     # =================================================================
@@ -282,8 +286,8 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 part_number_a, part_number_b, part_name_a, part_name_b,
                 field_name, old_value, new_value,
                 reference_a, reference_b, quantity_a, quantity_b,
-                match_confidence
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                match_confidence, parent_pn_a, parent_pn_b
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ''', (
             task_id, rec.get('diff_type', ''), rec.get('diff_category', ''),
             rec.get('severity', 'medium'),
@@ -294,6 +298,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             rec.get('reference_a', ''), rec.get('reference_b', ''),
             rec.get('quantity_a', 0), rec.get('quantity_b', 0),
             rec.get('match_confidence', 100),
+            rec.get('parent_pn_a', ''), rec.get('parent_pn_b', ''),
         ))
 
     db.execute('UPDATE comparison_task SET completed_at=CURRENT_TIMESTAMP WHERE id=?', (task_id,))
