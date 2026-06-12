@@ -52,7 +52,10 @@ SEVERITY_STYLES = {
     'low': PatternFill(start_color='D9EAD3', end_color='D9EAD3', fill_type='solid'),
 }
 SEVERITY_LABELS = {'high': '高', 'medium': '中', 'low': '低'}
-TYPE_LABELS = {'added': '新增物料', 'removed': '删除物料', 'modified': '变更物料'}
+TYPE_LABELS = {
+    'added': '新增物料', 'removed': '删除物料', 'modified': '变更物料',
+    'version': '版本比对', 'cross_model': '跨机型比对',
+}
 
 
 # ======================== 辅助函数 ========================
@@ -482,7 +485,7 @@ def generate_excel_report(task_id):
         ('任务名称', td.get('task_name', '')),
         ('主BOM (来源/基准)', f"{source_bom['bom_name'] if source_bom else '?'}  ({source_bom['bom_version'] if source_bom else '?'})"),
         ('副BOM (目标/对比)', f"{target_bom['bom_name'] if target_bom else '?'}  ({target_bom['bom_version'] if target_bom else '?'})"),
-        ('比对类型', td.get('comparison_type', '')),
+        ('比对类型', TYPE_LABELS.get(td.get('comparison_type', ''), td.get('comparison_type', ''))),
         ('创建时间', td.get('created_at', '')),
         ('完成时间', td.get('completed_at', '')),
         ('', ''),

@@ -32,6 +32,10 @@ def _classify_severity(diff_type, diff_category):
         return 'high'
     if diff_category == 'quantity':
         return 'medium'
+    if diff_category == 'structure':
+        return 'medium'
+    if diff_category == 'version':
+        return 'low'
     return 'medium'
 
 
@@ -249,6 +253,80 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             })
 
     # =================================================================
+    # Step 3b — Version changes (版本比对 only):
+    #   Same PN + same parent, different version/revision
+    # =================================================================
+    if comparison_type == 'version':
+        for item_a in items_a:
+            pn_a = item_a['part_number'].strip().upper()
+            if pn_a not in index_b:
+                continue
+            matched_items_b = index_b[pn_a]
+            item_b = _pick_by_parent(matched_items_b, item_a.get('parent_pn', ''))
+            if item_b is None:
+                continue
+
+            ver_a = str(item_a.get('version', '')).strip()
+            ver_b = str(item_b.get('version', '')).strip()
+
+            if ver_a and ver_b and ver_a != ver_b:
+                diff_records.append({
+                    'diff_type': 'modified',
+                    'diff_category': 'version',
+                    'severity': 'low',
+                    'part_number_a': item_a['part_number'],
+                    'part_number_b': item_b['part_number'],
+                    'part_name_a': item_a['part_name'],
+                    'part_name_b': item_b['part_name'],
+                    'field_name': 'version',
+                    'old_value': ver_a,
+                    'new_value': ver_b,
+                    'quantity_a': item_a['quantity'],
+                    'quantity_b': item_b['quantity'],
+                    'reference_a': item_a.get('reference', ''),
+                    'reference_b': item_b.get('reference', ''),
+                    'match_confidence': 100,
+                    'parent_pn_a': item_a.get('parent_pn', ''),
+                    'parent_pn_b': item_b.get('parent_pn', ''),
+                })
+
+    # =================================================================
+    # Step 3c — Structure changes (跨机型比对 only):
+    #   Same PN exists in both BOMs but under different parent assembly
+    # =================================================================
+    if comparison_type == 'cross_model':
+        for item_a in items_a:
+            pn_a = item_a['part_number'].strip().upper()
+            if pn_a not in index_b:
+                continue
+            parent_a = str(item_a.get('parent_pn', '')).strip().upper()
+            if not parent_a:
+                continue
+            matched_items_b = index_b[pn_a]
+            for item_b in matched_items_b:
+                parent_b = str(item_b.get('parent_pn', '')).strip().upper()
+                if parent_b and parent_a != parent_b:
+                    diff_records.append({
+                        'diff_type': 'modified',
+                        'diff_category': 'structure',
+                        'severity': 'medium',
+                        'part_number_a': item_a['part_number'],
+                        'part_number_b': item_b['part_number'],
+                        'part_name_a': item_a['part_name'],
+                        'part_name_b': item_b['part_name'],
+                        'field_name': 'parent_pn',
+                        'old_value': item_a.get('parent_pn', ''),
+                        'new_value': item_b.get('parent_pn', ''),
+                        'quantity_a': item_a['quantity'],
+                        'quantity_b': item_b['quantity'],
+                        'reference_a': item_a.get('reference', ''),
+                        'reference_b': item_b.get('reference', ''),
+                        'match_confidence': 100,
+                        'parent_pn_a': item_a.get('parent_pn', ''),
+                        'parent_pn_b': item_b.get('parent_pn', ''),
+                    })
+
+    # =================================================================
     # Post-filter: skip specified PNs from results (exact match only)
     # =================================================================
     if skip_pns:
@@ -262,7 +340,8 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     # =================================================================
     source_bom = db.query_one('SELECT bom_name FROM bom_header WHERE id=?', (source_bom_id,))
     target_bom = db.query_one('SELECT bom_name FROM bom_header WHERE id=?', (target_bom_id,))
-    task_name = f"{source_bom['bom_name']} vs {target_bom['bom_name']}"
+    type_label = '版本比对' if comparison_type == 'version' else '跨机型比对'
+    task_name = f"[{type_label}] {source_bom['bom_name']} vs {target_bom['bom_name']}"
     if selected_components and (selected_components.get('source') or selected_components.get('target')):
         filters = []
         if selected_components.get('source'):
