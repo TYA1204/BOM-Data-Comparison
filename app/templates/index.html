@@ -164,13 +164,12 @@ BOMApp.ready(function () {
                 '<div class="table-container">' +
                 '<table class="data-table" role="table" aria-label="已上传BOM列表">' +
                     '<thead><tr>' +
-                        '<th>BOM 名称</th><th>版本</th><th class="text-xs">有效日期从</th><th class="text-xs">顶层BOM号</th><th class="text-xs">最后更改号</th><th>条目数</th><th>类型</th><th>BOM状态</th><th class="text-xs">BOM工厂</th><th>上传时间</th>' +
+                        '<th>上传文件名</th><th class="text-xs">BOM激活日期</th><th class="text-xs">顶层BOM号</th><th class="text-xs">最后更改号</th><th>条目数</th><th>类型</th><th>BOM状态</th><th class="text-xs">BOM工厂</th><th>上传时间</th>' +
                     '</tr></thead>' +
                     '<tbody>' +
                         boms.slice(0, 10).map(function (b) {
                             return '<tr>' +
-                                '<td class="font-medium">' + BOMApp.escapeHtml(b.bom_name) + '</td>' +
-                                '<td class="text-slate-500">' + BOMApp.escapeHtml(b.bom_version || '-') + '</td>' +
+                                '<td class="font-medium">' + BOMApp.escapeHtml(b.source_file || b.bom_name) + '</td>' +
                                 '<td class="text-slate-500 text-xs">' + BOMApp.formatDateOnly(b.valid_from) + '</td>' +
                                 '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.bom_number || '-') + '</td>' +
                                 '<td class="text-slate-500 text-xs">' + BOMApp.escapeHtml(b.ecn || '暂无数据') + '</td>' +
