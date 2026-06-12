@@ -475,7 +475,7 @@ def generate_excel_report(task_id):
     ''', (task_id,))
 
     td = dict(task)
-    # 获取主/副BOM名称
+    # 获取基准/目标BOM名称
     source_bom = db.query_one('SELECT bom_name, bom_version FROM bom_header WHERE id=?', (td.get('source_bom_id', 0),))
     target_bom = db.query_one('SELECT bom_name, bom_version FROM bom_header WHERE id=?', (td.get('target_bom_id', 0),))
 
@@ -483,8 +483,8 @@ def generate_excel_report(task_id):
         ('BOM 差异比对报告', ''),
         ('', ''),
         ('任务名称', td.get('task_name', '')),
-        ('主BOM (来源/基准)', f"{source_bom['bom_name'] if source_bom else '?'}  ({source_bom['bom_version'] if source_bom else '?'})"),
-        ('副BOM (目标/对比)', f"{target_bom['bom_name'] if target_bom else '?'}  ({target_bom['bom_version'] if target_bom else '?'})"),
+        ('基准 BOM', f"{source_bom['bom_name'] if source_bom else '?'}  ({source_bom['bom_version'] if source_bom else '?'})"),
+        ('目标 BOM', f"{target_bom['bom_name'] if target_bom else '?'}  ({target_bom['bom_version'] if target_bom else '?'})"),
         ('比对类型', TYPE_LABELS.get(td.get('comparison_type', ''), td.get('comparison_type', ''))),
         ('创建时间', td.get('created_at', '')),
         ('完成时间', td.get('completed_at', '')),
@@ -511,13 +511,13 @@ def generate_excel_report(task_id):
     # --- 明细Sheet ---
     ws_detail = wb.create_sheet('明细')
 
-    # 表头：主BOM=来源(原值A)，副BOM=目标(新值B)
+    # 表头：基准BOM=来源(原值A)，目标BOM=对比(新值B)
     headers = ['序号', '差异类型', '分类', '严重度',
-               '物料号(主BOM)', '物料号(副BOM)',
-               '物料名称(主BOM)', '物料名称(副BOM)',
-               '变更字段', '主BOM值', '副BOM值',
-               '位号(主BOM)', '位号(副BOM)',
-               '用量(主BOM)', '用量(副BOM)', '差异量(+/-)', '匹配度']
+               '物料号(基准BOM)', '物料号(目标BOM)',
+               '物料名称(基准BOM)', '物料名称(目标BOM)',
+               '变更字段', '基准BOM值', '目标BOM值',
+               '位号(基准BOM)', '位号(目标BOM)',
+               '用量(基准BOM)', '用量(目标BOM)', '差异量(+/-)', '匹配度']
 
     for col_idx, h in enumerate(headers, 1):
         cell = ws_detail.cell(row=1, column=col_idx, value=h)
@@ -531,7 +531,7 @@ def generate_excel_report(task_id):
         severity_cn = SEVERITY_LABELS.get(r['severity'], r['severity'])
         qty_a = float(r['quantity_a'] or 0)
         qty_b = float(r['quantity_b'] or 0)
-        diff_qty = qty_b - qty_a  # 副BOM - 主BOM，正值=增加，负值=减少
+        diff_qty = qty_b - qty_a  # 目标BOM - 基准BOM，正值=增加，负值=减少
         row_data = [
             row_idx - 1, diff_type_cn, r['diff_category'], severity_cn,
             r['part_number_a'], r['part_number_b'],

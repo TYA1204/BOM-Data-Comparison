@@ -45,8 +45,8 @@
                                    focus:border-blue-400 outline-none cursor-pointer"
                             aria-label="筛选BOM类型">
                         <option value="all">全部类型</option>
-                        <option value="primary">主 BOM</option>
-                        <option value="secondary">副 BOM</option>
+                        <option value="primary">目标 BOM</option>
+                        <option value="secondary">基准 BOM</option>
                     </select>
                     <span class="text-xs text-slate-400 self-center whitespace-nowrap" id="result-count"></span>
                 </div>
@@ -213,8 +213,8 @@ function renderTable(boms) {
     tbody.innerHTML = boms.map(function (b) {
         var isSelected = selectedIds.has(b.id) ? 'checked' : '';
         var typeBadge = b.bom_type === 'primary'
-            ? '<span class="badge badge--info">主BOM</span>'
-            : '<span class="badge badge--neutral">副BOM</span>';
+            ? '<span class="badge badge--info">目标BOM</span>'
+            : '<span class="badge badge--neutral">基准BOM</span>';
         return '<tr class="' + (selectedIds.has(b.id) ? 'row--highlight' : '') + '">' +
             '<td><input type="checkbox" class="bom-checkbox cursor-pointer rounded" data-id="' + b.id + '" ' + isSelected + ' onchange="onRowCheckboxChange(this)"></td>' +
             '<td class="text-slate-400 text-xs">' + b.id + '</td>' +

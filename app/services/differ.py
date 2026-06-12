@@ -52,8 +52,8 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
       3. Quantity changes  — same PN, different quantity value
 
     Args:
-        source_bom_id: 主BOM ID (baseline)
-        target_bom_id: 副BOM ID (comparison target)
+        source_bom_id: 基准BOM ID (baseline)
+        target_bom_id: 目标BOM ID (comparison target)
         comparison_type: 'version' or 'cross_model'
         compare_mode: 'components_only' (仅对比组件本身+直接子件)
                       or 'include_children' (对比组件及整个子树)
@@ -345,9 +345,9 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     if selected_components and (selected_components.get('source') or selected_components.get('target')):
         filters = []
         if selected_components.get('source'):
-            filters.append(f"主BOM {len(selected_components['source'])}个组件")
+            filters.append(f"基准BOM {len(selected_components['source'])}个组件")
         if selected_components.get('target'):
-            filters.append(f"副BOM {len(selected_components['target'])}个组件")
+            filters.append(f"目标BOM {len(selected_components['target'])}个组件")
         mode_tag = '组件级' if compare_mode == 'components_only' else '含子件'
         task_name = f"{task_name} [{mode_tag}] {'&'.join(filters)}"
 
