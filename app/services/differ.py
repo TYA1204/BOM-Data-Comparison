@@ -26,11 +26,11 @@ def _classify_severity(diff_type, diff_category):
 
     Simplified: only 3 diff categories remain.
       - material add/remove → high
-      - quantity change     → medium
+      - quantity/unit change   → medium
     """
     if diff_type in ('added', 'removed'):
         return 'high'
-    if diff_category == 'quantity':
+    if diff_category in ('quantity', 'unit'):
         return 'medium'
     if diff_category == 'structure':
         return 'medium'
@@ -49,7 +49,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     Compares 3 dimensions:
       1. Added materials   — PN exists in B but not in A
       2. Removed materials — PN exists in A but not in B
-      3. Quantity changes  — same PN, different quantity value
+      3. Field changes     — same PN + same parent, different quantity/unit
 
     Args:
         source_bom_id: 基准BOM ID (baseline)
@@ -209,7 +209,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             })
 
     # =================================================================
-    # Step 3 — Quantity changes: same PN, different quantity
+    # Step 3 — Field changes: same PN + same parent, different quantity/unit
     # =================================================================
     def _pick_by_parent(candidates, target_parent):
         target = str(target_parent or '').strip()
@@ -226,12 +226,13 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
         matched_items_b = index_b[pn_a]
         item_b = _pick_by_parent(matched_items_b, item_a.get('parent_pn', ''))
         if item_b is None:
-            continue  # Same PN exists but under different parent — skip quantity check
+            continue  # Same PN exists but under different parent — skip (handled by Step 3c)
 
-        val_a = float(item_a.get('quantity', 0) or 0)
-        val_b = float(item_b.get('quantity', 0) or 0)
+        # Quantity change
+        qty_a = float(item_a.get('quantity', 0) or 0)
+        qty_b = float(item_b.get('quantity', 0) or 0)
 
-        if val_a != val_b:
+        if qty_a != qty_b:
             diff_records.append({
                 'diff_type': 'modified',
                 'diff_category': 'quantity',
@@ -241,8 +242,33 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 'part_name_a': item_a['part_name'],
                 'part_name_b': item_b['part_name'],
                 'field_name': 'quantity',
-                'old_value': str(val_a),
-                'new_value': str(val_b),
+                'old_value': str(qty_a),
+                'new_value': str(qty_b),
+                'quantity_a': item_a['quantity'],
+                'quantity_b': item_b['quantity'],
+                'reference_a': item_a.get('reference', ''),
+                'reference_b': item_b.get('reference', ''),
+                'match_confidence': 100,
+                'parent_pn_a': item_a.get('parent_pn', ''),
+                'parent_pn_b': item_b.get('parent_pn', ''),
+            })
+
+        # Unit change
+        unit_a = str(item_a.get('unit', '')).strip().upper()
+        unit_b = str(item_b.get('unit', '')).strip().upper()
+
+        if unit_a and unit_b and unit_a != unit_b:
+            diff_records.append({
+                'diff_type': 'modified',
+                'diff_category': 'unit',
+                'severity': 'medium',
+                'part_number_a': item_a['part_number'],
+                'part_number_b': item_b['part_number'],
+                'part_name_a': item_a['part_name'],
+                'part_name_b': item_b['part_name'],
+                'field_name': 'unit',
+                'old_value': item_a.get('unit', ''),
+                'new_value': item_b.get('unit', ''),
                 'quantity_a': item_a['quantity'],
                 'quantity_b': item_b['quantity'],
                 'reference_a': item_a.get('reference', ''),

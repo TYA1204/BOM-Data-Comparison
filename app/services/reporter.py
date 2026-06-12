@@ -56,6 +56,10 @@ TYPE_LABELS = {
     'added': '新增物料', 'removed': '删除物料', 'modified': '变更物料',
     'version': '版本比对', 'cross_model': '跨机型比对',
 }
+DIFF_CATEGORY_LABELS = {
+    'material': '物料变化', 'quantity': '用量变化', 'unit': '单位变化',
+    'version': '版本变化', 'structure': '结构变化',
+}
 
 
 # ======================== 辅助函数 ========================
@@ -533,7 +537,7 @@ def generate_excel_report(task_id):
         qty_b = float(r['quantity_b'] or 0)
         diff_qty = qty_b - qty_a  # 目标BOM - 基准BOM，正值=增加，负值=减少
         row_data = [
-            row_idx - 1, diff_type_cn, r['diff_category'], severity_cn,
+            row_idx - 1, diff_type_cn, DIFF_CATEGORY_LABELS.get(r['diff_category'], r['diff_category']), severity_cn,
             r['part_number_a'], r['part_number_b'],
             r['part_name_a'], r['part_name_b'],
             r['field_name'], r['old_value'], r['new_value'],

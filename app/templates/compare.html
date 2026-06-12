@@ -359,9 +359,9 @@ var reworkMode = false;
 var compData = { source: [], target: [] };
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
-var CAT_MAP = { material: '物料', quantity: '数量' };
+var CAT_MAP = { material: '物料', quantity: '数量', unit: '单位' };
 var SEVERITY_MAP = { high: '高', medium: '中', low: '低' };
-var FIELD_LABEL_MAP = { quantity: '用量', part_number: '物料号' };
+var FIELD_LABEL_MAP = { quantity: '用量', part_number: '物料号', unit: '单位' };
 
 // ====================================================================
 // Sidebar Resize (drag handle + localStorage)
@@ -1110,7 +1110,7 @@ function renderResults(results) {
         else typeIcon = '<span class="diff-icon diff-icon--modified">📐 ' + typeLabels.modified + '</span>';
 
         var cat = CAT_MAP[r.diff_category] || r.diff_category;
-	        var catBadgeClass = r.diff_category === 'quantity' ? 'badge--warning' : 'badge--neutral';
+	        var catBadgeClass = (r.diff_category === 'quantity' || r.diff_category === 'unit') ? 'badge--warning' : 'badge--neutral';
 
         var fieldLabel = FIELD_LABEL_MAP[r.field_name] || r.field_name;
         var sevBadgeClass = r.severity === 'high' ? 'badge--danger' :
