@@ -272,7 +272,9 @@ def group_diffs_by_parent(diff_rows):
                 mg['parent_pn'] = pn
                 mg['parent_name'] = full_name
 
-    return sorted(list(merged.values()), key=lambda g: g.get('parent_pn', ''))
+    # Filter: only keep groups with a real parent_pn
+    result_groups = [g for g in merged.values() if g.get('parent_pn') and g['parent_pn'] != '__UNKNOWN__']
+    return sorted(result_groups, key=lambda g: g['parent_pn'])
 
 
 # ── Word Generation ────────────────────────────────────────
@@ -421,8 +423,8 @@ def _fill_template(table, machine_core, today_str, src_short, tgt_short, diff_ro
             continue
 
         # Component header: "在N030105-019050-001……面壳组件里"
-        comp_pn = g['parent_pn']
-        if comp_pn == '__UNKNOWN__':
+        comp_pn = g.get('parent_pn', '')
+        if not comp_pn or comp_pn == '__UNKNOWN__':
             continue
         comp_name = g.get('short_name', g['parent_name'])
         header_text = f'在{comp_pn}\u2026\u2026{comp_name}里'
