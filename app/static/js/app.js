@@ -193,25 +193,42 @@
     },
 
     async get(url) {
-      const response = await fetch(this._buildURL(url));
-      if (!response.ok) {
-        const text = await response.text().catch(function () { return '请求失败'; });
-        throw new Error('HTTP ' + response.status + ': ' + text);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+      try {
+        const response = await fetch(this._buildURL(url), { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          const text = await response.text().catch(function () { return '请求失败'; });
+          throw new Error('HTTP ' + response.status + ': ' + text);
+        }
+        return response.json();
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
       }
-      return response.json();
     },
 
     async post(url, data) {
-      const response = await fetch(this._buildURL(url), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) {
-        const text = await response.text().catch(function () { return '请求失败'; });
-        throw new Error('HTTP ' + response.status + ': ' + text);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+      try {
+        const response = await fetch(this._buildURL(url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          const text = await response.text().catch(function () { return '请求失败'; });
+          throw new Error('HTTP ' + response.status + ': ' + text);
+        }
+        return response.json();
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
       }
-      return response.json();
     }
   };
 
