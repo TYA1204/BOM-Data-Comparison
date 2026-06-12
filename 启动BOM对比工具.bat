@@ -15,24 +15,24 @@ set LOGFILE=%~dp0startup.log
 echo [%date% %time%] === BOM Tool Starting === > "%LOGFILE%"
 
 REM ============================================================
-REM Step 0: kill any process occupying port 5002
+REM Step 0: kill ALL python processes + clean pycache
 REM ============================================================
-echo [INFO] Step 0: Checking port 5002 ...
-echo [%time%] Step 0: checking port 5002 >> "%LOGFILE%"
+echo [INFO] Step 0: Cleaning old processes and cache ...
+echo [%time%] Step 0: cleaning >> "%LOGFILE%"
 
-set "FOUND=0"
-for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":5002 " 2^>nul ^| findstr "LISTENING" 2^>nul') do (
-    set "FOUND=1"
-    echo [INFO] Killing process PID=%%a on port 5002 --
-    echo [%time%] Killing PID %%a >> "%LOGFILE%"
-    taskkill /F /PID %%a >> "%LOGFILE%" 2>&1
+REM 0a: Kill ALL python.exe processes (avoids leaking old code)
+echo [%time%] Killing all python.exe >> "%LOGFILE%"
+taskkill /F /IM python.exe >> "%LOGFILE%" 2>&1
+
+REM 0b: Wait for port release
+ping 127.0.0.1 -n 4 >nul 2>&1
+
+REM 0c: Clean __pycache__ to prevent stale bytecode
+echo [%time%] Cleaning __pycache__ >> "%LOGFILE%"
+for /d /r "%~dp0app" %%d in (__pycache__) do (
+    if exist "%%d" rmdir /s /q "%%d" >> "%LOGFILE%" 2>&1
 )
-if "!FOUND!"=="1" (
-    echo [INFO] Waiting 2 seconds for port release ...
-    ping 127.0.0.1 -n 3 >nul 2>&1
-) else (
-    echo [INFO] Port 5002 is free
-)
+echo [%time%] Step 0 complete >> "%LOGFILE%"
 
 REM ============================================================
 REM Step 1: ensure venv exists
