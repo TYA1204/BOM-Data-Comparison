@@ -596,11 +596,11 @@ def _build_content_body(content_cell, groups):
         comp_pn = g.get('parent_pn', '')
         comp_name = g.get('short_name', g['parent_name'])
         _add_cell_para(
-            f'在{comp_pn}\u2026\u2026{comp_name}里',
+            f'在{comp_pn} {comp_name}里',
             Pt(11), bold=True, color='1E40AF')
 
     def _add_item_line(prefix, pn, name, qty_text):
-        text = f'{pn}\u00b7\u00b7{name}\u00b7\u00b7{qty_text}'
+        text = f'{pn} {name} {qty_text}'
         line = f'{prefix}:{text}' if prefix else f'     {text}'
         _add_cell_para(line, Pt(10), color='334155')
 
