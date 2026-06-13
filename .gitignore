@@ -2,19 +2,21 @@
 __pycache__/
 *.py[cod]
 *.pyo
-*.pyd
-.Python
-env/
 venv/
-.env
-*.egg-info/
-dist/
-build/
+env/
 
 # Flask
 instance/
 .webassets-cache
-session/
+
+# Database
+*.db
+*.db-journal
+
+# Generated reports
+reports/
+*.docx
+*.pdf
 
 # IDE
 .vscode/
@@ -27,14 +29,15 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Project-specific
-*.db
-*.sqlite
-*.xlsx
+# WorkBuddy (commit memory, ignore plans)
+.workbuddy/plans/
+
+# Uploads & exports
+uploads/
+exports/
 *.xls
-*.csv
-!app/templates/
-!app/static/
+*.XLS
+*.xlsx
 
 # Logs
 *.log
