@@ -203,77 +203,133 @@ def get_diff_rows(conn, task_id):
     return rows
 
 
-def group_diffs_by_parent(diff_rows):
-    """Group diff rows by parent component, preserving ADD and DEL sub-groups.
+def _get_functional_key(comp_name):
+    """Extract functional prefix for cross-model (H5F→P3EM) parent matching.
 
-    Filters out intermediate assembly parents — only shows components whose
-    items are actual leaf parts (not sub-assemblies referenced as parents elsewhere).
+    Returns the first meaningful word(s) that identify the component's role,
+    ignoring the model-specific suffix.  Examples:
+      '电子BOM 100H5FP'    → '电子BOM'
+      '包装组件 100P3E MAX' → '包装组件'
+      '液晶模组 99.5inc...' → '液晶模组'
+      'LED二合一电源组件...' → 'LED二合一电源组件'
     """
-    # Collect all parent_pn values to identify intermediate assemblies
-    all_parents = set()
-    for dr in diff_rows:
-        pp = dr['parent_pn']
-        if pp:
-            all_parents.add(pp)
+    if not comp_name:
+        return ''
+    parts = comp_name.split()
+    if not parts:
+        return ''
+    # Two-word prefixes: "电子BOM", "大配管BOM"
+    if len(parts) >= 2 and parts[0] in ('电子', '大配管'):
+        return ' '.join(parts[:2])
+    return parts[0]
 
-    groups = {}
+
+def group_diffs_by_parent(diff_rows):
+    """Group diff rows by parent component — leaf-level, P3EM-centric view.
+
+    Only P3EM parent nodes that directly contain leaf-diff items appear as
+    group headers.  H5F parent nodes are hidden, but their leaf-level items
+    are preserved and merged into the functionally-matching P3EM parent group.
+    Intermediate assembly nodes (PNs that are themselves parent_pn of other
+    diff rows) are excluded — they reflect structural hierarchy changes rather
+    than material-level diffs.
+
+    Flow:
+      1. Collect all parent_pn values to identify leaf vs intermediate PNs.
+      2. Partition all diff items: leaves go into groups by *their* direct
+         parent_pn; intermediate PNs are dropped.
+      3. Classify each leaf-group as P3EM (ADD-only), H5F (DEL-only), or MOD.
+      4. Merge H5F leaf-groups into P3EM leaf-groups by functional-key matching.
+      5. Assemble final result (P3EM + MOD + unmatched-H5F-safety-net).
+    """
+    # ── Step 1: Build the parent_pn look-up set and parent_name map ──
+    parent_pn_set = set()
+    parent_name_map = {}
     for dr in diff_rows:
+        pp = (dr.get('parent_pn') or '').strip()
+        pn = (dr.get('pn') or '').strip()
+        if pp:
+            parent_pn_set.add(pp)
+            if pp not in parent_name_map:
+                parent_name_map[pp] = dr.get('parent_name') or ''
+
+    # ── Step 2: Partition leaves by their direct parent_pn ──
+    # A PN is a "diff-leaf" when it never appears as parent_pn of any other
+    # diff row.  Intermediate nodes (their PN ∈ parent_pn_set) are structural
+    # hierarchy artifacts — they are dropped from the item list.
+    leaf_groups = {}   # parent_pn → {'parent_pn': .., 'parent_name': .., adds/dels/mods}
+    skipped_intermediate = []
+
+    for dr in diff_rows:
+        pn = (dr.get('pn') or '').strip()
+        if pn in parent_pn_set:
+            skipped_intermediate.append(pn)
+            continue   # intermediate → skip
+
+        # Leaf item — group by its direct parent
         pk = dr['parent_pn'] or '__UNKNOWN__'
-        if pk not in groups:
-            groups[pk] = {
+        # Skip P1C* top-level parents
+        if pk.upper().startswith('P1C'):
+            continue
+
+        if pk not in leaf_groups:
+            leaf_groups[pk] = {
                 'parent_pn': dr['parent_pn'],
-                'parent_name': dr['parent_name'],
+                'parent_name': parent_name_map.get(pk, dr.get('parent_name') or ''),
                 'adds': [], 'dels': [], 'mods': [],
             }
         if dr['type'] == 'added':
-            groups[pk]['adds'].append(dr)
+            leaf_groups[pk]['adds'].append(dr)
         elif dr['type'] == 'removed':
-            groups[pk]['dels'].append(dr)
+            leaf_groups[pk]['dels'].append(dr)
         else:
-            groups[pk]['mods'].append(dr)
+            leaf_groups[pk]['mods'].append(dr)
 
-    # Filter: keep groups where at least one item is NOT an intermediate parent
-    result = []
-    for pk, g in groups.items():
-        all_items = g['adds'] + g['dels'] + g['mods']
-        # If ALL items are themselves parent components, this is an intermediate assembly
-        if all_items and all(item['pn'] in all_parents for item in all_items):
-            continue
-        if all_items:
-            result.append(g)
+    # Filter out groups that ended up empty (shouldn't happen, but safety first)
+    raw_groups = [g for g in leaf_groups.values()
+                  if g['adds'] or g['dels'] or g['mods']]
 
-    # ── Merge groups with the same non-empty component name ──
-    # Use first word of parent_name as matching key (e.g., "包装组件")
-    merged = {}
-    for g in result:
-        full_name = (g['parent_name'] or '').strip()
-        pn = g['parent_pn'] or ''
-        # Extract short name for matching
-        short_name = full_name.split()[0] if full_name else full_name
-
-        if not short_name:
-            merged[pn] = g.copy()
-            merged[pn]['merges'] = [pn]
-            continue
-
-        key = short_name
-        if key not in merged:
-            merged[key] = g.copy()
-            merged[key]['merges'] = [pn]
-            merged[key]['short_name'] = short_name
+    # ── Step 3: Classify each leaf-group as P3EM / H5F / MOD ──
+    p3em_groups = []
+    h5f_groups = []
+    mod_groups = []
+    for g in raw_groups:
+        has_add = bool(g['adds'])
+        has_del = bool(g['dels'])
+        has_mod = bool(g['mods'])
+        if has_add and not has_del and not has_mod:
+            p3em_groups.append(g)
+        elif has_del and not has_add and not has_mod:
+            h5f_groups.append(g)
         else:
-            mg = merged[key]
-            mg['adds'].extend(g['adds'])
-            mg['dels'].extend(g['dels'])
-            mg['mods'].extend(g['mods'])
-            mg['merges'].append(pn)
-            if not mg['parent_pn'] or (pn and pn > mg['parent_pn']):
-                mg['parent_pn'] = pn
-                mg['parent_name'] = full_name
+            mod_groups.append(g)
 
-    # Filter: only keep groups with a real parent_pn
-    result_groups = [g for g in merged.values() if g.get('parent_pn') and g['parent_pn'] != '__UNKNOWN__']
-    return sorted(result_groups, key=lambda g: g['parent_pn'])
+    # ── Step 4: Build P3EM functional-key index ──
+    p3em_key_map = {}
+    for pg in p3em_groups:
+        key = _get_functional_key(pg['parent_name'])
+        if key:
+            p3em_key_map[key] = pg
+
+    # ── Step 5: Merge H5F leaf-groups → P3EM by functional key ──
+    unmatched_h5f = []
+    for hg in h5f_groups:
+        key = _get_functional_key(hg['parent_name'])
+        matched = p3em_key_map.get(key)
+        if matched:
+            # All H5F leaf items go into the matched P3EM group
+            for item in hg['dels']:
+                if item['pn'] == hg['parent_pn']:
+                    continue   # safety: skip H5F parent self-reference
+                matched['dels'].append(item)
+        else:
+            unmatched_h5f.append(hg)
+
+    # ── Step 6: Assemble final result ──
+    # No self-referencing: leaf items are already the right level of detail,
+    # and group headers carry the parent identity.
+    final_groups = p3em_groups + mod_groups + unmatched_h5f
+    return sorted(final_groups, key=lambda g: g['parent_pn'])
 
 
 # ── Word Generation ────────────────────────────────────────
@@ -344,9 +400,13 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     run.font.color.rgb = RGBColor(0x1E, 0x40, 0xAF)
     doc.paragraphs[1].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # ── Fill table cells ──
+    # ── Fill table header cells ──
     table = doc.tables[0]
-    _fill_template(table, machine_core, today_str, src_short, tgt_short, diff_rows)
+    _fill_template_header(table, machine_core, today_str, src_short, tgt_short)
+
+    # ── Build content as document-level paragraphs (page breaks work here) ──
+    groups = group_diffs_by_parent(diff_rows)
+    _build_content_body(doc, groups)
 
     # ── Save ──
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -362,6 +422,7 @@ def _clear_paragraph_runs(para):
     """Remove all runs from a paragraph."""
     for r in para.runs:
         r._element.getparent().remove(r._element)
+
 
 
 def _set_cell_text(cell, text):
@@ -381,24 +442,9 @@ def _set_cell_text(cell, text):
     run.font.name = '宋体'
 
 
-def _fill_template(table, machine_core, today_str, src_short, tgt_short, diff_rows):
-    """Fill the official template table with comparison data.
+def _fill_template_header(table, machine_core, today_str, src_short, tgt_short):
+    """Fill template header rows only (rows 0–2). Content is now built in document body."""
 
-    Template structure (10-column grid, physical cells via gridSpan):
-      Row 0-2: [span3-label, span3-dup, span3-dup, span2-value, span2-dup,
-                span1-sep, span2-label, span2-dup, span2-value, span2-dup]
-      Row 3-4: [narrow-label(span1), content(span9), dup×8]
-      Row 5:   [拟制(span2), dup, 签名(span2), dup, sep, sep+dup, sep+dup,
-                审核(span2), dup, 签名]
-
-    Value cell indices (use first cell of each span group):
-      Row0: [3]=机芯, [8]=日期
-      Row1: [3]=机型, [8]=订单号
-      Row2: [3]=阶段, [8]=数量
-      Row3: [1]=更改内容 area
-      Row4: [1]=说明 (keep as-is)
-      Row5: [2]=拟制签名, [9]=审核签名 (keep as-is)
-    """
     # ── Quantity formatter: show as int if whole number ──
     def _fmt_qty(q):
         try:
@@ -419,38 +465,39 @@ def _fill_template(table, machine_core, today_str, src_short, tgt_short, diff_ro
     _set_cell_text(table.rows[2].cells[3], 'DVT')
     _set_cell_text(table.rows[2].cells[8], '1')
 
-    # ── Row 3: 更改内容 ──
-    content_cell = table.rows[3].cells[1]
 
-    # Clear existing empty paragraphs
-    for p in content_cell.paragraphs:
-        for r in p.runs:
-            r._element.getparent().remove(r._element)
+def _build_content_body(doc, groups):
+    """Build component group content as document-level paragraphs.
 
-    # Group diffs by parent component
-    groups = group_diffs_by_parent(diff_rows)
+    Page breaks are only inserted when the estimated content exceeds the
+    remaining vertical space on the current page — groups stay together
+    on the same page whenever they fit, avoiding unnecessary blank pages.
 
-    # Reuse first paragraph as spacer
-    if content_cell.paragraphs:
-        p0 = content_cell.paragraphs[0]
-    else:
-        p0 = content_cell.add_paragraph()
-    p0.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    run = p0.add_run('')
-    run.font.size = Pt(4)
+    Estimation uses a line budget:
+      - A4 usable height ≈ 270mm → ~76 lines @10pt
+      - First page overhead (table + title) ≈ 20 line equivalents
+      - Each group: 1 header line (11pt) + N item lines (10pt) + 1 spacer (4pt)
+    """
+    # ── Quantity formatter ──
+    def _fmt_qty(q):
+        try:
+            v = float(q)
+            return str(int(v)) if v == int(v) else str(v)
+        except (TypeError, ValueError):
+            return str(q) if q else '1'
 
-    for g in groups:
-        if not (g['adds'] or g['dels'] or g['mods']):
-            continue
+    # Line budget per page (conservative: 70 of 76 theoretical max)
+    PAGE_LINES = 70
+    FIRST_PAGE_OVERHEAD = 20  # table header rows + title + form number
 
-        # Component header: "在N030105-019050-001……面壳组件里"
+    line_used = FIRST_PAGE_OVERHEAD  # start counting from after the table header
+    first_group = True
+
+    def _add_group_header(g):
         comp_pn = g.get('parent_pn', '')
-        if not comp_pn or comp_pn == '__UNKNOWN__':
-            continue
         comp_name = g.get('short_name', g['parent_name'])
         header_text = f'在{comp_pn}\u2026\u2026{comp_name}里'
-
-        p = content_cell.add_paragraph()
+        p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         run = p.add_run(header_text)
         run.font.size = Pt(11)
@@ -458,57 +505,61 @@ def _fill_template(table, machine_core, today_str, src_short, tgt_short, diff_ro
         run.font.name = '宋体'
         run.font.color.rgb = RGBColor(0x1E, 0x40, 0xAF)
 
+    def _add_item_line(prefix, pn, name, qty_text):
+        text = f'{pn}\u00b7\u00b7{name}\u00b7\u00b7{qty_text}'
+        line = f'{prefix}:{text}' if prefix else f'     {text}'
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        run = p.add_run(line)
+        run.font.size = Pt(10)
+        run.font.name = '宋体'
+        run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+
+    def _add_spacer():
+        p = doc.add_paragraph()
+        run = p.add_run('')
+        run.font.size = Pt(4)
+
+    for g in groups:
+        if not (g['adds'] or g['dels'] or g['mods']):
+            continue
+
+        comp_pn = g.get('parent_pn', '')
+        if not comp_pn or comp_pn == '__UNKNOWN__':
+            continue
+
+        # Calculate lines this group needs: 1 header + items + 1 spacer
+        item_count = len(g['adds']) + len(g['dels']) + len(g['mods'])
+        group_lines = 1 + item_count + 1
+
+        # Insert page break only if this group won't fit on current page
+        if not first_group and line_used + group_lines > PAGE_LINES:
+            doc.add_page_break()
+            line_used = 0  # reset for new page
+
+        first_group = False
+
+        _add_group_header(g)
+
         # ADD items
         for i, item in enumerate(g['adds']):
             qty = _fmt_qty(item['qty'])
-            text = f'{item["pn"]}\u00b7\u00b7{item["name"]}\u00b7\u00b7{qty}PC'
-            line = f'ADD:{text}' if i == 0 else f'     {text}'
-            p = content_cell.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            run = p.add_run(line)
-            run.font.size = Pt(10)
-            run.font.name = '宋体'
-            run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+            _add_item_line('ADD' if i == 0 else '', item['pn'], item['name'], f'{qty}PC')
 
         # DEL items
         for i, item in enumerate(g['dels']):
             qty = _fmt_qty(item['qty'])
-            text = f'{item["pn"]}\u00b7\u00b7{item["name"]}\u00b7\u00b7{qty}PC'
-            line = f'DEL:{text}' if i == 0 else f'     {text}'
-            p = content_cell.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            run = p.add_run(line)
-            run.font.size = Pt(10)
-            run.font.name = '宋体'
-            run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+            _add_item_line('DEL' if i == 0 else '', item['pn'], item['name'], f'{qty}PC')
 
         # MOD items
         for mi, m in enumerate(g['mods']):
             old_q = _fmt_qty(m.get('old_qty', '1'))
             new_q = _fmt_qty(m.get('new_qty', '1'))
-            text = f'{m["pn"]}\u00b7\u00b7{m["name"]}\u00b7\u00b7{old_q}\u2192{new_q}'
-            line = f'MOD:{text}' if mi == 0 else f'     {text}'
-            p = content_cell.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            run = p.add_run(line)
-            run.font.size = Pt(10)
-            run.font.name = '宋体'
-            run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+            _add_item_line('MOD' if mi == 0 else '', m['pn'], m['name'], f'{old_q}\u2192{new_q}')
 
-        # Blank line between components
-        p = content_cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        run = p.add_run('')
-        run.font.size = Pt(4)
+        _add_spacer()
 
-    # Remove the two extra empty template paragraphs that remain unused
-    for p in content_cell.paragraphs:
-        if p == p0:
-            continue
-        text = p.text.strip()
-        if not text and all(not r.text.strip() for r in p.runs):
-            # Leave one spacer at end
-            pass
+        line_used += group_lines
 
 
 def _extract_model(bom_name):
