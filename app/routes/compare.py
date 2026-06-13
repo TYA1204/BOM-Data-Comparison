@@ -51,7 +51,7 @@ def get_result(task_id):
         return jsonify({'ok': False, 'msg': '未找到该比对任务'}), 404
 
     results = db.query(
-        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY severity DESC, id',
+        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY diff_type, id',
         (task_id,)
     )
     return jsonify({

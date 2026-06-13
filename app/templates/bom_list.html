@@ -11,15 +11,15 @@
             <p class="text-slate-500 text-sm mt-1">管理所有已上传的物料清单，支持导出、删除与对比</p>
         </div>
         <div class="flex gap-2">
-            <button onclick="clearAllData()" class="btn btn--danger text-sm">
+            <button onclick="clearAllData()" class="btn btn--danger">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 清除全部数据
             </button>
-            <a href="/compare" class="btn btn--secondary text-sm">
+            <a href="/compare" class="btn btn--secondary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
                 开始比对
             </a>
-            <a href="/upload" class="btn btn--primary text-sm">
+            <a href="/upload" class="btn btn--primary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 上传新 BOM
             </a>
@@ -123,7 +123,53 @@
         </div>
     </div>
 
+
 </div>
+
+<!-- ============================================================
+     BOM 逻辑图 Modal
+     ============================================================ -->
+<div id="logic-diagram-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="BOM逻辑图">
+    <div class="logic-diagram-modal animate-scale-in">
+        <div class="logic-diagram__header">
+            <div class="logic-diagram__title-group">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <h2 class="logic-diagram__title">BOM 层级逻辑图</h2>
+                <span class="logic-diagram__bom-name" id="diagram-bom-name"></span>
+            </div>
+            <div class="logic-diagram__actions">
+                <button onclick="downloadDiagramSVG()" class="btn btn--secondary btn--sm" title="导出SVG矢量图">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    导出 SVG
+                </button>
+                <button onclick="downloadDiagramPNG()" class="btn btn--primary btn--sm" title="导出PNG位图">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    导出 PNG
+                </button>
+                <button onclick="closeLogicDiagram()" class="btn btn--ghost btn--sm" aria-label="关闭">✕</button>
+            </div>
+        </div>
+        <!-- zoom control -->
+        <div class="logic-diagram__zoom-bar">
+            <button onclick="zoomDiagram(-0.2)" class="btn btn--ghost btn--sm" title="缩小">−</button>
+            <span class="logic-diagram__zoom-level" id="diagram-zoom-label">100%</span>
+            <button onclick="zoomDiagram(0.2)" class="btn btn--ghost btn--sm" title="放大">+</button>
+            <button onclick="resetDiagramZoom()" class="btn btn--ghost btn--sm" title="重置">↺</button>
+        </div>
+        <div class="logic-diagram__viewport" id="diagram-viewport">
+            <div class="logic-diagram__canvas" id="diagram-canvas">
+                <div class="logic-diagram__loading" id="diagram-loading">
+                    <span class="spinner spinner--lg"></span>
+                    <span>加载 BOM 层级结构...</span>
+                </div>
+            </div>
+        </div>
+        <div class="logic-diagram__footer">
+            <span class="text-xs text-slate-400">共 <strong id="diagram-node-count">0</strong> 个节点 · 拖拽平移 · 滚轮缩放</span>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -231,6 +277,7 @@ function renderTable(boms) {
                 '<div class="flex items-center gap-1">' +
                     '<button onclick="exportBom(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出Excel">导出</button>' +
                     '<button onclick="exportAllComponents(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出全部组件">组件</button>' +
+                    '<button onclick="openLogicDiagram(' + b.id + ')" class="btn btn--ghost btn--sm text-indigo-600 hover:text-indigo-800" title="查看BOM层级逻辑图">逻辑图</button>' +
                     '<button onclick="deleteBom(' + b.id + ', \'' + BOMApp.escapeHtml(b.source_file || b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-red-500 hover:text-red-700" title="删除">删除</button>' +
                 '</div>' +
             '</td>' +
@@ -414,5 +461,491 @@ BOMApp.ready(function () {
 
     loadBomList();
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  BOM 逻辑图 — SVG 层级树渲染 & 导出
+// ═══════════════════════════════════════════════════════════════
+
+var logicDiagram = {
+    _scale: 1,
+    _panX: 0,
+    _panY: 0,
+    _dragging: false,
+    _dragStartX: 0,
+    _dragStartY: 0,
+    _svgContent: '',
+    _bomName: ''
+};
+
+/** Open logic diagram modal */
+function openLogicDiagram(bomId) {
+    var overlay = document.getElementById('logic-diagram-overlay');
+    var loading = document.getElementById('diagram-loading');
+    var canvas = document.getElementById('diagram-canvas');
+
+    overlay.classList.remove('hidden');
+    loading.style.display = 'flex';
+    canvas.querySelector('svg') && canvas.querySelector('svg').remove();
+    document.body.style.overflow = 'hidden';
+
+    // Reset zoom/pan
+    logicDiagram._scale = 1;
+    logicDiagram._panX = 0;
+    logicDiagram._panY = 0;
+    document.getElementById('diagram-zoom-label').textContent = '100%';
+    applyDiagramTransform();
+
+    // Fetch BOM tree
+    BOMApp.API.get('/upload/api/bom-tree/' + bomId)
+        .then(function (data) {
+            if (!data.ok || !data.tree || data.tree.length === 0) {
+                loading.innerHTML = '<div class="empty-state"><p class="empty-state__title">无层级数据</p><p class="empty-state__desc">该 BOM 没有可展示的层级结构</p></div>';
+                document.getElementById('diagram-node-count').textContent = '0';
+                return;
+            }
+
+            document.getElementById('diagram-node-count').textContent = data.total_items || 0;
+
+            // Build SVG
+            var svg = buildTreeSVG(data.tree);
+            logicDiagram._svgContent = svg.outerHTML;
+            logicDiagram._bomName = data.tree[0] ? (data.tree[0].part_number || '') : '';
+
+            loading.style.display = 'none';
+            canvas.innerHTML = '';
+            canvas.appendChild(svg);
+
+            // Fit to viewport
+            fitDiagramToViewport();
+
+            // Update BOM name display
+            var nameEl = document.getElementById('diagram-bom-name');
+            nameEl.textContent = logicDiagram._bomName || '';
+        })
+        .catch(function (err) {
+            loading.innerHTML = '<div class="empty-state"><p class="empty-state__title">加载失败</p><p class="empty-state__desc">' + BOMApp.escapeHtml(err.message || '网络错误') + '</p></div>';
+        });
+}
+
+/** Close logic diagram modal */
+function closeLogicDiagram() {
+    document.getElementById('logic-diagram-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+/** Build SVG tree diagram */
+function buildTreeSVG(treeNodes) {
+    var NODE_W = 210;
+    var NODE_H = 60;
+    var LEVEL_GAP = 260;
+    var V_GAP = 14;
+    var PADDING = 40;
+
+    // Flatten all root trees into one virtual root if multiple roots
+    var roots = treeNodes.map(function (node, i) { return { node: node, index: i }; });
+
+    // ---- Pass 1: compute subtree heights ----
+    function computeHeight(node) {
+        var children = node.children || [];
+        if (children.length === 0) {
+            node._h = NODE_H;
+            return NODE_H;
+        }
+        var total = 0;
+        for (var i = 0; i < children.length; i++) {
+            total += computeHeight(children[i]);
+        }
+        if (children.length > 1) total += (children.length - 1) * V_GAP;
+        node._h = Math.max(NODE_H, total);
+        return node._h;
+    }
+
+    var totalH = 0;
+    roots.forEach(function (r) {
+        totalH += computeHeight(r.node);
+    });
+    if (roots.length > 1) totalH += (roots.length - 1) * V_GAP * 2;
+
+    // ---- Pass 2: assign positions ----
+    function assignPositions(node, x, y) {
+        node._x = x;
+        node._y = y + (node._h - NODE_H) / 2;
+
+        var children = node.children || [];
+        if (children.length === 0) return;
+
+        var childrenTotal = 0;
+        for (var i = 0; i < children.length; i++) {
+            childrenTotal += children[i]._h;
+        }
+        if (children.length > 1) childrenTotal += (children.length - 1) * V_GAP;
+
+        var startY = y + (node._h - childrenTotal) / 2;
+        var cy = startY;
+        for (var i = 0; i < children.length; i++) {
+            assignPositions(children[i], x + LEVEL_GAP, cy);
+            cy += children[i]._h + V_GAP;
+        }
+    }
+
+    var yCursor = PADDING;
+    roots.forEach(function (r, i) {
+        if (i > 0) yCursor += V_GAP * 2;
+        assignPositions(r.node, PADDING, yCursor);
+        yCursor += r.node._h;
+    });
+
+    // Compute SVG dimensions
+    var maxDepth = 0;
+    function findMaxDepth(node) {
+        var children = node.children || [];
+        maxDepth = Math.max(maxDepth, node._x + NODE_W);
+        for (var i = 0; i < children.length; i++) findMaxDepth(children[i]);
+    }
+    roots.forEach(function (r) { findMaxDepth(r.node); });
+
+    var svgW = maxDepth + PADDING;
+    var svgH = yCursor + PADDING;
+
+    // ---- Build SVG ----
+    var xmlns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(xmlns, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+    svg.setAttribute('width', svgW);
+    svg.setAttribute('height', svgH);
+    svg.style.overflow = 'visible';
+
+    // Defs — drop shadow & gradients
+    var defs = document.createElementNS(xmlns, 'defs');
+    defs.innerHTML =
+        '<filter id="node-shadow" x="-5%" y="-5%" width="110%" height="120%">' +
+            '<feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.08"/>' +
+        '</filter>' +
+        '<marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">' +
+            '<polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>' +
+        '</marker>' +
+        // Level-based gradients
+        '<linearGradient id="grad-l0" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#fde68a"/></linearGradient>' +
+        '<linearGradient id="grad-l1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient>' +
+        '<linearGradient id="grad-l2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#dcfce7"/><stop offset="100%" stop-color="#86efac"/></linearGradient>' +
+        '<linearGradient id="grad-l3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f3e8ff"/><stop offset="100%" stop-color="#c4b5fd"/></linearGradient>' +
+        '<linearGradient id="grad-l4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fce7f3"/><stop offset="100%" stop-color="#f9a8d4"/></linearGradient>' +
+        '<linearGradient id="grad-l5" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#7dd3fc"/></linearGradient>' +
+        '<linearGradient id="grad-default" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#e2e8f0"/></linearGradient>';
+    svg.appendChild(defs);
+
+    // Group for all tree elements
+    var g = document.createElementNS(xmlns, 'g');
+    svg.appendChild(g);
+
+    // ---- Recursive render ----
+    function renderNode(node, parentX, parentY) {
+        var x = node._x;
+        var y = node._y;
+        var level = (node.level || 0) % 6;
+        var gradId = level <= 5 ? 'grad-l' + level : 'grad-default';
+        var strokeColors = ['#eab308', '#3b82f6', '#22c55e', '#8b5cf6', '#ec4899', '#06b6d4'];
+        var strokeColor = strokeColors[level] || '#94a3b8';
+
+        // Connector line from parent
+        if (parentX !== undefined && parentY !== undefined) {
+            var line = document.createElementNS(xmlns, 'path');
+            var startX = parentX + NODE_W;
+            var startY = parentY + NODE_H / 2;
+            var endX = x;
+            var endY = y + NODE_H / 2;
+            var midX = (startX + endX) / 2;
+            line.setAttribute('d', 'M ' + startX + ' ' + startY + ' C ' + midX + ' ' + startY + ', ' + midX + ' ' + endY + ', ' + endX + ' ' + endY);
+            line.setAttribute('fill', 'none');
+            line.setAttribute('stroke', '#cbd5e1');
+            line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('marker-end', 'url(#arrowhead)');
+            g.appendChild(line);
+        }
+
+        // Node rectangle
+        var rect = document.createElementNS(xmlns, 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', NODE_W);
+        rect.setAttribute('height', NODE_H);
+        rect.setAttribute('rx', '8');
+        rect.setAttribute('ry', '8');
+        rect.setAttribute('fill', 'url(#' + gradId + ')');
+        rect.setAttribute('stroke', strokeColor);
+        rect.setAttribute('stroke-width', '1.5');
+        rect.setAttribute('filter', 'url(#node-shadow)');
+        g.appendChild(rect);
+
+        // Level badge (small circle top-left)
+        var badge = document.createElementNS(xmlns, 'circle');
+        badge.setAttribute('cx', x + 14);
+        badge.setAttribute('cy', y + 14);
+        badge.setAttribute('r', '8');
+        badge.setAttribute('fill', strokeColor);
+        g.appendChild(badge);
+
+        var badgeText = document.createElementNS(xmlns, 'text');
+        badgeText.setAttribute('x', x + 14);
+        badgeText.setAttribute('y', y + 18);
+        badgeText.setAttribute('text-anchor', 'middle');
+        badgeText.setAttribute('fill', 'white');
+        badgeText.setAttribute('font-size', '9');
+        badgeText.setAttribute('font-weight', '700');
+        badgeText.setAttribute('font-family', 'var(--font-sans), sans-serif');
+        badgeText.textContent = node.level || '0';
+        g.appendChild(badgeText);
+
+        // Part Number text
+        var pnText = document.createElementNS(xmlns, 'text');
+        pnText.setAttribute('x', x + 28);
+        pnText.setAttribute('y', y + 22);
+        pnText.setAttribute('fill', '#1e293b');
+        pnText.setAttribute('font-size', '12');
+        pnText.setAttribute('font-weight', '600');
+        pnText.setAttribute('font-family', 'var(--font-mono), monospace');
+        pnText.textContent = truncateText(node.part_number || '', 24);
+        g.appendChild(pnText);
+
+        // Part Name text
+        var nameText = document.createElementNS(xmlns, 'text');
+        nameText.setAttribute('x', x + 28);
+        nameText.setAttribute('y', y + 40);
+        nameText.setAttribute('fill', '#475569');
+        nameText.setAttribute('font-size', '11');
+        nameText.setAttribute('font-family', 'var(--font-sans), sans-serif');
+        nameText.textContent = truncateText(node.part_name || '', 26);
+        g.appendChild(nameText);
+
+        // Quantity x Unit text
+        if (node.quantity || node.unit) {
+            var qtyStr = (node.quantity ? node.quantity : '') + (node.unit ? ' ' + node.unit : '');
+            var qtyText = document.createElementNS(xmlns, 'text');
+            qtyText.setAttribute('x', x + NODE_W - 12);
+            qtyText.setAttribute('y', y + NODE_H - 14);
+            qtyText.setAttribute('text-anchor', 'end');
+            qtyText.setAttribute('fill', '#64748b');
+            qtyText.setAttribute('font-size', '10');
+            qtyText.setAttribute('font-family', 'var(--font-sans), sans-serif');
+            qtyText.textContent = qtyStr.trim();
+            g.appendChild(qtyText);
+        }
+
+        // Children count badge (if has children)
+        if ((node.children_count || 0) > 0) {
+            var countBadge = document.createElementNS(xmlns, 'rect');
+            countBadge.setAttribute('x', x + NODE_W - 42);
+            countBadge.setAttribute('y', y + 4);
+            countBadge.setAttribute('width', '38');
+            countBadge.setAttribute('height', '16');
+            countBadge.setAttribute('rx', '8');
+            countBadge.setAttribute('fill', strokeColor);
+            countBadge.setAttribute('opacity', '0.2');
+            g.appendChild(countBadge);
+
+            var countText = document.createElementNS(xmlns, 'text');
+            countText.setAttribute('x', x + NODE_W - 23);
+            countText.setAttribute('y', y + 16);
+            countText.setAttribute('text-anchor', 'middle');
+            countText.setAttribute('fill', strokeColor);
+            countText.setAttribute('font-size', '9');
+            countText.setAttribute('font-weight', '700');
+            countText.setAttribute('font-family', 'var(--font-sans), sans-serif');
+            countText.textContent = node.children_count;
+            g.appendChild(countText);
+        }
+
+        // Render children
+        var children = node.children || [];
+        for (var i = 0; i < children.length; i++) {
+            renderNode(children[i], x, y);
+        }
+    }
+
+    roots.forEach(function (r) { renderNode(r.node); });
+
+    return svg;
+}
+
+function truncateText(text, maxLen) {
+    if (!text) return '';
+    return text.length > maxLen ? text.substring(0, maxLen - 1) + '…' : text;
+}
+
+/** Fit diagram to viewport */
+function fitDiagramToViewport() {
+    var vp = document.getElementById('diagram-viewport');
+    var svg = document.querySelector('#diagram-canvas svg');
+    if (!svg || !vp) return;
+
+    var svgW = parseFloat(svg.getAttribute('width')) || 1000;
+    var svgH = parseFloat(svg.getAttribute('height')) || 800;
+    var vpW = vp.clientWidth - 20;
+    var vpH = vp.clientHeight - 20;
+
+    var scaleX = vpW / svgW;
+    var scaleY = vpH / svgH;
+    var scale = Math.min(scaleX, scaleY, 1.0);
+
+    logicDiagram._scale = Math.round(scale * 100) / 100;
+    logicDiagram._panX = 0;
+    logicDiagram._panY = 0;
+
+    document.getElementById('diagram-zoom-label').textContent = Math.round(logicDiagram._scale * 100) + '%';
+    applyDiagramTransform();
+}
+
+/** Apply CSS transform for pan/zoom */
+function applyDiagramTransform() {
+    var c = document.getElementById('diagram-canvas');
+    if (!c) return;
+    c.style.transform = 'translate(' + logicDiagram._panX + 'px, ' + logicDiagram._panY + 'px) scale(' + logicDiagram._scale + ')';
+    c.style.transformOrigin = '0 0';
+}
+
+/** Zoom controls */
+function zoomDiagram(delta) {
+    var newScale = Math.max(0.2, Math.min(3.0, logicDiagram._scale + delta));
+    logicDiagram._scale = Math.round(newScale * 100) / 100;
+    document.getElementById('diagram-zoom-label').textContent = Math.round(logicDiagram._scale * 100) + '%';
+    applyDiagramTransform();
+}
+
+function resetDiagramZoom() {
+    fitDiagramToViewport();
+}
+
+/** Export SVG */
+function downloadDiagramSVG() {
+    var svg = document.querySelector('#diagram-canvas svg');
+    if (!svg) {
+        BOMApp.Toast.warning('请先打开逻辑图');
+        return;
+    }
+
+    var clone = svg.cloneNode(true);
+    var svgData = new XMLSerializer().serializeToString(clone);
+    var blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svgData], { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'BOM_逻辑图_' + (logicDiagram._bomName || 'export') + '.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    BOMApp.Toast.success('SVG 已导出');
+}
+
+/** Export PNG */
+function downloadDiagramPNG() {
+    var svg = document.querySelector('#diagram-canvas svg');
+    if (!svg) {
+        BOMApp.Toast.warning('请先打开逻辑图');
+        return;
+    }
+
+    var clone = svg.cloneNode(true);
+    var svgData = new XMLSerializer().serializeToString(clone);
+    var svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(svgBlob);
+
+    var img = new Image();
+    img.onload = function () {
+        var canvas = document.createElement('canvas');
+        var scale = 2; // 2x for retina
+        canvas.width = img.naturalWidth * scale;
+        canvas.height = img.naturalHeight * scale;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(function (blob) {
+            var pngUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = pngUrl;
+            a.download = 'BOM_逻辑图_' + (logicDiagram._bomName || 'export') + '.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(pngUrl);
+            BOMApp.Toast.success('PNG 已导出');
+        }, 'image/png', 1.0);
+
+        URL.revokeObjectURL(url);
+    };
+    img.onerror = function () {
+        BOMApp.Toast.error('PNG 导出失败');
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+}
+
+// ─── Pan & Zoom mouse/touch handlers ───
+(function () {
+    var vp, canvas;
+    var isPanning = false;
+    var startX, startY, origPanX, origPanY;
+
+    function initHandlers() {
+        vp = document.getElementById('diagram-viewport');
+        if (!vp) return;
+
+        // Mouse wheel zoom
+        vp.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            var delta = e.deltaY > 0 ? -0.1 : 0.1;
+            zoomDiagram(delta);
+        }, { passive: false });
+
+        // Mouse drag pan
+        vp.addEventListener('mousedown', function (e) {
+            if (e.target.closest('button') || e.target.closest('.btn')) return;
+            isPanning = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            origPanX = logicDiagram._panX;
+            origPanY = logicDiagram._panY;
+            vp.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', function (e) {
+            if (!isPanning) return;
+            logicDiagram._panX = origPanX + (e.clientX - startX);
+            logicDiagram._panY = origPanY + (e.clientY - startY);
+            applyDiagramTransform();
+        });
+
+        window.addEventListener('mouseup', function () {
+            if (!isPanning) return;
+            isPanning = false;
+            if (vp) vp.style.cursor = '';
+        });
+
+        // Overlay click to close
+        var overlay = document.getElementById('logic-diagram-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) closeLogicDiagram();
+            });
+        }
+
+        // Escape key to close
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                var ov = document.getElementById('logic-diagram-overlay');
+                if (ov && !ov.classList.contains('hidden')) {
+                    closeLogicDiagram();
+                }
+            }
+        });
+    }
+
+    BOMApp.ready(initHandlers);
+})();
 </script>
 {% endblock %}

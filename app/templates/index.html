@@ -219,14 +219,14 @@ BOMApp.ready(function () {
                     '</tr></thead>' +
                     '<tbody>' +
                         tasks.slice(0, 5).map(function (t) {
-                            var severityBadge = (t.diff_count || 0) === 0
+                            var diffBadge = (t.diff_count || 0) === 0
                                 ? '<span class="badge badge--success">' + t.diff_count + '</span>'
                                 : '<span class="badge badge--danger">' + t.diff_count + '</span>';
                             return '<tr class="cursor-pointer" onclick="window.location.href=\'/compare?task_id=' + t.id + '\'" tabindex="0" role="link" onkeydown="if(event.key===\'Enter\') window.location.href=\'/compare?task_id=' + t.id + '\'">' +
                                 '<td class="font-medium text-blue-600">' + BOMApp.escapeHtml(t.task_name) + '</td>' +
                                 '<td class="text-slate-500">' + BOMApp.escapeHtml(t.source_name || '-') + '</td>' +
                                 '<td class="text-slate-500">' + BOMApp.escapeHtml(t.target_name || '-') + '</td>' +
-                                '<td class="text-center">' + severityBadge + '</td>' +
+                                '<td class="text-center">' + diffBadge + '</td>' +
                                 '<td class="text-slate-400 text-xs">' + BOMApp.formatDate(t.created_at) + '</td>' +
                             '</tr>';
                         }).join('') +

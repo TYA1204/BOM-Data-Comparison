@@ -30,10 +30,10 @@ def task_stats(task_id):
     from app.models import db
     stats = db.query('''
         SELECT 
-            diff_type, diff_category, severity, COUNT(*) as cnt
+            diff_type, diff_category, COUNT(*) as cnt
         FROM comparison_result 
         WHERE task_id=?
-        GROUP BY diff_type, diff_category, severity
+        GROUP BY diff_type, diff_category
         ORDER BY cnt DESC
     ''', (task_id,))
     return jsonify({'ok': True, 'stats': [dict(s) for s in stats]})
