@@ -130,8 +130,14 @@ def clean_material_name(name):
 
 
 
-def get_diff_rows(conn, task_id):
-    """Get all diff rows for the task, ready for table insertion."""
+def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
+    """Get all diff rows for the task, ready for table insertion.
+
+    When source_bom_id/target_bom_id are provided, parent component names are
+    looked up from the correct BOM: source BOM for DEL items, target BOM for
+    ADD items.  This prevents cross-BOM name pollution when the same PN has
+    different names in different BOMs.
+    """
     diffs = conn.execute(
         '''SELECT * FROM comparison_result WHERE task_id=?
            ORDER BY CASE diff_type
@@ -140,23 +146,54 @@ def get_diff_rows(conn, task_id):
         (task_id,)
     ).fetchall()
 
-    # Build parent_name lookup from bom_item table
-    parent_lookup = {}
-    all_parent_pns = set()
+    # ── Build BOM-aware parent name lookups ──
+    parent_pns_src = set()  # parent_pn_a: source BOM side
+    parent_pns_tgt = set()  # parent_pn_b: target BOM side
     for d in diffs:
         pa = (_g(d, 'parent_pn_a') or '').strip()
         pb = (_g(d, 'parent_pn_b') or '').strip()
-        if pa: all_parent_pns.add(pa)
-        if pb: all_parent_pns.add(pb)
-    if all_parent_pns:
-        placeholders = ','.join(['?' for _ in all_parent_pns])
+        if pa: parent_pns_src.add(pa)
+        if pb: parent_pns_tgt.add(pb)
+
+    parent_lookup_src = {}
+    parent_lookup_tgt = {}
+
+    if source_bom_id and parent_pns_src:
+        placeholders = ','.join(['?' for _ in parent_pns_src])
         pns = conn.execute(
-            f'SELECT part_number, part_name FROM bom_item WHERE part_number IN ({placeholders})',
-            list(all_parent_pns)
+            f'''SELECT part_number, part_name FROM bom_item
+                WHERE bom_id=? AND part_number IN ({placeholders})''',
+            [source_bom_id] + list(parent_pns_src)
         ).fetchall()
         for pn_row in pns:
-            raw_name = (pn_row['part_name'] or '部件').strip()
-            parent_lookup[pn_row['part_number']] = clean_material_name(raw_name)
+            raw_name = (pn_row['part_name'] or '\u90e8\u4ef6').strip()
+            parent_lookup_src[pn_row['part_number']] = clean_material_name(raw_name)
+
+    if target_bom_id and parent_pns_tgt:
+        placeholders = ','.join(['?' for _ in parent_pns_tgt])
+        pns = conn.execute(
+            f'''SELECT part_number, part_name FROM bom_item
+                WHERE bom_id=? AND part_number IN ({placeholders})''',
+            [target_bom_id] + list(parent_pns_tgt)
+        ).fetchall()
+        for pn_row in pns:
+            raw_name = (pn_row['part_name'] or '\u90e8\u4ef6').strip()
+            parent_lookup_tgt[pn_row['part_number']] = clean_material_name(raw_name)
+
+    # Fallback: if bom_ids not provided, query all BOMs (backward compatible)
+    if not source_bom_id and not target_bom_id:
+        all_parent_pns = parent_pns_src | parent_pns_tgt
+        if all_parent_pns:
+            placeholders = ','.join(['?' for _ in all_parent_pns])
+            pns = conn.execute(
+                f'SELECT part_number, part_name FROM bom_item WHERE part_number IN ({placeholders})',
+                list(all_parent_pns)
+            ).fetchall()
+            for pn_row in pns:
+                raw_name = (pn_row['part_name'] or '\u90e8\u4ef6').strip()
+                cleaned = clean_material_name(raw_name)
+                parent_lookup_src[pn_row['part_number']] = cleaned
+                parent_lookup_tgt[pn_row['part_number']] = cleaned
 
     rows = []
     for d in diffs:
@@ -169,7 +206,8 @@ def get_diff_rows(conn, task_id):
             qty = _g(d, 'quantity_b', 1)
             qty_str = str(int(qty)) if qty is not None else '1'
             parent_pn = (_g(d, 'parent_pn_b') or '').strip()
-            parent_name = parent_lookup.get(parent_pn, '') if parent_pn else ''
+            # ADD = P3EM side → prefer target BOM name, fallback to source
+            parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'ADD'
         elif dt == 'removed':
             pn = (_g(d, 'part_number_a') or '').strip()
@@ -177,7 +215,8 @@ def get_diff_rows(conn, task_id):
             qty = _g(d, 'quantity_a', 1)
             qty_str = str(int(qty)) if qty is not None else '1'
             parent_pn = (_g(d, 'parent_pn_a') or '').strip()
-            parent_name = parent_lookup.get(parent_pn, '') if parent_pn else ''
+            # DEL = H5F side → prefer source BOM name, fallback to target
+            parent_name = parent_lookup_src.get(parent_pn, parent_lookup_tgt.get(parent_pn, ''))
             type_label = 'DEL'
         else:
             pn = (_g(d, 'part_number_a') or _g(d, 'part_number_b') or '').strip()
@@ -185,7 +224,8 @@ def get_diff_rows(conn, task_id):
             old_qty = str(_g(d, 'old_value', '')).strip()
             new_qty = str(_g(d, 'new_value', '')).strip()
             parent_pn = (_g(d, 'parent_pn_a') or _g(d, 'parent_pn_b') or '').strip()
-            parent_name = parent_lookup.get(parent_pn, '') if parent_pn else ''
+            # MOD → prefer target, fallback to source
+            parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'MOD'
 
         row_data = {
@@ -376,7 +416,9 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     tgt_short = _extract_model(tgt_label)
     machine_core = _extract_core(src_label)
 
-    diff_rows = get_diff_rows(conn, task_id)
+    diff_rows = get_diff_rows(conn, task_id,
+                              source_bom_id=task['source_bom_id'],
+                              target_bom_id=task['target_bom_id'])
     conn.close()
 
     today_str = datetime.now().strftime('%Y-%-m-%-d') if os.name != 'nt' else datetime.now().strftime('%Y/%#m/%#d')
@@ -580,7 +622,9 @@ def generate_change_notice_excel(task_id: int, output_name: str = None, db_path:
     task = conn.execute('SELECT * FROM comparison_task WHERE id=?', (task_id,)).fetchone()
     if not task:
         raise ValueError(f'Task #{task_id} not found')
-    diff_rows = get_diff_rows(conn, task_id)
+    diff_rows = get_diff_rows(conn, task_id,
+                              source_bom_id=task['source_bom_id'],
+                              target_bom_id=task['target_bom_id'])
     conn.close()
 
     src_name = _extract_model(diff_rows[0]['pn']) if diff_rows else 'N/A'  # fallback
