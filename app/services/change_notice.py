@@ -14,6 +14,16 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # ── Constants ──────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+TEMPLATE_PATH = os.path.join(PROJECT_ROOT, '整机清机更改通知单.docx')
+OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'reports')
+
+# Font fallback list: Windows -> cross-platform
+# SimSun = 宋体 (Windows); Microsoft YaHei = 微软雅黑 (Windows Vista+);
+# Arial Unicode MS = macOS fallback
+FONT_FALLBACK = ['宋体', 'SimSun', 'Microsoft YaHei', 'Arial Unicode MS']
+
+DIFF_LABELS = {'added': '新增', 'removed': '删除', 'modified': '变更'}
 TEMPLATE_PATH = os.path.join(PROJECT_ROOT, '整机清机更改通知单.docx')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'reports')
 
@@ -33,6 +43,28 @@ GRAY       = '999999'
 
 
 # ── Data Helpers ───────────────────────────────────────────
+
+def _set_font(run, font_list=None):
+    """Apply font with fallback list.
+
+    python-docx only sets the font name; actual font substitution
+    is handled by Word/Office when the requested font is unavailable.
+    We set both the ASCII (name) and East Asian (rFonts element) to
+    maximize compatibility across Windows / macOS / Linux.
+    """
+    if font_list is None:
+        font_list = FONT_FALLBACK
+    run.font.name = font_list[0]
+    # Also set East Asian font explicitly for CJK text
+    rPr = run._element.getparent()
+    if rPr is not None:
+        from lxml import etree
+        rFonts = rPr.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}rFonts')
+        if rFonts is None:
+            rFonts = etree.SubElement(rPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}rFonts')
+        for attr in ('ascii', 'hAnsi', 'eastAsia', 'cs'):
+            rFonts.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}' + attr, font_list[0])
+
 
 def _g(d, key, default=None):
     try:
@@ -394,8 +426,15 @@ def _ensure_template():
     doc.save(TEMPLATE_PATH)
 
 
-def generate_change_notice(task_id: int, output_name: str = None, db_path: str = None):
-    """Generate change notice by filling the official template."""
+def generate_change_notice(task_id: int, output_name: str = None, db_path: str = None,
+                            order_no: str = None, stage: str = None, quantity: str = None):
+    """Generate change notice by filling the official template.
+
+    Parameters:
+      order_no: 订单号 (default '2606002KL')
+      stage:    阶段   (default 'DVT')
+      quantity: 数量   (default '1')
+    """
     _ensure_template()  # 确保模板存在
     if db_path is None:
         db_path = os.path.join(PROJECT_ROOT, 'data', 'bom_compare.db')
@@ -423,6 +462,14 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
 
     today_str = datetime.now().strftime('%Y-%-m-%-d') if os.name != 'nt' else datetime.now().strftime('%Y/%#m/%#d')
 
+    # Defaults for configurable header fields
+    if order_no is None:
+        order_no = '2606002KL'
+    if stage is None:
+        stage = 'DVT'
+    if quantity is None:
+        quantity = '1'
+
     # ── Load template ──
     doc = Document(TEMPLATE_PATH)
 
@@ -431,20 +478,21 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     _clear_paragraph_runs(doc.paragraphs[0])
     run = doc.paragraphs[0].add_run('SKY-RKZXS-07')
     run.font.size = Pt(12)
-    run.font.name = '宋体'
+    _set_font(run)
 
     # P1: title
     _clear_paragraph_runs(doc.paragraphs[1])
     run = doc.paragraphs[1].add_run('更 改 通 知 单')
     run.font.size = Pt(22)
     run.font.bold = True
-    run.font.name = '宋体'
+    _set_font(run)
     run.font.color.rgb = RGBColor(0x1E, 0x40, 0xAF)
     doc.paragraphs[1].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # ── Fill table header cells ──
     table = doc.tables[0]
-    _fill_template_header(table, machine_core, today_str, src_short, tgt_short)
+    _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
+                          order_no, stage, quantity)
 
     # ── Build content inside template table's "更改内容" cell ──
     # Table Row 3, Column 1 is the wide merged cell (span=9) marked "更改内容"
@@ -483,11 +531,12 @@ def _set_cell_text(cell, text):
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run(text)
     run.font.size = Pt(14)
-    run.font.name = '宋体'
+    _set_font(run)
 
 
-def _fill_template_header(table, machine_core, today_str, src_short, tgt_short):
-    """Fill template header rows only (rows 0–2). Content is now built in document body."""
+def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
+                         order_no='2606002KL', stage='DVT', quantity='1'):
+    """Fill template header rows (rows 0–2)."""
 
     # ── Quantity formatter: show as int if whole number ──
     def _fmt_qty(q):
@@ -503,11 +552,11 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short):
 
     # ── Row 1: 机型 + 订单号 ──
     _set_cell_text(table.rows[1].cells[3], tgt_short)
-    _set_cell_text(table.rows[1].cells[8], '2606002KL')
+    _set_cell_text(table.rows[1].cells[8], order_no)
 
     # ── Row 2: 阶段 + 数量 ──
-    _set_cell_text(table.rows[2].cells[3], 'DVT')
-    _set_cell_text(table.rows[2].cells[8], '1')
+    _set_cell_text(table.rows[2].cells[3], stage)
+    _set_cell_text(table.rows[2].cells[8], quantity)
 
 
 def _build_content_body(content_cell, groups):
@@ -538,7 +587,7 @@ def _build_content_body(content_cell, groups):
         run = p.add_run(text)
         run.font.size = font_size
         run.font.bold = bold
-        run.font.name = '宋体'
+        _set_font(run)
         run.font.color.rgb = RGBColor(
             int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
         return p

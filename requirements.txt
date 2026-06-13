@@ -3,5 +3,6 @@ Flask-Compress==1.17
 openpyxl==3.1.5
 xlrd==2.0.1
 pandas==2.2.3
+python-docx>=1.2.0
 rapidfuzz==3.12.2
 Werkzeug==3.1.3
