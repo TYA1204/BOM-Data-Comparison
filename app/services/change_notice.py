@@ -404,9 +404,11 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     table = doc.tables[0]
     _fill_template_header(table, machine_core, today_str, src_short, tgt_short)
 
-    # ── Build content as document-level paragraphs (page breaks work here) ──
+    # ── Build content inside template table's "更改内容" cell ──
+    # Table Row 3, Column 1 is the wide merged cell (span=9) marked "更改内容"
+    content_cell = table.rows[3].cells[1]
     groups = group_diffs_by_parent(diff_rows)
-    _build_content_body(doc, groups)
+    _build_content_body(content_cell, groups)
 
     # ── Save ──
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -466,18 +468,19 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short):
     _set_cell_text(table.rows[2].cells[8], '1')
 
 
-def _build_content_body(doc, groups):
-    """Build component group content as document-level paragraphs.
+def _build_content_body(content_cell, groups):
+    """Build component group content inside the template table's '更改内容' cell.
 
-    Page breaks are only inserted when the estimated content exceeds the
-    remaining vertical space on the current page — groups stay together
-    on the same page whenever they fit, avoiding unnecessary blank pages.
-
-    Estimation uses a line budget:
-      - A4 usable height ≈ 270mm → ~76 lines @10pt
-      - First page overhead (table + title) ≈ 20 line equivalents
-      - Each group: 1 header line (11pt) + N item lines (10pt) + 1 spacer (4pt)
+    All group headers and item lines are written as paragraphs within the
+    designated merged cell (Table Row 3, Column 1).  This keeps all data
+    strictly inside the template's existing table boundaries — no content
+    spills outside as document-level paragraphs.
     """
+    # ── Clear existing placeholder paragraphs in the cell ──
+    for p in content_cell.paragraphs:
+        for r in p.runs:
+            r._element.getparent().remove(r._element)
+
     # ── Quantity formatter ──
     def _fmt_qty(q):
         try:
@@ -486,39 +489,32 @@ def _build_content_body(doc, groups):
         except (TypeError, ValueError):
             return str(q) if q else '1'
 
-    # Line budget per page (conservative: 70 of 76 theoretical max)
-    PAGE_LINES = 70
-    FIRST_PAGE_OVERHEAD = 20  # table header rows + title + form number
-
-    line_used = FIRST_PAGE_OVERHEAD  # start counting from after the table header
-    first_group = True
+    def _add_cell_para(text, font_size=Pt(10), bold=False, color='333333'):
+        """Add a paragraph inside the content cell with consistent styling."""
+        p = content_cell.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        run = p.add_run(text)
+        run.font.size = font_size
+        run.font.bold = bold
+        run.font.name = '宋体'
+        run.font.color.rgb = RGBColor(
+            int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+        return p
 
     def _add_group_header(g):
         comp_pn = g.get('parent_pn', '')
         comp_name = g.get('short_name', g['parent_name'])
-        header_text = f'在{comp_pn}\u2026\u2026{comp_name}里'
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        run = p.add_run(header_text)
-        run.font.size = Pt(11)
-        run.font.bold = True
-        run.font.name = '宋体'
-        run.font.color.rgb = RGBColor(0x1E, 0x40, 0xAF)
+        _add_cell_para(
+            f'在{comp_pn}\u2026\u2026{comp_name}里',
+            Pt(11), bold=True, color='1E40AF')
 
     def _add_item_line(prefix, pn, name, qty_text):
         text = f'{pn}\u00b7\u00b7{name}\u00b7\u00b7{qty_text}'
         line = f'{prefix}:{text}' if prefix else f'     {text}'
-        p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        run = p.add_run(line)
-        run.font.size = Pt(10)
-        run.font.name = '宋体'
-        run.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+        _add_cell_para(line, Pt(10), color='334155')
 
     def _add_spacer():
-        p = doc.add_paragraph()
-        run = p.add_run('')
-        run.font.size = Pt(4)
+        _add_cell_para('', Pt(4))
 
     for g in groups:
         if not (g['adds'] or g['dels'] or g['mods']):
@@ -527,17 +523,6 @@ def _build_content_body(doc, groups):
         comp_pn = g.get('parent_pn', '')
         if not comp_pn or comp_pn == '__UNKNOWN__':
             continue
-
-        # Calculate lines this group needs: 1 header + items + 1 spacer
-        item_count = len(g['adds']) + len(g['dels']) + len(g['mods'])
-        group_lines = 1 + item_count + 1
-
-        # Insert page break only if this group won't fit on current page
-        if not first_group and line_used + group_lines > PAGE_LINES:
-            doc.add_page_break()
-            line_used = 0  # reset for new page
-
-        first_group = False
 
         _add_group_header(g)
 
@@ -558,8 +543,6 @@ def _build_content_body(doc, groups):
             _add_item_line('MOD' if mi == 0 else '', m['pn'], m['name'], f'{old_q}\u2192{new_q}')
 
         _add_spacer()
-
-        line_used += group_lines
 
 
 def _extract_model(bom_name):
