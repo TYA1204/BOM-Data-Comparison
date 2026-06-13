@@ -46,19 +46,13 @@ BOM_COLUMNS = [
 ]
 
 # 差异报告样式
-SEVERITY_STYLES = {
-    'high': PatternFill(start_color='FFCCCC', end_color='FFCCCC', fill_type='solid'),
-    'medium': PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid'),
-    'low': PatternFill(start_color='D9EAD3', end_color='D9EAD3', fill_type='solid'),
-}
-SEVERITY_LABELS = {'high': '高', 'medium': '中', 'low': '低'}
 TYPE_LABELS = {
     'added': '新增物料', 'removed': '删除物料', 'modified': '变更物料',
     'version': '版本比对', 'cross_model': '跨机型比对',
 }
 DIFF_CATEGORY_LABELS = {
     'material': '物料变化', 'quantity': '用量变化', 'unit': '单位变化',
-    'version': '版本变化', 'structure': '结构变化',
+    'version': '版本变化',
 }
 
 
@@ -462,7 +456,7 @@ def generate_excel_report(task_id):
         return None
 
     results = db.query(
-        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY severity DESC, diff_type, id',
+        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY diff_type, id',
         (task_id,)
     )
 
@@ -473,9 +467,9 @@ def generate_excel_report(task_id):
     ws_summary.title = '汇总'
 
     stats = db.query('''
-        SELECT diff_type, severity, COUNT(*) as cnt
+        SELECT diff_type, COUNT(*) as cnt
         FROM comparison_result WHERE task_id=?
-        GROUP BY diff_type, severity ORDER BY diff_type
+        GROUP BY diff_type ORDER BY diff_type
     ''', (task_id,))
 
     td = dict(task)
@@ -499,8 +493,7 @@ def generate_excel_report(task_id):
     total = 0
     for s in stats:
         type_label = TYPE_LABELS.get(s['diff_type'], s['diff_type'])
-        sev_label = SEVERITY_LABELS.get(s['severity'], s['severity'])
-        summary_data.append((f'  {type_label}（严重度：{sev_label}）', s['cnt']))
+        summary_data.append((f'  {type_label}', s['cnt']))
         total += s['cnt']
     summary_data.append(('', ''))
     summary_data.append(('差异总数', total))
@@ -516,7 +509,7 @@ def generate_excel_report(task_id):
     ws_detail = wb.create_sheet('明细')
 
     # 表头：基准BOM=来源(原值A)，目标BOM=对比(新值B)
-    headers = ['序号', '差异类型', '分类', '严重度',
+    headers = ['序号', '差异类型', '分类',
                '物料号(基准BOM)', '物料号(目标BOM)',
                '物料名称(基准BOM)', '物料名称(目标BOM)',
                '变更字段', '基准BOM值', '目标BOM值',
@@ -532,24 +525,20 @@ def generate_excel_report(task_id):
 
     for row_idx, r in enumerate(results, 2):
         diff_type_cn = TYPE_LABELS.get(r['diff_type'], r['diff_type'])
-        severity_cn = SEVERITY_LABELS.get(r['severity'], r['severity'])
         qty_a = float(r['quantity_a'] or 0)
         qty_b = float(r['quantity_b'] or 0)
         diff_qty = qty_b - qty_a  # 目标BOM - 基准BOM，正值=增加，负值=减少
         row_data = [
-            row_idx - 1, diff_type_cn, DIFF_CATEGORY_LABELS.get(r['diff_category'], r['diff_category']), severity_cn,
+            row_idx - 1, diff_type_cn, DIFF_CATEGORY_LABELS.get(r['diff_category'], r['diff_category']),
             r['part_number_a'], r['part_number_b'],
             r['part_name_a'], r['part_name_b'],
             r['field_name'], r['old_value'], r['new_value'],
             r['reference_a'], r['reference_b'],
             qty_a, qty_b, diff_qty, r['match_confidence']
         ]
-        fill = SEVERITY_STYLES.get(r['severity'], PatternFill())
-
         for col_idx, val in enumerate(row_data, 1):
             cell = ws_detail.cell(row=row_idx, column=col_idx, value=val)
             cell.font = NORMAL_FONT
-            cell.fill = fill
             cell.alignment = CENTER
             cell.border = BORDER
 

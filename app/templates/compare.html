@@ -119,25 +119,6 @@
                             </div>
                         </div>
 
-                        <!-- Severity Filter -->
-                        <div>
-                            <p class="text-xs font-medium text-slate-500 mb-2">严重度</p>
-                            <div class="space-y-1.5">
-                                <label class="flex items-center gap-2 text-xs cursor-pointer">
-                                    <input type="checkbox" value="high" checked onchange="applyAllFilters()" class="severity-cb">
-                                    <span class="badge badge--danger">高</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-xs cursor-pointer">
-                                    <input type="checkbox" value="medium" checked onchange="applyAllFilters()" class="severity-cb">
-                                    <span class="badge badge--warning">中</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-xs cursor-pointer">
-                                    <input type="checkbox" value="low" checked onchange="applyAllFilters()" class="severity-cb">
-                                    <span class="badge badge--success">低</span>
-                                </label>
-                            </div>
-                        </div>
-
                         <!-- Search -->
                         <div class="mt-4">
                             <p class="text-xs font-medium text-slate-500 mb-2">搜索物料</p>
@@ -324,7 +305,6 @@
                                 <th class="w-8" data-sort="index">#</th>
                                 <th class="w-20" data-sort="diff_type">类型</th>
                                 <th class="w-20" data-sort="diff_category">分类</th>
-                                <th class="w-16" data-sort="severity">严重度</th>
                                 <th data-sort="part_number">物料号</th>
                                 <th data-sort="part_name">物料描述</th>
                                 <th data-sort="field_name">变更字段</th>
@@ -360,7 +340,6 @@ var compData = { source: [], target: [] };
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
 var CAT_MAP = { material: '物料', quantity: '数量', unit: '单位' };
-var SEVERITY_MAP = { high: '高', medium: '中', low: '低' };
 var FIELD_LABEL_MAP = { quantity: '用量', part_number: '物料号', unit: '单位' };
 
 // ====================================================================
@@ -1093,16 +1072,11 @@ function renderDiffCell(r) {
 function renderResults(results) {
     var tbody = document.getElementById('result-body');
     if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><p class="empty-state__title">无匹配差异项</p><p class="empty-state__desc">尝试调整筛选条件</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p class="empty-state__title">无匹配差异项</p><p class="empty-state__desc">尝试调整筛选条件</p></div></td></tr>';
         return;
     }
 
     tbody.innerHTML = results.map(function (r, i) {
-        var rowClass = '';
-        if (r.severity === 'high') rowClass = 'row--border-danger';
-        else if (r.severity === 'medium') rowClass = 'row--border-warning';
-        else if (r.severity === 'low') rowClass = 'row--border-success';
-
         var typeLabels = reworkMode ? REWORK_TYPE_MAP : NORMAL_TYPE_MAP;
         var typeIcon = '';
         if (r.diff_type === 'added') typeIcon = '<span class="diff-icon diff-icon--added">🗑 ' + typeLabels.added + '</span>';
@@ -1110,20 +1084,17 @@ function renderResults(results) {
         else typeIcon = '<span class="diff-icon diff-icon--modified">📐 ' + typeLabels.modified + '</span>';
 
         var cat = CAT_MAP[r.diff_category] || r.diff_category;
-	        var catBadgeClass = (r.diff_category === 'quantity' || r.diff_category === 'unit') ? 'badge--warning' : 'badge--neutral';
+        var catBadgeClass = (r.diff_category === 'quantity' || r.diff_category === 'unit') ? 'badge--warning' : 'badge--neutral';
 
         var fieldLabel = FIELD_LABEL_MAP[r.field_name] || r.field_name;
-        var sevBadgeClass = r.severity === 'high' ? 'badge--danger' :
-                            r.severity === 'medium' ? 'badge--warning' : 'badge--success';
         var pn = r.part_number_a || r.part_number_b || '';
         var name = r.part_name_a || r.part_name_b || '';
         var diffCell = renderDiffCell(r);
 
-        return '<tr class="' + rowClass + '" data-type="' + r.diff_type + '" data-cat="' + r.diff_category + '" data-severity="' + r.severity + '">' +
+        return '<tr data-type="' + r.diff_type + '" data-cat="' + r.diff_category + '">' +
             '<td class="text-slate-400 text-sm">' + (i + 1) + '</td>' +
             '<td>' + typeIcon + '</td>' +
             '<td><span class="badge ' + catBadgeClass + '">' + cat + '</span></td>' +
-            '<td class="text-center"><span class="badge ' + sevBadgeClass + '">' + SEVERITY_MAP[r.severity] + '</span></td>' +
             '<td class="font-mono text-xs font-medium">' + BOMApp.escapeHtml(pn) + '</td>' +
             '<td class="text-slate-500 max-w-[200px] truncate" title="' + BOMApp.escapeHtml(name) + '">' + BOMApp.escapeHtml(name.length > 60 ? name.substring(0, 60) + '\u2026' : name) + '</td>' +
             '<td class="text-slate-600 text-xs">' + fieldLabel + '</td>' +
@@ -1143,12 +1114,10 @@ function getFilterCategory(r) {
 function applyAllFilters() {
     var typeRadio = document.querySelector('input[name="filter-type"]:checked');
     var typeVal = typeRadio ? typeRadio.value : 'all';
-    var sevChecked = Array.from(document.querySelectorAll('.severity-cb:checked')).map(function (cb) { return cb.value; });
     var searchQuery = (document.getElementById('diff-search').value || '').toLowerCase().trim();
 
     filteredResults = allResults.filter(function (r) {
         if (typeVal !== 'all' && getFilterCategory(r) !== typeVal) return false;
-        if (!sevChecked.includes(r.severity)) return false;
         if (searchQuery) {
             var pn = ((r.part_number_a || '') + (r.part_number_b || '')).toLowerCase();
             var name = ((r.part_name_a || '') + (r.part_name_b || '')).toLowerCase();
@@ -1183,7 +1152,6 @@ function applyAllFilters() {
 
 function resetFilters() {
     document.querySelector('input[name="filter-type"][value="all"]').checked = true;
-    document.querySelectorAll('.severity-cb').forEach(function (cb) { cb.checked = true; });
     document.getElementById('diff-search').value = '';
     applyAllFilters();
 }
