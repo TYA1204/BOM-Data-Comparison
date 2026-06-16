@@ -2,6 +2,7 @@
 
 ## Git 操作规范
 
+- **铁律：确认修复/变更完成 → 立即 commit + push**，确保代码实时同步到 GitHub，不留积压。
 - **每完成一个完整功能立即 commit**，不要积压未提交的变更。
 - 禁止 `git stash → git pull --rebase → git stash pop` 这条链路，冲突时极易丢失本地修改。
 - 有未提交修改需要拉取时：先 `git commit -m "wip"` 暂存，拉取后再 `git reset HEAD~1` 继续改。

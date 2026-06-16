@@ -388,7 +388,7 @@ def detect_columns(headers):
     return mapping
 
 
-def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_type='primary'):
+def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
     """Parse Excel/CSV/SAP BOM file and store in database.
 
     Returns bom_id.
@@ -419,13 +419,12 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_
         bom_plant = sap_metadata.get('plant', '')
 
         cursor = db.execute('''
-            INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file,
+            INSERT INTO bom_header (bom_name, bom_version, source_type, source_file,
                 total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             bom_name,
             bom_version,
-            bom_type,
             os.path.splitext(file_path)[1].upper().replace('.', ''),
             os.path.basename(file_path),
             len(sap_items),
@@ -539,13 +538,12 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json='', bom_
     meta_values['valid_from'] = _normalize_date(meta_values['valid_from'])
 
     cursor = db.execute('''
-        INSERT INTO bom_header (bom_name, bom_version, bom_type, source_type, source_file,
+        INSERT INTO bom_header (bom_name, bom_version, source_type, source_file,
             total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         bom_name,
         bom_version,
-        bom_type,
         os.path.splitext(file_path)[1].upper().replace('.', ''),
         os.path.basename(file_path),
         len(df),
@@ -613,7 +611,7 @@ def preview_file(file_path):
 def get_uploaded_boms():
     """List all uploaded BOMs."""
     rows = db.query(
-        'SELECT id, bom_name, bom_version, bom_type, source_type, source_file, '
+        'SELECT id, bom_name, bom_version, source_type, source_file, '
         'total_items, created_at, valid_from, bom_number, ecn, bom_status, bom_plant '
         'FROM bom_header ORDER BY created_at DESC'
     )

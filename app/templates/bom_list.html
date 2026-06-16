@@ -40,14 +40,6 @@
                            aria-label="搜索 BOM">
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
-                    <select id="type-filter"
-                            class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white
-                                   focus:border-blue-400 outline-none cursor-pointer"
-                            aria-label="筛选BOM类型">
-                        <option value="all">全部类型</option>
-                        <option value="primary">目标 BOM</option>
-                        <option value="secondary">基准 BOM</option>
-                    </select>
                     <span class="text-xs text-slate-400 self-center whitespace-nowrap" id="result-count"></span>
                 </div>
             </div>
@@ -85,7 +77,6 @@
                             <input type="checkbox" id="select-all" class="cursor-pointer rounded" onclick="toggleSelectAll(this)" aria-label="全选">
                         </th>
                         <th data-sort="id">ID</th>
-                        <th data-sort="bom_type">类型</th>
                         <th data-sort="bom_name">上传文件名</th>
                         <th data-sort="source_type">来源</th>
                         <th data-sort="valid_from" class="text-xs">BOM激活日期</th>
@@ -198,10 +189,8 @@ function loadBomList() {
 
 function applyAllFilters() {
     var query = (document.getElementById('bom-search').value || '').toLowerCase().trim();
-    var type = document.getElementById('type-filter').value;
 
     filteredBoms = allBoms.filter(function (b) {
-        if (type !== 'all' && b.bom_type !== type) return false;
         if (query) {
             var name = (b.bom_name || '').toLowerCase();
             var file = (b.source_file || '').toLowerCase();
@@ -257,13 +246,9 @@ function renderTable(boms) {
 
     tbody.innerHTML = boms.map(function (b) {
         var isSelected = selectedIds.has(b.id) ? 'checked' : '';
-        var typeBadge = b.bom_type === 'primary'
-            ? '<span class="badge badge--info">目标BOM</span>'
-            : '<span class="badge badge--neutral">基准BOM</span>';
         return '<tr class="' + (selectedIds.has(b.id) ? 'row--highlight' : '') + '">' +
             '<td><input type="checkbox" class="bom-checkbox cursor-pointer rounded" data-id="' + b.id + '" ' + isSelected + ' onchange="onRowCheckboxChange(this)"></td>' +
             '<td class="text-slate-400 text-xs">' + b.id + '</td>' +
-            '<td>' + typeBadge + '</td>' +
             '<td class="font-medium text-slate-800 truncate max-w-[200px]" title="' + BOMApp.escapeHtml(b.source_file || b.bom_name) + '">' + BOMApp.escapeHtml(b.source_file || b.bom_name) + '</td>' +
             '<td class="text-slate-500">' + BOMApp.escapeHtml(b.source_type) + '</td>' +
             '<td class="text-slate-500 text-xs">' + BOMApp.formatDateOnly(b.valid_from) + '</td>' +
@@ -445,11 +430,6 @@ BOMApp.ready(function () {
         currentPage = 1;
         applyAllFilters();
     }, 250));
-
-    document.getElementById('type-filter').addEventListener('change', function () {
-        currentPage = 1;
-        applyAllFilters();
-    });
 
     // Table sorting
     BOMApp.initTableSort(document.getElementById('bom-table'), function () {

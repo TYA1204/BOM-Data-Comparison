@@ -31,11 +31,10 @@ def upload_file():
     from app.services.parser import parse_bom_file
     bom_name = (request.form.get('bom_name', '') or '').strip() or os.path.splitext(f.filename)[0]
     bom_version = request.form.get('bom_version', '')
-    bom_type = request.form.get('bom_type', 'primary')
     column_map_json = request.form.get('column_map', '')
 
     try:
-        result = parse_bom_file(save_path, bom_name, bom_version, column_map_json, bom_type=bom_type)
+        result = parse_bom_file(save_path, bom_name, bom_version, column_map_json)
         if isinstance(result, tuple):
             bom_id, stats = result
         else:
