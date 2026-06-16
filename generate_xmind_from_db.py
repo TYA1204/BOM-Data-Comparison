@@ -304,9 +304,6 @@ def main():
             "structureClass", "org.xmind.ui.logic.right"
         )
         root_topic["class"] = "topic"
-        del root_topic["class"]  # rootTopic 不需要 class
-        # 重新设置为 topic class
-        root_topic["class"] = "topic"
 
         # 替换 sheet 的 rootTopic
         sheets[0]["rootTopic"] = root_topic
