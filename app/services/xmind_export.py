@@ -15,8 +15,6 @@ import tempfile
 import uuid
 import zipfile
 
-MAX_NOTES_ITEMS = 200
-
 
 # ---------- 数据库查询 ----------
 
@@ -68,56 +66,42 @@ def make_topic(title, cls=None, notes_content=None):
         topic["notes"] = {"plain": {"content": notes_content}}
     return topic
 
-
-def format_notes(items, max_items=MAX_NOTES_ITEMS):
-    """将物料列表格式化为 notes 内容。"""
-    if not items:
-        return ""
-    total = len(items)
-    truncated = total > max_items
-    display = items[:max_items]
-    lines = [f"【物料清单】共 {total} 个物料"]
-    lines.append("-" * 50)
-    for pn, name, qty, unit in display:
-        qty_str = f"{qty} {unit}" if qty is not None else "-"
-        lines.append(f"{pn}  {name}  |  {qty_str}")
-    if truncated:
-        lines.append(f"... 省略 {total - max_items} 个物料 ...")
-    return "\n".join(lines)
-
-
 def build_topic_tree(conn, bom_id, parent_pn, title_prefix, parent_pn_set, depth=0):
-    """递归构建 XMind topic 子树。"""
+    """递归构建 XMind topic 子树。
+
+    策略：
+      - 中间层（父件）节点：仅作容器，不挂物料 notes，保持结构简洁。
+      - 叶子（非父件）节点：独立展示为子节点，物料详情挂在自身 notes 上。
+    """
     items = get_child_items(conn, bom_id, parent_pn)
     if not items:
-        return None, []
+        return None
 
+    topic_cls = "minorTopic" if depth >= 2 else None
+    topic = make_topic(title_prefix, cls=topic_cls)
     children_topics = []
-    all_leaves = []
 
     for part_number, part_name, quantity, unit in items:
         title = f"{part_number} {part_name}" if part_name else part_number
+
         if part_number in parent_pn_set:
-            child_topic, child_leaves = build_topic_tree(
+            # ── 父件 → 递归构建子树 ──
+            child_topic = build_topic_tree(
                 conn, bom_id, part_number, title, parent_pn_set, depth + 1
             )
             if child_topic:
                 children_topics.append(child_topic)
-                all_leaves.extend(child_leaves)
         else:
-            all_leaves.append((part_number, part_name, quantity, unit))
-
-    topic_cls = "minorTopic" if depth >= 2 else None
-    topic = make_topic(title_prefix, cls=topic_cls)
+            # ── 叶子节点 → 独立 topic，物料信息挂在自身 notes ──
+            qty_str = f"{quantity} {unit}" if quantity is not None else "-"
+            notes_content = f"PN: {part_number}\n名称: {part_name}\n用量: {qty_str}"
+            leaf_topic = make_topic(title, cls="minorTopic", notes_content=notes_content)
+            children_topics.append(leaf_topic)
 
     if children_topics:
         topic["children"] = {"attached": children_topics}
 
-    notes = format_notes(all_leaves)
-    if notes:
-        topic["notes"] = {"plain": {"content": notes}}
-
-    return topic, all_leaves
+    return topic
 
 
 # ---------- XMind 文件操作 ----------
@@ -166,7 +150,7 @@ def build_xmind_sheets(conn, bom_ids, template_path):
         parent_pn_set = get_all_parent_pns(conn, bom_id)
 
         root_title = f"BOM主数据：{bom_name}"
-        root_topic, all_leaves = build_topic_tree(
+        root_topic = build_topic_tree(
             conn, bom_id, root_pn, root_title, parent_pn_set
         )
 
