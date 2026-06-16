@@ -129,13 +129,9 @@
                 <span class="logic-diagram__bom-name" id="diagram-bom-name"></span>
             </div>
             <div class="logic-diagram__actions">
-                <button onclick="downloadDiagramSVG()" class="btn btn--secondary btn--sm" title="导出SVG矢量图">
+                <button onclick="showXmindExportDialog()" class="btn btn--primary btn--sm" title="导出XMind逻辑图">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    导出 SVG
-                </button>
-                <button onclick="downloadDiagramPNG()" class="btn btn--primary btn--sm" title="导出PNG位图">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    导出 PNG
+                    导出 XMind
                 </button>
                 <button onclick="closeLogicDiagram()" class="btn btn--ghost btn--sm" aria-label="关闭">✕</button>
             </div>
@@ -161,7 +157,70 @@
     </div>
 </div>
 
-{% endblock %}
+<!-- ============================================================
+     XMind 导出弹窗
+     ============================================================ -->
+<div id="xmind-export-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="导出XMind">
+    <div class="xmind-export-dialog animate-scale-in" style="background:white;border-radius:12px;padding:24px;width:460px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;border-radius:8px;background:#fef3c7;display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div>
+                <h3 style="margin:0;font-size:16px;font-weight:700;color:#1e293b;">导出 XMind 逻辑图</h3>
+                <p style="margin:0;font-size:12px;color:#94a3b8;">标准 .xmind 格式，可在 XMind 中编辑</p>
+            </div>
+        </div>
+
+        <!-- 导出范围 -->
+        <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">导出范围</label>
+            <div style="display:flex;gap:8px;">
+                <label id="xmind-scope-single" style="flex:1;padding:10px 12px;border:2px solid #3b82f6;border-radius:8px;cursor:pointer;background:#eff6ff;text-align:center;" onclick="setXmindScope('single')">
+                    <input type="radio" name="xmind-scope" value="single" checked style="display:none;">
+                    <div style="font-size:13px;font-weight:600;color:#1e40af;">当前 BOM</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:2px;" id="xmind-scope-single-desc">单份逻辑图</div>
+                </label>
+                <label id="xmind-scope-workbook" style="flex:1;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;background:white;text-align:center;" onclick="setXmindScope('workbook')">
+                    <input type="radio" name="xmind-scope" value="workbook" style="display:none;">
+                    <div style="font-size:13px;font-weight:600;color:#334155;">整个工作簿</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:2px;" id="xmind-scope-workbook-desc">所有 BOM 合并为多 Sheet</div>
+                </label>
+            </div>
+        </div>
+
+        <!-- 文件名 -->
+        <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;">文件名</label>
+            <div style="display:flex;align-items:center;gap:4px;">
+                <input type="text" id="xmind-filename" placeholder="自动生成" style="flex:1;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;transition:border-color .2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                <span style="font-size:12px;color:#94a3b8;white-space:nowrap;">.xmind</span>
+            </div>
+        </div>
+
+        <!-- 进度 -->
+        <div id="xmind-progress" style="display:none;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span class="spinner spinner--sm"></span>
+                <span style="font-size:12px;color:#475569;" id="xmind-progress-text">正在生成 XMind 文件...</span>
+            </div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+                <div id="xmind-progress-bar" style="height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:2px;width:0%;transition:width .3s;"></div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+            <button onclick="closeXmindExportDialog()" class="btn btn--ghost btn--sm">取消</button>
+            <button onclick="doExportXmind()" id="btn-do-export-xmind" class="btn btn--primary btn--sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                开始导出
+            </button>
+        </div>
+    </div>
+</div>
+
+
 
 {% block scripts %}
 <script>
@@ -263,6 +322,7 @@ function renderTable(boms) {
                     '<button onclick="exportBom(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出Excel">导出</button>' +
                     '<button onclick="exportAllComponents(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出全部组件">组件</button>' +
                     '<button onclick="openLogicDiagram(' + b.id + ')" class="btn btn--ghost btn--sm text-indigo-600 hover:text-indigo-800" title="查看BOM层级逻辑图">逻辑图</button>' +
+                    '<button onclick="quickExportXmind(' + b.id + ', \'' + BOMApp.escapeHtml(b.source_file || b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-amber-600 hover:text-amber-800" title="导出XMind">XMind</button>' +
                     '<button onclick="deleteBom(' + b.id + ', \'' + BOMApp.escapeHtml(b.source_file || b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-red-500 hover:text-red-700" title="删除">删除</button>' +
                 '</div>' +
             '</td>' +
@@ -795,73 +855,221 @@ function resetDiagramZoom() {
     fitDiagramToViewport();
 }
 
-/** Export SVG */
-function downloadDiagramSVG() {
-    var svg = document.querySelector('#diagram-canvas svg');
-    if (!svg) {
-        BOMApp.Toast.warning('请先打开逻辑图');
-        return;
-    }
+/** Export SVG — removed, replaced by XMind export */
+/** Export PNG — removed, replaced by XMind export */
 
-    var clone = svg.cloneNode(true);
-    var svgData = new XMLSerializer().serializeToString(clone);
-    var blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svgData], { type: 'image/svg+xml;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
+// ═══════════════════════════════════════════════════════════════
+//  XMind 导出
+// ═══════════════════════════════════════════════════════════════
 
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'BOM_逻辑图_' + (logicDiagram._bomName || 'export') + '.svg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+var xmindExportState = {
+    scope: 'single',   // 'single' | 'workbook'
+    bomId: null,
+    bomName: ''
+};
 
-    BOMApp.Toast.success('SVG 已导出');
+/** Open XMind export dialog from logic diagram */
+function showXmindExportDialog() {
+    var overlay = document.getElementById('xmind-export-overlay');
+    overlay.classList.remove('hidden');
+
+    // Default filename from current BOM
+    var defaultName = (logicDiagram._bomName || 'BOM') + '_逻辑图';
+    document.getElementById('xmind-filename').value = defaultName;
+
+    // Update scope descriptions
+    var singleDesc = document.getElementById('xmind-scope-single-desc');
+    var workbookDesc = document.getElementById('xmind-scope-workbook-desc');
+    singleDesc.textContent = logicDiagram._bomName ? logicDiagram._bomName : '单份逻辑图';
+    workbookDesc.textContent = allBoms.length + ' 份 BOM 合并为多 Sheet';
+
+    // Reset state
+    xmindExportState.scope = 'single';
+    setXmindScope('single');
+    document.getElementById('xmind-progress').style.display = 'none';
 }
 
-/** Export PNG */
-function downloadDiagramPNG() {
-    var svg = document.querySelector('#diagram-canvas svg');
-    if (!svg) {
-        BOMApp.Toast.warning('请先打开逻辑图');
-        return;
+/** Close XMind export dialog */
+function closeXmindExportDialog() {
+    document.getElementById('xmind-export-overlay').classList.add('hidden');
+}
+
+/** Set export scope (single/workbook) */
+function setXmindScope(scope) {
+    xmindExportState.scope = scope;
+    var singleLabel = document.getElementById('xmind-scope-single');
+    var workbookLabel = document.getElementById('xmind-scope-workbook');
+
+    if (scope === 'single') {
+        singleLabel.style.borderColor = '#3b82f6';
+        singleLabel.style.background = '#eff6ff';
+        singleLabel.querySelector('input').checked = true;
+        workbookLabel.style.borderColor = '#e2e8f0';
+        workbookLabel.style.background = 'white';
+        workbookLabel.querySelector('input').checked = false;
+    } else {
+        workbookLabel.style.borderColor = '#3b82f6';
+        workbookLabel.style.background = '#eff6ff';
+        workbookLabel.querySelector('input').checked = true;
+        singleLabel.style.borderColor = '#e2e8f0';
+        singleLabel.style.background = 'white';
+        singleLabel.querySelector('input').checked = false;
     }
+}
 
-    var clone = svg.cloneNode(true);
-    var svgData = new XMLSerializer().serializeToString(clone);
-    var svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    var url = URL.createObjectURL(svgBlob);
+/** Execute XMind export */
+function doExportXmind() {
+    var btn = document.getElementById('btn-do-export-xmind');
+    var progressEl = document.getElementById('xmind-progress');
+    var progressText = document.getElementById('xmind-progress-text');
+    var progressBar = document.getElementById('xmind-progress-bar');
+    var filename = document.getElementById('xmind-filename').value.trim();
 
-    var img = new Image();
-    img.onload = function () {
-        var canvas = document.createElement('canvas');
-        var scale = 2; // 2x for retina
-        canvas.width = img.naturalWidth * scale;
-        canvas.height = img.naturalHeight * scale;
-        var ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+    progressEl.style.display = 'block';
+    progressText.textContent = '正在读取 BOM 数据...';
+    progressBar.style.width = '30%';
 
-        canvas.toBlob(function (blob) {
-            var pngUrl = URL.createObjectURL(blob);
+    var scope = xmindExportState.scope;
+
+    if (scope === 'single') {
+        // Single BOM export
+        if (!currentLogicBomId) {
+            BOMApp.Toast.error('未选择 BOM');
+            btn.disabled = false;
+            btn.textContent = '开始导出';
+            return;
+        }
+
+        progressText.textContent = '正在生成 XMind 逻辑图...';
+        progressBar.style.width = '60%';
+
+        var url = '/upload/api/export-xmind/' + currentLogicBomId;
+        if (filename) {
+            url += '?filename=' + encodeURIComponent(filename + '.xmind');
+        }
+
+        // Use fetch for progress tracking
+        fetch(url)
+            .then(function(resp) {
+                progressBar.style.width = '90%';
+                progressText.textContent = '正在下载文件...';
+                if (!resp.ok) return resp.json().then(function(e) { throw new Error(e.msg || '导出失败'); });
+                return resp.blob();
+            })
+            .then(function(blob) {
+                progressBar.style.width = '100%';
+                progressText.textContent = '导出完成！';
+
+                var blobUrl = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = (filename || 'BOM_逻辑图') + '.xmind';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+
+                BOMApp.Toast.success('XMind 文件已导出');
+                setTimeout(function() { closeXmindExportDialog(); }, 800);
+            })
+            .catch(function(err) {
+                BOMApp.Toast.error('导出失败：' + (err.message || '未知错误'));
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 开始导出';
+            });
+
+    } else {
+        // Workbook export — all BOMs as sheets
+        if (allBoms.length === 0) {
+            BOMApp.Toast.error('没有可导出的 BOM');
+            btn.disabled = false;
+            btn.textContent = '开始导出';
+            return;
+        }
+
+        progressText.textContent = '正在生成 XMind 工作簿（' + allBoms.length + ' 个 Sheet）...';
+        progressBar.style.width = '60%';
+
+        var bomIds = allBoms.map(function(b) { return b.id; });
+
+        fetch('/upload/api/export-xmind-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bom_ids: bomIds,
+                filename: (filename || 'BOM工作簿') + '.xmind'
+            })
+        })
+        .then(function(resp) {
+            progressBar.style.width = '90%';
+            progressText.textContent = '正在下载文件...';
+            if (!resp.ok) return resp.json().then(function(e) { throw new Error(e.msg || '导出失败'); });
+            return resp.blob();
+        })
+        .then(function(blob) {
+            progressBar.style.width = '100%';
+            progressText.textContent = '导出完成！';
+
+            var blobUrl = URL.createObjectURL(blob);
             var a = document.createElement('a');
-            a.href = pngUrl;
-            a.download = 'BOM_逻辑图_' + (logicDiagram._bomName || 'export') + '.png';
+            a.href = blobUrl;
+            a.download = (filename || 'BOM工作簿') + '.xmind';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(pngUrl);
-            BOMApp.Toast.success('PNG 已导出');
-        }, 'image/png', 1.0);
+            URL.revokeObjectURL(blobUrl);
 
-        URL.revokeObjectURL(url);
-    };
-    img.onerror = function () {
-        BOMApp.Toast.error('PNG 导出失败');
-        URL.revokeObjectURL(url);
-    };
-    img.src = url;
+            BOMApp.Toast.success('XMind 工作簿已导出（' + allBoms.length + ' 份 BOM）');
+            setTimeout(function() { closeXmindExportDialog(); }, 800);
+        })
+        .catch(function(err) {
+            BOMApp.Toast.error('导出失败：' + (err.message || '未知错误'));
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 开始导出';
+        });
+    }
+}
+
+// Track current BOM ID when opening logic diagram
+var currentLogicBomId = null;
+var _origOpenLogicDiagram = openLogicDiagram;
+openLogicDiagram = function(bomId) {
+    currentLogicBomId = bomId;
+    _origOpenLogicDiagram(bomId);
+};
+
+/** Quick XMind export from BOM list row */
+function quickExportXmind(bomId, bomName) {
+    BOMApp.Toast.info('正在生成 XMind 文件...');
+    var url = '/upload/api/export-xmind/' + bomId;
+    var filename = bomName + '_逻辑图.xmind';
+    url += '?filename=' + encodeURIComponent(filename);
+
+    fetch(url)
+        .then(function(resp) {
+            if (!resp.ok) return resp.json().then(function(e) { throw new Error(e.msg || '导出失败'); });
+            return resp.blob();
+        })
+        .then(function(blob) {
+            var blobUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+            BOMApp.Toast.success('XMind 已导出：' + bomName);
+        })
+        .catch(function(err) {
+            BOMApp.Toast.error('导出失败：' + (err.message || '未知错误'));
+        });
 }
 
 // ─── Pan & Zoom mouse/touch handlers ───
@@ -911,6 +1119,14 @@ function downloadDiagramPNG() {
         if (overlay) {
             overlay.addEventListener('click', function (e) {
                 if (e.target === overlay) closeLogicDiagram();
+            });
+        }
+
+        // XMind export overlay click to close
+        var xmindOverlay = document.getElementById('xmind-export-overlay');
+        if (xmindOverlay) {
+            xmindOverlay.addEventListener('click', function (e) {
+                if (e.target === xmindOverlay) closeXmindExportDialog();
             });
         }
 
