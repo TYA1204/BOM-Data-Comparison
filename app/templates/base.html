@@ -44,6 +44,12 @@
                     开始比对
                 </a>
             </li>
+            <li role="none">
+                <a href="/sop" class="nav__link {{ 'nav__link--active' if request.path == '/sop' }}" role="menuitem" title="BOM核对保姆级操作指南">
+                    <svg class="nav__link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    操作指南
+                </a>
+            </li>
         </ul>
 
         <!-- Mobile Menu Toggle -->
@@ -68,6 +74,10 @@
             <a href="/compare" class="nav__mobile-link {{ 'nav__mobile-link--active' if request.path.startswith('/compare') }}" role="menuitem">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
                 开始比对
+            </a>
+            <a href="/sop" class="nav__mobile-link {{ 'nav__mobile-link--active' if request.path == '/sop' }}" role="menuitem" title="BOM核对保姆级操作指南">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                操作指南
             </a>
         </div>
     </div>
