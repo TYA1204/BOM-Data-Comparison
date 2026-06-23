@@ -157,6 +157,16 @@ def get_bom_tree(bom_id):
                   if int(it.get('level', 0)) == 1
                   or (it.get('parent_pn', '') or '').strip() not in all_pns]
 
+    # 按组件名称类别排序（电子 → 大配管/大配置 → 结构 → 专利），保证跨BOM对齐
+    _CATEGORY_ORDER = {'电子': 1, '大配管': 2, '大配置': 2, '结构': 3, '专利': 4}
+    def _category_key(it):
+        name = it.get('part_name', '') or ''
+        for kw, idx in _CATEGORY_ORDER.items():
+            if kw in name:
+                return idx
+        return 99
+    root_items.sort(key=_category_key)
+
     def build_node(it):
         pn = it['part_number'].strip()
         kids = children_map.get(pn, [])
