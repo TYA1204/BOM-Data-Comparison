@@ -137,11 +137,11 @@
                                 </label>
                                 <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
                                     <input type="radio" name="filter-type" value="added" onchange="applyAllFilters()">
-                                    <span class="w-2 h-2 rounded-full bg-green-500"></span> 新增物料
+                                    <span class="w-2 h-2 rounded-full bg-green-500"></span> 新增项
                                 </label>
                                 <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
                                     <input type="radio" name="filter-type" value="removed" onchange="applyAllFilters()">
-                                    <span class="w-2 h-2 rounded-full bg-red-500"></span> 删除物料
+                                    <span class="w-2 h-2 rounded-full bg-red-500"></span> 删除项
                                 </label>
                                 <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-slate-700">
                                     <input type="radio" name="filter-type" value="quantity" onchange="applyAllFilters()">
@@ -373,7 +373,7 @@ var compData = { source: [], target: [] };
 var compCheckedState = { source: {}, target: {} };
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
-var CAT_MAP = { material: '物料', quantity: '数量', unit: '单位' };
+var CAT_MAP = { component: '组件', leaf: '叶子', quantity: '数量', unit: '单位', version: '版本' };
 var FIELD_LABEL_MAP = { quantity: '用量', part_number: '物料号', unit: '单位' };
 
 // ====================================================================

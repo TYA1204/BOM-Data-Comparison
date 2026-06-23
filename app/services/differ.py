@@ -30,9 +30,9 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
 
     Uses EXACT part-number matching only (no fuzzy matching).
     Compares 3 dimensions:
-      1. Added materials   — PN exists in B but not in A
-      2. Removed materials — PN exists in A but not in B
-      3. Field changes     — same PN + same parent, different quantity/unit
+      1. Added items   — PN exists in B but not in A (component / leaf)
+      2. Removed items — PN exists in A but not in B (component / leaf)
+      3. Field changes — same PN + same parent, different quantity/unit/version
 
     Args:
         source_bom_id: 基准BOM ID (baseline)
@@ -149,6 +149,19 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     index_a = _build_exact_index(items_a)
     index_b = _build_exact_index(items_b)
 
+    # --- Determine which PNs are components (have children) vs leaf nodes ---
+    # A PN is a "component" if it appears as a parent_pn for any item in the
+    # comparison set.  Leaf nodes have no children.
+    parent_pns = set()
+    for it in items_a + items_b:
+        ppn = (it['parent_pn'] or '').strip().upper()
+        if ppn:
+            parent_pns.add(ppn)
+
+    def _get_category(pn):
+        """Return 'component' if the PN has children, else 'leaf'."""
+        return 'component' if pn in parent_pns else 'leaf'
+
     diff_records = []
 
     # =================================================================
@@ -159,7 +172,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
         if pn_b not in index_a:
             diff_records.append({
                 'diff_type': 'added',
-                'diff_category': 'material',
+                'diff_category': _get_category(pn_b),
                 'part_number_b': item_b['part_number'],
                 'part_name_b': item_b['part_name'],
                 'field_name': 'part_number',
@@ -179,7 +192,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
         if pn_a not in index_b:
             diff_records.append({
                 'diff_type': 'removed',
-                'diff_category': 'material',
+                'diff_category': _get_category(pn_a),
                 'part_number_a': item_a['part_number'],
                 'part_name_a': item_a['part_name'],
                 'field_name': 'part_number',
