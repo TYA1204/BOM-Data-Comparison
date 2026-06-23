@@ -182,7 +182,11 @@ def get_bom_tree(bom_id):
         }
 
     tree = [build_node(r) for r in root_items]
-    return jsonify({'ok': True, 'tree': tree, 'total_items': len(items)})
+    resp = jsonify({'ok': True, 'tree': tree, 'total_items': len(items)})
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 
 @bp.route('/api/export-components', methods=['GET', 'POST'])
