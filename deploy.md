@@ -183,6 +183,58 @@ sudo systemctl restart nginx
 
 ---
 
+## 迭代更新
+
+每次在本地开发完成后，通过 Git 推送更新到服务器：
+
+```
+本地(Windows)           GitHub              服务器(Ubuntu)
+────────────────────────────────────────────────────────
+修改代码                ←                    ←
+git commit + push       → 接收并存储          ←
+                                           sudo bash update.sh
+                                           → git pull
+                                           → 安装新依赖
+                                           → 重启服务 ✅
+```
+
+### 一次性初始化（仅在服务器的 /opt/bom-comparison 不是 Git 仓库时执行）
+
+```bash
+cd /opt/bom-comparison
+git init
+git remote add origin https://github.com/TYA1204/BOM-Data-Comparison.git
+git fetch origin
+git checkout -b main origin/main
+
+# 恢复 .env（git 里没有，已被 checkout 覆盖的话需要重建）
+cat > .env << 'EOF'
+SECRET_KEY=your-secret-key-here
+FLASK_ENV=production
+EOF
+```
+
+### 日常更新（每次迭代）
+
+```bash
+cd /opt/bom-comparison
+sudo bash update.sh
+```
+
+`update.sh` 会自动完成：
+1. `git pull origin main` — 拉取最新代码
+2. `pip install -r requirements.txt` — 安装新增依赖
+3. `systemctl restart bom-comparison` — 重启服务
+4. 验证服务是否正常启动
+
+### 仅更新依赖不拉代码
+
+```bash
+sudo bash update.sh --skip-git
+```
+
+---
+
 ## 服务管理
 
 ```bash
