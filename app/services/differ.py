@@ -56,6 +56,16 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     items_a = _load_bom_items(source_bom_id)
     items_b = _load_bom_items(target_bom_id)
 
+    # --- Compute parent_pns from FULL BOM data (before any filtering) ---
+    # A PN is a "component" if it has children ANYWHERE in the BOM tree.
+    # Computing before filter ensures accurate classification even when
+    # compare_mode truncates depth (components_only only collects 2 levels).
+    parent_pns = set()
+    for it in items_a + items_b:
+        ppn = (it['parent_pn'] or '').strip().upper()
+        if ppn:
+            parent_pns.add(ppn)
+
     # --- Filter items by selected components ---
     src_pns = set(selected_components.get('source', []) or [])
     tgt_pns = set(selected_components.get('target', []) or [])
@@ -136,17 +146,6 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
 
     if not items_a and not items_b:
         raise ValueError('排除指定组件后无剩余可对比物料')
-
-    # --- Determine which PNs are components (have children) vs leaf nodes ---
-    # A PN is a "component" if it appears as a parent_pn for any item in the
-    # comparison set.  Leaf nodes have no children.
-    # Compute BEFORE exclude_leaves so component classification is not skewed
-    # by the removal of leaf children.
-    parent_pns = set()
-    for it in items_a + items_b:
-        ppn = (it['parent_pn'] or '').strip().upper()
-        if ppn:
-            parent_pns.add(ppn)
 
     # --- Exclude leaf nodes (items without children, i.e. not assemblies) ---
     # Leaf = PN never appears as parent_pn (no item references it as a parent)
