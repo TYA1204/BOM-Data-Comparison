@@ -22,3 +22,23 @@
 - `change_notice.py`：`group_diffs_by_parent()` 按叶子判定（PN ∉ parent_pn_set）重新归组，无 self-referencing。
 - `compare.html`：无严重度筛选器/列，无 structure 相关 UI。
 - `reporter.py`：Excel 报告无严重度列/着色，`structure` 已从分类标签中移除。
+
+## 服务器环境
+
+- 地址：172.20.217.12:40045，Ubuntu 26.04 LTS
+- 部署用户：tangyongan（无 sudo），项目路径：~/services/bom-comparison/
+- Python：/usr/local/python3/python-3.11.2/bin/python3
+- 服务管理：run.sh / stop.sh（非 systemd），PID 文件：app.pid
+- pip 源：https://mirrors.aliyun.com/pypi/simple/
+- crontab 不可用，替代方案：auto_update.sh schedule daemon
+- .env 含 SECRET_KEY，禁止提交 git
+
+## 自动更新系统
+
+- `auto_update.sh` + `update_config.conf`：一键式持久化维护
+- 命令：check / update / rollback / status / backup / schedule / help
+- 更新源：package（默认，packages/ 目录放 tar.gz）/ git / http
+- 模式：--silent（静默）/ --force（跳过确认）/ --dry-run（模拟）
+- 进程检测：按端口（40045）过滤，避免多用户服务器误匹配
+- 备份策略：保留最近 10 个，自动清理旧备份
+- 验证：7 项检查清单（进程/端口/页面/日志/DB）
