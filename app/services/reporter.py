@@ -51,7 +51,7 @@ TYPE_LABELS = {
     'version': '版本比对', 'cross_model': '跨机型比对',
 }
 DIFF_CATEGORY_LABELS = {
-    'component': '组件变化', 'leaf': '叶子变化',
+    'component': '组件变化', 'leaf': '物料变化',
     'quantity': '用量变化', 'unit': '单位变化',
     'version': '版本变化',
 }
