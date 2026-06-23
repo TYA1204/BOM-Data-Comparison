@@ -337,6 +337,9 @@ var reworkMode = false;
 
 // Component data cache
 var compData = { source: [], target: [] };
+// 复选框勾选状态缓存: { source: {pn: bool}, target: {pn: bool} }
+// 用于 renderComponentTree 重绘时恢复用户的勾选状态，避免硬编码 checked 导致状态丢失
+var compCheckedState = { source: {}, target: {} };
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
 var CAT_MAP = { material: '物料', quantity: '数量', unit: '单位' };
@@ -611,6 +614,19 @@ function loadComponents(bomId, side) {
             var tree = data.tree || [];
             compData[side] = tree;
 
+            // 初始化 compCheckedState: 首次加载时所有有子件的节点默认勾选
+            var initState = {};
+            function _initChecked(nodes) {
+                for (var k = 0; k < nodes.length; k++) {
+                    if (nodes[k].children && nodes[k].children.length > 0) {
+                        initState[nodes[k].part_number] = true;
+                        _initChecked(nodes[k].children);
+                    }
+                }
+            }
+            _initChecked(tree);
+            compCheckedState[side] = initState;
+
             var countEl = document.getElementById('comp-' + side + '-count');
             if (countEl) countEl.textContent = (data.total_items || tree.length) + ' items';
 
@@ -618,9 +634,6 @@ function loadComponents(bomId, side) {
                 listEl.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><svg class="comp-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg><p>no data</p></div></td></tr>';
                 return;
             }
-
-            var toggleEl = document.getElementById('comp-toggle-' + side);
-            if (toggleEl) toggleEl.checked = true;
 
             renderComponentTree(side);
         })
@@ -672,8 +685,9 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
             var hideRow = (searchTerm && !matchesSearch && !(expanded && hasKids)) || !matchesFilter;
             if (!hideRow) visibleCount++;
 
+            var isChecked = (pn in compCheckedState[side]) ? compCheckedState[side][pn] : true;
             out += '<tr class="comp-row tree-row" data-pn="' + BOMApp.escapeHtml(pn) + '" data-side="' + side + '" data-depth="' + depth + '" data-has-children="' + (hasKids ? '1' : '0') + '" data-expanded="' + (expanded ? '1' : '0') + '"' + (hideRow ? ' style="display:none"' : '') + '>' +
-                '<td class="col-checkbox">' + (hasKids ? '<input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(pn) + '" checked onchange="onCompCheckChange(\'' + side + '\', this)">' : '') + '</td>' +
+                '<td class="col-checkbox">' + (hasKids ? '<input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(pn) + '"' + (isChecked ? ' checked' : '') + ' onchange="onCompCheckChange(\'' + side + '\', this)">' : '') + '</td>' +
                 '<td class="col-code" title="' + BOMApp.escapeHtml(pn) + '" style="padding-left:' + (indent + 8) + 'px">' + toggleHtml + BOMApp.escapeHtml(pn) + '</td>' +
                 '<td class="col-name" onmouseenter="showCompTooltipNode(event, n)" onmouseleave="hideCompTooltip()">' + BOMApp.escapeHtml((n.part_name || '-').substring(0, 80)) + '</td>' +
                 '<td class="col-quantity">' + (n.quantity != null ? n.quantity : '-') + '</td>' +
@@ -899,12 +913,23 @@ function filterComponentTable(side) {
     filterComponentTree(side);
 }
 
+// Guard flag: 防止 onCompCheckChange → toggle.checked=allChecked → onchange → toggleAllComponents 级联循环
+var _compToggleGuard = false;
+
 function toggleAllComponents(side) {
+    if (_compToggleGuard) return;
     var checked = document.getElementById('comp-toggle-' + side).checked;
     var cbs = document.querySelectorAll('#comp-body-' + side + ' .comp-' + side + '-cb');
     for (var i = 0; i < cbs.length; i++) {
-        if (cbs[i].closest('tr').style.display !== 'none') {
-            cbs[i].checked = checked;
+        cbs[i].checked = checked;
+    }
+    // 同步写入 compCheckedState 缓存（包含隐藏/折叠行，确保展开后状态一致）
+    var tbody = document.getElementById('comp-body-' + side);
+    if (tbody) {
+        var allCbs = tbody.querySelectorAll('.comp-' + side + '-cb');
+        for (var j = 0; j < allCbs.length; j++) {
+            var pn = allCbs[j].value;
+            if (pn) compCheckedState[side][pn] = allCbs[j].checked;
         }
     }
 }
@@ -928,17 +953,34 @@ function onCompCheckChange(side, el) {
             var d = parseInt(r.dataset.depth);
             if (d <= depth) break;
             var cb = r.querySelector('.comp-' + side + '-cb');
-            if (cb) cb.checked = checked;
+            if (cb) { cb.checked = checked; }
         }
     }
 
-    // Update toggle-all state
+    // 持久化: 记录当前节点及其后代的勾选状态到缓存
+    _syncCompCheckState(side);
+
+    // Update toggle-all state（使用 guard 防止触发 toggleAllComponents 级联）
     var cbs = tbody.querySelectorAll('.comp-' + side + '-cb');
     var allChecked = true;
     cbs.forEach(function(cb) {
         if (cb.closest('tr').style.display !== 'none' && !cb.checked) allChecked = false;
     });
+    _compToggleGuard = true;
     document.getElementById('comp-toggle-' + side).checked = allChecked;
+    _compToggleGuard = false;
+}
+
+// 将当前 tbody 中所有 checkbox 的勾选状态同步到 compCheckedState 缓存
+// （renderComponentTree 重绘后会从此缓存恢复状态）
+function _syncCompCheckState(side) {
+    var tbody = document.getElementById('comp-body-' + side);
+    if (!tbody) return;
+    var allCbs = tbody.querySelectorAll('.comp-' + side + '-cb');
+    for (var i = 0; i < allCbs.length; i++) {
+        var pnVal = allCbs[i].value;
+        if (pnVal) compCheckedState[side][pnVal] = allCbs[i].checked;
+    }
 }
 
 function getSelectedComponentPNs(side) {
