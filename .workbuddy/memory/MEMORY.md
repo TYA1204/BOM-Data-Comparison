@@ -33,6 +33,17 @@
 - crontab 不可用，替代方案：auto_update.sh schedule daemon
 - .env 含 SECRET_KEY，禁止提交 git
 
+## Python 缓存防护（铁律）
+
+- **PYTHONDONTWRITEBYTECODE=1** 已在 run.sh 和 wsgi.py 中双重设置，从根源禁止 .pyc 生成。
+- **部署铁律**：每次代码更新必须执行完整的 stop → clean pycache → start 流程，严禁跳过。
+  - 推荐方式：`bash deploy.sh <source>`（一键部署，自动备份+回滚）
+  - 手动方式：`bash stop.sh && bash run.sh --force`（stop.sh 已自动清除缓存）
+  - **严禁**：修改 .py 后直接 `bash run.sh`（即使 --force），必须先用 stop.sh 停服清除。
+- **健康检查**：部署后必须执行 `bash health_check.sh`，确认 7 项检查通过。
+- run.sh 启动前自动扫描残留 __pycache__，发现即阻止启动（除非 --force）。
+- wsgi.py 中的 `sys.dont_write_bytecode = True` 作为 Python 层面的最后防线。
+
 ## 自动更新系统
 
 - `auto_update.sh` + `update_config.conf`：一键式持久化维护
