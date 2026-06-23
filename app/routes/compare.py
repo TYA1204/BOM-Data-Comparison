@@ -51,7 +51,10 @@ def get_result(task_id):
         return jsonify({'ok': False, 'msg': '未找到该比对任务'}), 404
 
     results = db.query(
-        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY diff_type, id',
+        '''SELECT * FROM comparison_result WHERE task_id=?
+           ORDER BY CASE diff_type
+               WHEN 'added' THEN 1 WHEN 'removed' THEN 2 ELSE 3
+           END, COALESCE(line_no_b, line_no_a)''',
         (task_id,)
     )
     return jsonify({

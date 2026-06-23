@@ -99,6 +99,8 @@ def init_bom_tables(db):
             is_confirmed INTEGER DEFAULT 0,
             confirmed_by TEXT DEFAULT '',
             confirmed_at TIMESTAMP,
+            line_no_a INTEGER DEFAULT 0,
+            line_no_b INTEGER DEFAULT 0,
             FOREIGN KEY (task_id) REFERENCES comparison_task(id) ON DELETE CASCADE
         )
     ''')

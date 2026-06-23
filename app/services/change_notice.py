@@ -169,7 +169,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
         '''SELECT * FROM comparison_result WHERE task_id=?
            ORDER BY CASE diff_type
                WHEN 'added' THEN 1 WHEN 'removed' THEN 2 ELSE 3
-           END, COALESCE(parent_pn_a, parent_pn_b)''',
+           END, COALESCE(line_no_b, line_no_a)''',
         (task_id,)
     ).fetchall()
 
@@ -236,6 +236,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             # ADD = P3EM side → prefer target BOM name, fallback to source
             parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'ADD'
+            line_no = d['line_no_b'] or d['line_no_a'] or 0
         elif dt == 'removed':
             pn = (_g(d, 'part_number_a') or '').strip()
             nm = clean_material_name((_g(d, 'part_name_a') or '').strip())
@@ -245,6 +246,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             # DEL = H5F side → prefer source BOM name, fallback to target
             parent_name = parent_lookup_src.get(parent_pn, parent_lookup_tgt.get(parent_pn, ''))
             type_label = 'DEL'
+            line_no = d['line_no_a'] or d['line_no_b'] or 0
         else:
             pn = (_g(d, 'part_number_a') or _g(d, 'part_number_b') or '').strip()
             nm = clean_material_name((_g(d, 'part_name_a') or _g(d, 'part_name_b') or '').strip())
@@ -254,12 +256,14 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             # MOD → prefer target, fallback to source
             parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'MOD'
+            line_no = d['line_no_a'] or d['line_no_b'] or 0
 
         row_data = {
             'pn': pn, 'name': nm,
             'parent_pn': parent_pn,
             'parent_name': parent_name,
             'type': dt, 'type_label': type_label,
+            'line_no': line_no,
         }
         if dt == 'modified':
             row_data['old_qty'] = old_qty
@@ -393,10 +397,20 @@ def group_diffs_by_parent(diff_rows):
             unmatched_h5f.append(hg)
 
     # ── Step 6: Assemble final result ──
-    # No self-referencing: leaf items are already the right level of detail,
-    # and group headers carry the parent identity.
+    # Sort groups by the earliest line_no from any item, preserving
+    # the original BOM line_no order (not alphabetical by parent_pn).
     final_groups = p3em_groups + mod_groups + unmatched_h5f
-    return sorted(final_groups, key=lambda g: g['parent_pn'])
+    for g in final_groups:
+        all_items = g['adds'] + g['dels'] + g['mods']
+        g['_min_line_no'] = min(
+            (it.get('line_no', 9999) for it in all_items),
+            default=9999
+        )
+    final_groups.sort(key=lambda g: g['_min_line_no'])
+    # Clean up internal key
+    for g in final_groups:
+        g.pop('_min_line_no', None)
+    return final_groups
 
 
 # ── Word Generation ────────────────────────────────────────

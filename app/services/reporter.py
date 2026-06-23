@@ -456,7 +456,10 @@ def generate_excel_report(task_id):
         return None
 
     results = db.query(
-        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY diff_type, id',
+        '''SELECT * FROM comparison_result WHERE task_id=?
+           ORDER BY CASE diff_type
+               WHEN 'added' THEN 1 WHEN 'removed' THEN 2 ELSE 3
+           END, COALESCE(line_no_b, line_no_a)''',
         (task_id,)
     )
 
@@ -592,7 +595,10 @@ def generate_rework_order_excel(task_id):
     target_bom = db.query_one('SELECT bom_name FROM bom_header WHERE id=?', (task['target_bom_id'],))
 
     results = db.query(
-        'SELECT * FROM comparison_result WHERE task_id=? ORDER BY diff_type, id',
+        '''SELECT * FROM comparison_result WHERE task_id=?
+           ORDER BY CASE diff_type
+               WHEN 'added' THEN 1 WHEN 'removed' THEN 2 ELSE 3
+           END, COALESCE(line_no_b, line_no_a)''',
         (task_id,)
     )
 

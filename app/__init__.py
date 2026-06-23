@@ -7,7 +7,7 @@ from flask_compress import Compress
 def _migrate_comparison_result(db):
     """自动为 comparison_result 表添加缺失字段（向后兼容）"""
     cols = [r['name'] for r in db.query('PRAGMA table_info(comparison_result)')]
-    for col in ['parent_pn_a', 'parent_pn_b']:
+    for col in ['parent_pn_a', 'parent_pn_b', 'line_no_a', 'line_no_b']:
         if col not in cols:
             try:
                 db.execute(f'ALTER TABLE comparison_result ADD COLUMN {col} TEXT DEFAULT ""')
