@@ -350,8 +350,9 @@
       });
       th.dataset.sortDir = currentSort.dir;
 
-      // Sort data
-      var sorted = [].concat(dataArray).sort(function (a, b) {
+      // Sort data — resolve if dataArray is a function
+      var items = typeof dataArray === 'function' ? dataArray() : dataArray;
+      var sorted = [].concat(items).sort(function (a, b) {
         var va = a[key], vb = b[key];
         if (va == null) va = '';
         if (vb == null) vb = '';
