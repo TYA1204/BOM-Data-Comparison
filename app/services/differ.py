@@ -39,9 +39,11 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
         target_bom_id: 目标BOM ID (comparison target)
         comparison_type: 'version' or 'cross_model'
         compare_mode: 'components_only' (仅对比组件本身+直接子件)
-                      or 'include_children' (对比组件及整个子树)
+                      or 'include_children' (递归收集全部子层级)
         selected_components: dict {'source': [pn1,pn2], 'target': [pn3,pn4]}
         exclude_parents: list of PNs to exclude (recursively excludes all descendants)
+        exclude_leaves: if True, exclude leaf nodes (items that are never referenced
+                        as parent_pn) from the comparison — only components remain.
 
     Returns task_id.
     """
@@ -135,12 +137,24 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     if not items_a and not items_b:
         raise ValueError('排除指定组件后无剩余可对比物料')
 
+    # --- Determine which PNs are components (have children) vs leaf nodes ---
+    # A PN is a "component" if it appears as a parent_pn for any item in the
+    # comparison set.  Leaf nodes have no children.
+    # Compute BEFORE exclude_leaves so component classification is not skewed
+    # by the removal of leaf children.
+    parent_pns = set()
+    for it in items_a + items_b:
+        ppn = (it['parent_pn'] or '').strip().upper()
+        if ppn:
+            parent_pns.add(ppn)
+
     # --- Exclude leaf nodes (items without children, i.e. not assemblies) ---
+    # Leaf = PN never appears as parent_pn (no item references it as a parent)
     if exclude_leaves:
-        parents_a = set((it['parent_pn'] or '').strip().upper() for it in items_a if it['parent_pn'])
-        parents_b = set((it['parent_pn'] or '').strip().upper() for it in items_b if it['parent_pn'])
-        items_a = [it for it in items_a if it['part_number'].strip().upper() in parents_a]
-        items_b = [it for it in items_b if it['part_number'].strip().upper() in parents_b]
+        items_a = [it for it in items_a
+                   if it['part_number'].strip().upper() in parent_pns]
+        items_b = [it for it in items_b
+                   if it['part_number'].strip().upper() in parent_pns]
 
     if not items_a and not items_b:
         raise ValueError('排除叶子节点后无剩余可对比物料')
@@ -148,15 +162,6 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     # Build exact-match indexes (PN -> list of items)
     index_a = _build_exact_index(items_a)
     index_b = _build_exact_index(items_b)
-
-    # --- Determine which PNs are components (have children) vs leaf nodes ---
-    # A PN is a "component" if it appears as a parent_pn for any item in the
-    # comparison set.  Leaf nodes have no children.
-    parent_pns = set()
-    for it in items_a + items_b:
-        ppn = (it['parent_pn'] or '').strip().upper()
-        if ppn:
-            parent_pns.add(ppn)
 
     def _get_category(pn):
         """Return 'component' if the PN has children, else 'leaf'."""
@@ -337,7 +342,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             filters.append(f"基准BOM {len(selected_components['source'])}个组件")
         if selected_components.get('target'):
             filters.append(f"目标BOM {len(selected_components['target'])}个组件")
-        mode_tag = '组件级' if compare_mode == 'components_only' else '含子件'
+        mode_tag = '组件级' if compare_mode == 'components_only' else '全层级组件'
         task_name = f"{task_name} [{mode_tag}] {'&'.join(filters)}"
 
     cursor = db.execute('''

@@ -83,17 +83,17 @@
                             </div>
                         </div>
 
-                        <!-- Compare Mode -->
+                        <!-- Compare Mode: 方案B = 全层级组件对比（排除物料） -->
                         <div>
                             <label class="block text-xs font-medium text-slate-500 mb-1.5">对比范围</label>
                             <div class="flex gap-4">
                                 <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
                                     <input type="radio" name="compare-mode" value="components_only" onchange="onCompareModeChange()">
-                                    仅对比组件
+                                    仅对比直接组件
                                 </label>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700">
+                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700" title="递归收集全部子层级组件，自动排除叶子物料节点">
                                     <input type="radio" name="compare-mode" value="include_children" checked onchange="onCompareModeChange()">
-                                    组件及下挂物料
+                                    全层级组件对比（排除物料）
                                 </label>
                             </div>
                         </div>
@@ -588,6 +588,7 @@ function startCompare() {
         compare_mode: compareMode,
         selected_components: selectedComponents,
         exclude_parents: excludeParents,
+        exclude_leaves: compareMode === 'include_children',
         skip_pns: skipPns
     })
     .then(function (data) {
