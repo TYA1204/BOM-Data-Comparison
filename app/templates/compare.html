@@ -861,7 +861,19 @@ function sortTreeBySource(targetTree, sourceTree) {
             if (oa != null) return -1;
             if (ob != null) return 1;
 
-            // 4) Global PN order fallback
+            // 4) Name category order: 电子→大配管/大配置→结构→专利 (matches server-side)
+            function catPriority(name) {
+                var cats = ['电子', '大配管', '大配置', '结构', '专利'];
+                for (var i = 0; i < cats.length; i++) {
+                    if (name.indexOf(cats[i]) !== -1) return i;
+                }
+                return 99;
+            }
+            oa = catPriority(a.part_name);
+            ob = catPriority(b.part_name);
+            if (oa !== ob) return oa - ob;
+
+            // 5) Global PN order fallback
             oa = globalOrder[a.part_number] != null ? globalOrder[a.part_number] : 99999;
             ob = globalOrder[b.part_number] != null ? globalOrder[b.part_number] : 99999;
             return oa - ob;
