@@ -2,6 +2,28 @@
 {% block title %}差异比对{% endblock %}
 
 {% block content %}
+<style>
+    .compare-type-btn {
+        background: #fff;
+        color: #475569;
+        border-color: #cbd5e1;
+        cursor: pointer;
+        user-select: none;
+    }
+    .compare-type-btn:hover {
+        border-color: #94a3b8;
+        color: #334155;
+    }
+    .compare-type-btn.active {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+    }
+    .compare-type-btn.active:hover {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+    }
+</style>
 <div class="mx-auto px-4 md:px-6 py-6 md:py-8" style="max-width:96vw">
 
     <!-- Page Header -->
@@ -43,13 +65,22 @@
                             </select>
                         </div>
                         <div>
-                            <label for="compare-type" class="block text-xs font-medium text-slate-500 mb-1.5">比对类型</label>
-                            <select id="compare-type"
-                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
-                                           focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none bg-white">
-                                <option value="version">版本比对</option>
-                                <option value="cross_model">跨机型比对</option>
-                            </select>
+                            <label class="block text-xs font-medium text-slate-500 mb-1.5">比对类型</label>
+                            <input type="hidden" id="compare-type" value="version">
+                            <div class="flex gap-2">
+                                <button type="button"
+                                        class="compare-type-btn active flex-1 px-4 py-2 text-sm font-medium rounded-lg border transition-colors"
+                                        data-value="version"
+                                        onclick="onCompareTypeChange(this)">
+                                    版本比对
+                                </button>
+                                <button type="button"
+                                        class="compare-type-btn flex-1 px-4 py-2 text-sm font-medium rounded-lg border transition-colors"
+                                        data-value="cross_model"
+                                        onclick="onCompareTypeChange(this)">
+                                    跨机型比对
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Compare Mode -->
@@ -595,6 +626,14 @@ function onBomSelectChange() {
     } else {
         panel.classList.add('hidden');
     }
+}
+
+function onCompareTypeChange(btn) {
+    var value = btn.getAttribute('data-value');
+    document.getElementById('compare-type').value = value;
+    document.querySelectorAll('.compare-type-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-value') === value);
+    });
 }
 
 function onCompareModeChange() {
