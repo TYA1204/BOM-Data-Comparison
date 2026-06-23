@@ -87,13 +87,13 @@
                         <div>
                             <label class="block text-xs font-medium text-slate-500 mb-1.5">对比范围</label>
                             <div class="flex gap-4">
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700" title="仅对比根组件及其直接子件，自动排除叶子物料节点">
+                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700" title="遍历全部子层级，仅对比"有子件"的组件节点，自动排除纯叶子物料">
                                     <input type="radio" name="compare-mode" value="components_only" onchange="onCompareModeChange()">
-                                    仅对比直接组件（排除物料）
+                                    组件对比（排除物料）
                                 </label>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700" title="递归收集全部子层级，组件与物料完整对比">
+                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:text-slate-700" title="遍历全部子层级，组件与物料完整对比">
                                     <input type="radio" name="compare-mode" value="include_children" checked onchange="onCompareModeChange()">
-                                    全层级组件对比
+                                    全层级对比（含物料）
                                 </label>
                             </div>
                         </div>
@@ -585,7 +585,7 @@ function startCompare() {
         source_bom_id: parseInt(srcId),
         target_bom_id: parseInt(tgtId),
         comparison_type: document.getElementById('compare-type').value,
-        compare_mode: compareMode,
+        compare_mode: 'include_children',  // 全层级收集，由 exclude_leaves 控制是否排除叶子
         selected_components: selectedComponents,
         exclude_parents: excludeParents,
         exclude_leaves: compareMode === 'components_only',

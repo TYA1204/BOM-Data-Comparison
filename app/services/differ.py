@@ -341,7 +341,7 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             filters.append(f"基准BOM {len(selected_components['source'])}个组件")
         if selected_components.get('target'):
             filters.append(f"目标BOM {len(selected_components['target'])}个组件")
-        mode_tag = '组件级' if compare_mode == 'components_only' else '全层级组件'
+        mode_tag = '组件对比(排除物料)' if exclude_leaves else '全层级对比'
         task_name = f"{task_name} [{mode_tag}] {'&'.join(filters)}"
 
     cursor = db.execute('''
