@@ -18,14 +18,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 TEMPLATE_PATH = os.path.join(PROJECT_ROOT, '整机清机更改通知单.docx')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'reports')
 
-# Font fallback list: Windows -> cross-platform
-# SimSun = 宋体 (Windows); Microsoft YaHei = 微软雅黑 (Windows Vista+);
-# Arial Unicode MS = macOS fallback
-FONT_FALLBACK = ['宋体', 'SimSun', 'Microsoft YaHei', 'Arial Unicode MS']
-
-DIFF_LABELS = {'added': '新增', 'removed': '删除', 'modified': '变更'}
-TEMPLATE_PATH = os.path.join(PROJECT_ROOT, '整机清机更改通知单.docx')
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'reports')
+# Font fallback list: Windows → Linux → macOS
+# 宋体/SimSun (Windows) | Noto Sans CJK SC (Linux) | Arial Unicode MS (macOS)
+FONT_FALLBACK = ['宋体', 'SimSun', 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'Microsoft YaHei', 'Arial Unicode MS']
 
 DIFF_LABELS = {'added': '新增', 'removed': '删除', 'modified': '变更'}
 
