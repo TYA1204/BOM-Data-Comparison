@@ -668,11 +668,22 @@ def _extract_model(bom_name):
     return m.group(1) if m else bom_name
 
 
-def _extract_core(bom_name):
-    """Extract machine core like '8R713'."""
+def _extract_core(bom_code):
+    """Extract machine core from full BOM code like 'P1C100H5FP8R713002' → '8R713'.
+
+    Suffix is always exactly 3 digits (001, 002, 000, etc.), so \\d{3}$ anchors
+    the core pattern safely between model and suffix.
+    """
     import re
-    m = re.search(r'(\d+R\d+)', bom_name)
-    return m.group(1) if m else '8R713'
+    # P1C + model + core(\\d+[A-Z]+\\d+) + 3-digit-suffix
+    m = re.match(r'^P1C(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
+    if m:
+        return m.group(2)  # e.g. '8R713' from 'P1C100H5FP8R713002'
+    # Fallback: bare model name (no P1C prefix)
+    m = re.search(r'(\d+[A-Z]+\d+)(\d{3})$', bom_code)
+    if m:
+        return m.group(1)
+    return '8R713'
 
 
 # ── Excel Export ────────────────────────────────────────────
