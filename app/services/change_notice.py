@@ -454,15 +454,28 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     if not task:
         raise ValueError(f'Task #{task_id} not found')
 
-    src_name = conn.execute('SELECT bom_name FROM bom_header WHERE id=?', (task['source_bom_id'],)).fetchone()
-    tgt_name = conn.execute('SELECT bom_name FROM bom_header WHERE id=?', (task['target_bom_id'],)).fetchone()
-    src_label = src_name['bom_name'] if src_name else 'N/A'
-    tgt_label = tgt_name['bom_name'] if tgt_name else 'N/A'
+    src_row = conn.execute(
+        'SELECT bom_name, bom_number FROM bom_header WHERE id=?',
+        (task['source_bom_id'],)
+    ).fetchone()
+    tgt_row = conn.execute(
+        'SELECT bom_name, bom_number FROM bom_header WHERE id=?',
+        (task['target_bom_id'],)
+    ).fetchone()
+
+    if not src_row or not tgt_row:
+        raise ValueError('BOM 数据不完整，请重新上传 BOM 文件')
+
+    src_label = src_row['bom_name'] or 'N/A'
+    tgt_label = tgt_row['bom_name'] or 'N/A'
+    # 机芯号和机型名从完整编码 bom_number 提取（如 P1C100H5FP8R713002 → 100H5FP / 8R713）
+    src_full = src_row['bom_number'] or src_label
+    tgt_full = tgt_row['bom_number'] or tgt_label
 
     # Extract short model names
-    src_short = _extract_model(src_label)
-    tgt_short = _extract_model(tgt_label)
-    machine_core = _extract_core(src_label)
+    src_short = _extract_model(tgt_full)
+    tgt_short = _extract_model(src_full)
+    machine_core = _extract_core(src_full)
 
     diff_rows = get_diff_rows(conn, task_id,
                               source_bom_id=task['source_bom_id'],
@@ -471,11 +484,11 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
 
     today_str = datetime.now().strftime('%Y-%-m-%-d') if os.name != 'nt' else datetime.now().strftime('%Y/%#m/%#d')
 
-    # Defaults for configurable header fields
-    if order_no is None:
-        order_no = '2606002KL'
-    if stage is None:
-        stage = 'DVT'
+    # Header fields — caller must supply valid values
+    if not order_no:
+        raise ValueError('订单号不能为空')
+    if not stage:
+        raise ValueError('阶段不能为空')
     if quantity is None:
         quantity = '1'
 
@@ -688,12 +701,14 @@ def generate_change_notice_excel(task_id: int, output_name: str = None, db_path:
     src_name = _extract_model(diff_rows[0]['pn']) if diff_rows else 'N/A'  # fallback
     # Better: get from DB
     conn2 = sqlite3.connect(db_path); conn2.row_factory = sqlite3.Row
-    sn = conn2.execute('SELECT bom_name FROM bom_header WHERE id=?', (task['source_bom_id'],)).fetchone()
-    tn = conn2.execute('SELECT bom_name FROM bom_header WHERE id=?', (task['target_bom_id'],)).fetchone()
+    sn = conn2.execute('SELECT bom_name, bom_number FROM bom_header WHERE id=?', (task['source_bom_id'],)).fetchone()
+    tn = conn2.execute('SELECT bom_name, bom_number FROM bom_header WHERE id=?', (task['target_bom_id'],)).fetchone()
     conn2.close()
-    src_model = _extract_model(sn['bom_name']) if sn else 'SRC'
-    tgt_model = _extract_model(tn['bom_name']) if tn else 'TGT'
-    machine_core = _extract_core(sn['bom_name']) if sn else '8R713'
+    src_full = sn['bom_number'] or sn['bom_name'] if sn else 'N/A'
+    tgt_full = tn['bom_number'] or tn['bom_name'] if tn else 'N/A'
+    src_model = _extract_model(tgt_full) if sn else 'SRC'
+    tgt_model = _extract_model(src_full) if tn else 'TGT'
+    machine_core = _extract_core(src_full) if sn else '8R713'
 
     added_c = sum(1 for r in diff_rows if r['type'] == 'added')
     removed_c = sum(1 for r in diff_rows if r['type'] == 'removed')

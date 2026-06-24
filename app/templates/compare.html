@@ -1263,17 +1263,27 @@ function exportChangeNotice() {
         BOMApp.Toast.warning('请先执行 BOM 比对');
         return;
     }
+
+    // 弹窗输入导出参数（阶段/订单号/数量）
+    var stage = prompt('请输入阶段 (DVT/PVT/MP):', 'DVT') || 'DVT';
+    var orderNo = prompt('请输入订单号:', '2606002KL') || '2606002KL';
+    var qty = prompt('请输入数量:', '1') || '1';
+
     var btn = document.getElementById('btn-export-docx');
     var origText = btn.textContent;
     btn.textContent = '生成中...';
     btn.disabled = true;
 
-    BOMApp.API.get('/compare/api/change-notice/' + currentTaskId)
+    var params = 'order_no=' + encodeURIComponent(orderNo)
+               + '&stage=' + encodeURIComponent(stage)
+               + '&quantity=' + encodeURIComponent(qty);
+
+    BOMApp.API.get('/compare/api/change-notice/' + currentTaskId + '?' + params)
         .then(function(data) {
             btn.textContent = origText;
             btn.disabled = false;
             if (data.ok) {
-                window.location.href = '/compare/api/download-change-notice/' + currentTaskId;
+                window.location.href = '/compare/api/download-change-notice/' + currentTaskId + '?' + params;
                 BOMApp.Toast.success('Word 更改通知单已生成，正在下载');
             } else {
                 BOMApp.Toast.error('生成失败：' + data.msg);

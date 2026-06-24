@@ -87,13 +87,17 @@ def generate_change_notice(task_id):
     from app.services.change_notice import generate_change_notice as gen_docx, generate_change_notice_excel
 
     fmt = request.args.get('format', 'docx')
+    order_no = request.args.get('order_no', '').strip()
+    stage = request.args.get('stage', '').strip()
+    quantity = request.args.get('quantity', '1').strip()
     db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
 
     try:
         if fmt == 'xlsx':
             path = generate_change_notice_excel(task_id, db_path=db_path)
         else:
-            path = gen_docx(task_id, db_path=db_path)
+            path = gen_docx(task_id, db_path=db_path,
+                            order_no=order_no, stage=stage, quantity=quantity)
 
         filename = os.path.basename(path)
         return jsonify({
@@ -113,6 +117,9 @@ def download_change_notice(task_id):
     from app.services.change_notice import generate_change_notice as gen_docx, generate_change_notice_excel
 
     fmt = request.args.get('format', 'docx')
+    order_no = request.args.get('order_no', '').strip()
+    stage = request.args.get('stage', '').strip()
+    quantity = request.args.get('quantity', '1').strip()
     db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
 
     try:
@@ -120,7 +127,8 @@ def download_change_notice(task_id):
             path = generate_change_notice_excel(task_id, db_path=db_path)
             mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         else:
-            path = gen_docx(task_id, db_path=db_path)
+            path = gen_docx(task_id, db_path=db_path,
+                            order_no=order_no, stage=stage, quantity=quantity)
             mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
         filename = os.path.basename(path)
