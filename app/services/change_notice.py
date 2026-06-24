@@ -472,10 +472,10 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     src_full = src_row['bom_number'] or src_label
     tgt_full = tgt_row['bom_number'] or tgt_label
 
-    # Extract short model names
-    src_short = _extract_model(tgt_full)
-    tgt_short = _extract_model(src_full)
-    machine_core = _extract_core(src_full)
+    # Extract short model names — 从目标BOM提取机芯号，机型名各自从对应BOM提取
+    src_short = _extract_model(src_full)
+    tgt_short = _extract_model(tgt_full)
+    machine_core = _extract_core(tgt_full)   # 机芯号取自目标BOM
 
     diff_rows = get_diff_rows(conn, task_id,
                               source_bom_id=task['source_bom_id'],
@@ -717,9 +717,9 @@ def generate_change_notice_excel(task_id: int, output_name: str = None, db_path:
     conn2.close()
     src_full = sn['bom_number'] or sn['bom_name'] if sn else 'N/A'
     tgt_full = tn['bom_number'] or tn['bom_name'] if tn else 'N/A'
-    src_model = _extract_model(tgt_full) if sn else 'SRC'
-    tgt_model = _extract_model(src_full) if tn else 'TGT'
-    machine_core = _extract_core(src_full) if sn else '8R713'
+    src_model = _extract_model(src_full) if sn else 'SRC'
+    tgt_model = _extract_model(tgt_full) if tn else 'TGT'
+    machine_core = _extract_core(tgt_full) if tn else '8R713'  # 机芯号取自目标BOM
 
     added_c = sum(1 for r in diff_rows if r['type'] == 'added')
     removed_c = sum(1 for r in diff_rows if r['type'] == 'removed')
