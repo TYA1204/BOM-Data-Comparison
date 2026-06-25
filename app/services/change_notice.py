@@ -105,12 +105,41 @@ def clean_material_name(name):
         "陶瓷基板", "双面", "同面", "非高频膜",
         "2Point", "80g",
         # Platform codes
-        "8R713", "8R710",
+        "8R713", "8R710", "7T871", "7T611",
         # trailing status codes (also handled in step 4, belt & suspenders)
         "NMN", "L1", "A", "B", "C", "BC",
+        # Process types
+        "研发机贴", "研发手插", "研发机插",
+        # Tech descriptors
+        "底收声",
+        "PDM",
+        # Misc noise
+        "附接订单", "此订单。",
     }
 
     # Step 3: pattern-based noise
+    # Any token matching these patterns is technical noise and will be stripped.
+    # If a token is a "cutoff marker", it AND all tokens after it are removed.
+    CUTOFF_PATTERNS = [
+        r'±\d+\.?\d*%',          # tolerance: ±1%, ±10%
+        r'\d+/\d+W',             # power rating: 1/16W, 1/8W
+        r'\d+\.?\d*W$',          # power: 230W
+        r'\d+\.?\d*mA$',         # current: 650mA
+        r'\dCH$',                # channels: 2CH
+        r'X\d+R$',               # temp coeff: X7R
+        r'Y5V$',                 # dielectric: Y5V
+        r'NP0$',                 # dielectric: NP0
+        r'AC:\S+',               # AC spec
+        r'\d+V\d+',              # voltage model: 2V4000
+        r'\d+PC$',               # quantity: 2PC, 1PC
+    ]
+
+    def _is_cutoff(t):
+        for pat in CUTOFF_PATTERNS:
+            if re.fullmatch(pat, t):
+                return True
+        return False
+
     def _is_noise_pattern(t):
         if re.fullmatch(r"\d+mm", t):
             return True
@@ -124,11 +153,12 @@ def clean_material_name(name):
             return True
         if re.fullmatch(r"N\d{11,}", t):
             return True
-        # tokens starting with underscore (leftover from paren removal)
         if t.startswith('_'):
             return True
-        # internal model codes: all-caps with UNDERSCORES (not dash)
         if re.fullmatch(r"[A-Z0-9_.-]{6,}", t) and '_' in t:
+            return True
+        # LCD panel / model codes: CV850U1-L01 style
+        if re.fullmatch(r"[A-Z]{2,}\d+[A-Z0-9-]*", t):
             return True
         return False
 
@@ -138,6 +168,9 @@ def clean_material_name(name):
             continue
         if _is_noise_pattern(t):
             continue
+        # 遇到截断标记 → 该token及之后全部丢弃
+        if _is_cutoff(t):
+            break
         # strip 8Rxxx- prefix (e.g. 8R713-100P5FP -> 100P5FP)
         t = re.sub(r"^8R71[03]-", "", t)
         cleaned.append(t)
