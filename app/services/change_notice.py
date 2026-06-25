@@ -581,7 +581,8 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     table = doc.tables[0]
     _fill_template_header(table, machine_core, today_str,
                           src_top, tgt_top,
-                          src_label=src_row['bom_name'], tgt_label=tgt_row['bom_name'],
+                          src_label=src_row['bom_number'] or src_row['bom_name'],
+                          tgt_label=tgt_row['bom_number'] or tgt_row['bom_name'],
                           order_no=order_no, stage=stage, quantity=quantity,
                           drafter=drafter, reviewer=reviewer)
 
@@ -652,9 +653,8 @@ def _fill_template_header(table, machine_core, today_str,
     _set_cell_text(table.rows[2].cells[8], quantity)
 
     # ── Row 4: 说明 ──
-    # 使用短型号名（从 bom_number 提取），而非上传文件名（bom_name）
-    note_text = (f'此份差异核对结果来源于 {src_top}（源BOM）与 {tgt_top}（目标BOM）'
-                 f'的{stage}阶段比对，仅适用于 {tgt_top}（目标机型）使用。')
+    note_text = (f'此份差异核对结果来源于 {src_label}（源BOM）与 {tgt_label}（目标BOM）'
+                 f'的{stage}阶段比对，仅适用于 {tgt_label}（目标机型）使用。')
     note_cell = table.rows[4].cells[1]
     for p in list(note_cell.paragraphs):
         p._element.getparent().remove(p._element)
