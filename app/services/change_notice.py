@@ -588,7 +588,14 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
     # ── Row 4: 说明 ──
     note_text = (f'此份差异核对结果来源于 {src_label}（源BOM）与 {tgt_label}（目标BOM）'
                  f'的{stage}阶段比对，仅适用于 {tgt_label}（目标机型）使用。')
-    _set_cell_text(table.rows[4].cells[1], note_text)
+    note_cell = table.rows[4].cells[1]
+    for p in list(note_cell.paragraphs):
+        p._element.getparent().remove(p._element)
+    p = note_cell.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run = p.add_run(note_text)
+    run.font.size = Pt(10)
+    _set_font(run)
 
     # ── Row 5: 拟制 + 审核 ──
     if drafter:
