@@ -681,7 +681,8 @@ code, .font-mono, [class*="font-mono"] {
 }
 .data-table th {
   padding: 10px 12px;
-  text-align: left;
+  text-align: center;
+  vertical-align: middle;
   font-weight: 600;
   color: #475569;
   background: #f8fafc;
@@ -710,6 +711,8 @@ code, .font-mono, [class*="font-mono"] {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-color-light);
   color: #334155;
+  text-align: center;
+  vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1474,7 +1477,7 @@ code, .font-mono, [class*="font-mono"] {
   .nav, .nav__mobile, .toast-container, .btn, .skip-link { display: none !important; }
   body { background: white; }
   .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
-  .data-table th { background: #f9fafb; }
+  .data-table th { background: #f9fafb; text-align: center; vertical-align: middle; }
   .sidebar-handle, .comp-search, .comp-filter-select, .comp-toggle-all-label,
   .col-resize-handle { display: none !important; }
   .comp-table td.col-checkbox input { display: none; }
