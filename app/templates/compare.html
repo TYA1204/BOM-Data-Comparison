@@ -111,6 +111,44 @@
                     </div>
                 </div>
 
+                <!-- Export Config Card -->
+                <div id="export-config-card" class="card hidden animate-slide-up">
+                    <div class="card__header">
+                        <h2 class="card__title">导出配置</h2>
+                        <span id="btn-reset-export" class="text-xs text-slate-400 cursor-pointer hover:text-slate-600" onclick="resetExportConfig()" title="恢复默认">↺ 默认</span>
+                    </div>
+                    <div class="card__body space-y-2">
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-400 mb-0.5">阶段</label>
+                                <select id="export-stage" class="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:border-blue-400 outline-none bg-white" onchange="saveExportConfig()">
+                                    <option value="DVT">DVT</option>
+                                    <option value="PVT">PVT</option>
+                                    <option value="MP">MP</option>
+                                </select>
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-400 mb-0.5">数量</label>
+                                <input id="export-qty" type="text" class="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:border-blue-400 outline-none" value="1" onchange="saveExportConfig()">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-0.5">订单号</label>
+                            <input id="export-order" type="text" class="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:border-blue-400 outline-none" value="2606002KL" onchange="saveExportConfig()">
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-400 mb-0.5">拟制</label>
+                                <input id="export-drafter" type="text" class="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:border-blue-400 outline-none" value="杨芮" onchange="saveExportConfig()">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-400 mb-0.5">审核</label>
+                                <input id="export-reviewer" type="text" class="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:border-blue-400 outline-none" value="程涛" onchange="saveExportConfig()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Filter Panel -->
                 <div id="filter-panel" class="card hidden animate-slide-up">
                     <div class="card__header">
@@ -1073,6 +1111,7 @@ function loadResult(taskId) {
             document.getElementById('rework-bar').classList.remove('hidden');
             document.getElementById('result-area').classList.remove('hidden');
             document.getElementById('filter-panel').classList.remove('hidden');
+            document.getElementById('export-config-card').classList.remove('hidden');
 
             BOMApp.Toast.success('已加载比对结果，共 ' + allResults.length + ' 项差异');
         });
@@ -1246,12 +1285,12 @@ function exportChangeNotice() {
         return;
     }
 
-    // 弹窗输入导出参数（阶段/订单号/数量/拟制/审核）
-    var stage = prompt('请输入阶段 (DVT/PVT/MP):', 'DVT') || 'DVT';
-    var orderNo = prompt('请输入订单号:', '2606002KL') || '2606002KL';
-    var qty = prompt('请输入数量:', '1') || '1';
-    var drafter = prompt('请输入拟制人:', '杨芮') || '杨芮';
-    var reviewer = prompt('请输入审核人:', '程涛') || '程涛';
+    var stage = document.getElementById('export-stage').value || 'DVT';
+    var orderNo = document.getElementById('export-order').value || '2606002KL';
+    var qty = document.getElementById('export-qty').value || '1';
+    var drafter = document.getElementById('export-drafter').value || '杨芮';
+    var reviewer = document.getElementById('export-reviewer').value || '程涛';
+    saveExportConfig();
 
     var btn = document.getElementById('btn-export-docx');
     var origText = btn.textContent;
@@ -1280,6 +1319,43 @@ function exportChangeNotice() {
             btn.disabled = false;
             BOMApp.Toast.error('网络错误，请重试');
         });
+}
+
+// ── Export config localStorage persistence ──
+var EXPORT_DEFAULTS = {
+    stage: 'DVT', order: '2606002KL', qty: '1',
+    drafter: '杨芮', reviewer: '程涛'
+};
+
+function loadExportConfig() {
+    try {
+        var saved = JSON.parse(localStorage.getItem('bom_export_config') || '{}');
+        document.getElementById('export-stage').value = saved.stage || EXPORT_DEFAULTS.stage;
+        document.getElementById('export-order').value = saved.order || EXPORT_DEFAULTS.order;
+        document.getElementById('export-qty').value = saved.qty || EXPORT_DEFAULTS.qty;
+        document.getElementById('export-drafter').value = saved.drafter || EXPORT_DEFAULTS.drafter;
+        document.getElementById('export-reviewer').value = saved.reviewer || EXPORT_DEFAULTS.reviewer;
+    } catch(e) { resetExportConfig(); }
+}
+
+function saveExportConfig() {
+    var cfg = {
+        stage: document.getElementById('export-stage').value,
+        order: document.getElementById('export-order').value,
+        qty: document.getElementById('export-qty').value,
+        drafter: document.getElementById('export-drafter').value,
+        reviewer: document.getElementById('export-reviewer').value
+    };
+    localStorage.setItem('bom_export_config', JSON.stringify(cfg));
+}
+
+function resetExportConfig() {
+    document.getElementById('export-stage').value = EXPORT_DEFAULTS.stage;
+    document.getElementById('export-order').value = EXPORT_DEFAULTS.order;
+    document.getElementById('export-qty').value = EXPORT_DEFAULTS.qty;
+    document.getElementById('export-drafter').value = EXPORT_DEFAULTS.drafter;
+    document.getElementById('export-reviewer').value = EXPORT_DEFAULTS.reviewer;
+    saveExportConfig();
 }
 
 function exportReworkReport() {
@@ -1372,6 +1448,7 @@ BOMApp.ready(function () {
 
     loadBomSelects();
     loadHistory();
+    loadExportConfig();
 });
 </script>
 {% endblock %}
