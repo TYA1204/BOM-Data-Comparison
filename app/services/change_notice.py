@@ -517,7 +517,8 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Fill table header cells ──
     table = doc.tables[0]
     _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
-                          order_no, stage, quantity, drafter, reviewer)
+                          src_label, tgt_label, order_no, stage, quantity,
+                          drafter, reviewer)
 
     # ── Build content inside template table's "更改内容" cell ──
     # Table Row 3, Column 1 is the wide merged cell (span=9) marked "更改内容"
@@ -559,6 +560,7 @@ def _set_cell_text(cell, text):
 
 
 def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
+                         src_label='', tgt_label='',
                          order_no='2606002KL', stage='DVT', quantity='1',
                          drafter=None, reviewer=None):
     """Fill template header rows (rows 0–5)."""
@@ -582,6 +584,11 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
     # ── Row 2: 阶段 + 数量 ──
     _set_cell_text(table.rows[2].cells[3], stage)
     _set_cell_text(table.rows[2].cells[8], quantity)
+
+    # ── Row 4: 说明 ──
+    note_text = (f'此份差异核对结果来源于 {src_label}（源BOM）与 {tgt_label}（目标BOM）'
+                 f'的{stage}阶段比对，仅适用于 {tgt_label}（目标机型）使用。')
+    _set_cell_text(table.rows[4].cells[1], note_text)
 
     # ── Row 5: 拟制 + 审核 ──
     if drafter:
