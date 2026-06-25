@@ -98,17 +98,6 @@
                             </div>
                         </div>
 
-                        <!-- Exclude Parents -->
-                        <div>
-                            <label for="exclude-parents" class="block text-xs font-medium text-slate-500 mb-1.5">
-                                排除物料号（含全部子件一起排除）
-                            </label>
-                            <textarea id="exclude-parents" rows="2"
-                                      class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs
-                                             focus:border-orange-400 focus:ring-2 focus:ring-orange-50 outline-none bg-white
-                                             placeholder:text-slate-300 resize-none"
-                                      placeholder="输入要排除的PN，逗号或换行分隔"></textarea>
-                        </div>
 
                         <button id="compare-btn" onclick="startCompare()"
                                 class="btn btn--primary w-full">
@@ -572,13 +561,6 @@ function startCompare() {
     BOMApp.Loading.button(btn, true);
     statusEl.innerHTML = '';
 
-    // Parse exclude parents
-    var excludeRaw = document.getElementById('exclude-parents').value.trim();
-    var excludeParents = [];
-    if (excludeRaw) {
-        excludeParents = excludeRaw.split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
-    }
-
     var skipPns = getUncheckedParentPNs('source').concat(getUncheckedParentPNs('target'));
 
     BOMApp.API.post('/compare/api/start', {
@@ -587,7 +569,7 @@ function startCompare() {
         comparison_type: document.getElementById('compare-type').value,
         compare_mode: 'include_children',  // 全层级收集，由 exclude_leaves 控制是否排除叶子
         selected_components: selectedComponents,
-        exclude_parents: excludeParents,
+        exclude_parents: [],
         exclude_leaves: compareMode === 'components_only',
         skip_pns: skipPns
     })
