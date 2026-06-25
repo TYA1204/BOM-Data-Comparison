@@ -606,9 +606,9 @@ def _build_content_body(content_cell, groups):
     spills outside as document-level paragraphs.
     """
     # ── Clear existing placeholder paragraphs in the cell ──
-    for p in content_cell.paragraphs:
-        for r in p.runs:
-            r._element.getparent().remove(r._element)
+    # Remove all existing paragraphs to avoid blank lines before content
+    for p in list(content_cell.paragraphs):
+        p._element.getparent().remove(p._element)
 
     # ── Quantity formatter ──
     def _fmt_qty(q):
@@ -674,14 +674,14 @@ def _build_content_body(content_cell, groups):
         _add_spacer()
 
 
-def _extract_model(bom_name):
-    """Extract short model name from BOM name like 'P1C100P3EM8R713001' → '100P3EM'."""
+def _extract_model(bom_code):
+    """Extract short model name from BOM code like 'P1C85V68HP7T871001' → '85V68HP'."""
     import re
-    m = re.match(r'^P1C(.+?)(\d+R\d+)(\d*)$', bom_name)
+    m = re.match(r'^P1C(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
     if m:
         return m.group(1)
-    m = re.search(r'(\d{3}[A-Z0-9]+)', bom_name)
-    return m.group(1) if m else bom_name
+    m = re.search(r'(\d{3}[A-Z0-9]+)', bom_code)
+    return m.group(1) if m else bom_code
 
 
 def _extract_core(bom_code):
