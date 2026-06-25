@@ -104,28 +104,37 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
     if not items_a and not items_b:
         raise ValueError('选择的组件下没有可对比的物料数据')
 
+    # ── Shared helper: recursively collect all descendants of given root PNs ──
+    def _collect_all_descendants(items, root_pns):
+        root_set = set(p.strip().upper() for p in root_pns)
+        children_map = {}
+        for it in items:
+            ppn = (it['parent_pn'] or '').strip().upper()
+            if ppn:
+                children_map.setdefault(ppn, []).append(it['part_number'].strip().upper())
+        reachable = set(root_set)
+        queue = list(root_set)
+        while queue:
+            pn = queue.pop(0)
+            for child in children_map.get(pn, []):
+                if child not in reachable:
+                    reachable.add(child)
+                    queue.append(child)
+        return reachable
+
+    # ── Skip unchecked components: recursively remove them + descendants ──
+    # 未勾选的组件及其全部子孙从比对数据中前置移除，不参与比对
+    if skip_pns:
+        skip_set = set(p.strip().upper() for p in skip_pns if p and p.strip())
+        excluded_a = _collect_all_descendants(items_a, skip_set) | skip_set
+        excluded_b = _collect_all_descendants(items_b, skip_set) | skip_set
+        items_a = [it for it in items_a
+                   if it['part_number'].strip().upper() not in excluded_a]
+        items_b = [it for it in items_b
+                   if it['part_number'].strip().upper() not in excluded_b]
+
     # --- Exclude specific parents (recursively exclude all descendants) ---
     if exclude_parents:
-        def _collect_all_descendants(items, root_pns):
-            """Collect all PNs that are descendants of any root PN."""
-            root_set = set(p.strip().upper() for p in root_pns)
-            children_map = {}
-            for it in items:
-                ppn = (it['parent_pn'] or '').strip().upper()
-                if ppn:
-                    children_map.setdefault(ppn, []).append(it['part_number'].strip().upper())
-
-            reachable = set(root_set)
-            queue = list(root_set)
-            while queue:
-                pn = queue.pop(0)
-                for child in children_map.get(pn, []):
-                    if child not in reachable:
-                        reachable.add(child)
-                        queue.append(child)
-            return reachable
-
-        # Find which exclude PNs exist in each BOM
         exclude_a = set()
         for it in items_a:
             if it['part_number'].strip().upper() in exclude_parents:
@@ -135,7 +144,6 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             if it['part_number'].strip().upper() in exclude_parents:
                 exclude_b.add(it['part_number'].strip().upper())
 
-        # Collect all descendants to exclude
         excluded_pns_a = _collect_all_descendants(items_a, exclude_a) | exclude_a
         excluded_pns_b = _collect_all_descendants(items_b, exclude_b) | exclude_b
 
@@ -318,15 +326,6 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                     'line_no_a': item_a['line_no'],
                     'line_no_b': item_b['line_no'],
                 })
-
-    # =================================================================
-    # Post-filter: skip specified PNs from results (exact match only)
-    # =================================================================
-    if skip_pns:
-        skip_set = set(p.strip().upper() for p in skip_pns if p and p.strip())
-        diff_records = [r for r in diff_records
-                        if r.get('part_number_a', '').strip().upper() not in skip_set
-                        and r.get('part_number_b', '').strip().upper() not in skip_set]
 
     # =================================================================
     # Save results to database
