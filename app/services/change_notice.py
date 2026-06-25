@@ -593,7 +593,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Save ──
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if output_name is None:
-        output_name = f'{order_no or "XX"}_{machine_core}_{tgt_short}_{quantity or "1"}_{stage or "XX"}_整机更改通知单'
+        output_name = f'{order_no or "XX"}_{machine_core}_{tgt_short}_{quantity or "1"}台_{stage or "XX"}_整机更改通知单'
     output_path = os.path.join(OUTPUT_DIR, f'{output_name}.docx')
     doc.save(output_path)
     return output_path
