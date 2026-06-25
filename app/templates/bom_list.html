@@ -69,22 +69,36 @@
 
     <!-- BOM Table -->
     <div class="card animate-slide-up">
-        <div class="table-container">
-            <table class="data-table" role="table" aria-label="BOM列表" id="bom-table">
+        <div class="table-container" style="overflow-x:auto;">
+            <table class="data-table" role="table" aria-label="BOM列表" id="bom-table" style="min-width:1100px;table-layout:fixed;">
+                <colgroup>
+                    <col style="width:36px">
+                    <col style="width:40px">
+                    <col style="width:140px">
+                    <col style="width:48px">
+                    <col style="width:90px">
+                    <col style="width:160px">
+                    <col style="width:120px">
+                    <col style="width:56px">
+                    <col style="width:56px">
+                    <col style="width:64px">
+                    <col style="width:140px">
+                    <col style="width:80px">
+                </colgroup>
                 <thead>
                     <tr>
-                        <th class="w-10">
+                        <th>
                             <input type="checkbox" id="select-all" class="cursor-pointer rounded" onclick="toggleSelectAll(this)" aria-label="全选">
                         </th>
                         <th data-sort="id">ID</th>
-                        <th data-sort="bom_name">上传文件名</th>
+                        <th data-sort="bom_name" class="truncate">上传文件名</th>
                         <th data-sort="source_type">来源</th>
                         <th data-sort="valid_from" class="text-xs">BOM激活日期</th>
-                        <th data-sort="bom_number" class="text-xs">顶层BOM号</th>
-                        <th data-sort="ecn" class="text-xs">最后更改号</th>
+                        <th data-sort="bom_number" class="text-xs truncate">顶层BOM号</th>
+                        <th data-sort="ecn" class="text-xs truncate">最后更改号</th>
                         <th data-sort="total_items">条目数</th>
-                        <th data-sort="bom_status">BOM状态</th>
-                        <th data-sort="bom_plant" class="text-xs">BOM工厂</th>
+                        <th data-sort="bom_status">状态</th>
+                        <th data-sort="bom_plant" class="text-xs">工厂</th>
                         <th data-sort="created_at">上传时间</th>
                         <th>操作</th>
                     </tr>
