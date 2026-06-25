@@ -533,16 +533,15 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     if not src_row or not tgt_row:
         raise ValueError('BOM 数据不完整，请重新上传 BOM 文件')
 
-    src_label = src_row['bom_name'] or 'N/A'
-    tgt_label = tgt_row['bom_name'] or 'N/A'
-    # 机芯号和机型名从完整编码 bom_number 提取（如 P1C100H5FP8R713002 → 100H5FP / 8R713）
-    src_full = src_row['bom_number'] or src_label
-    tgt_full = tgt_row['bom_number'] or tgt_label
+    # 顶层BOM号：从 bom_item 查顶层物料的 part_number（最准确）
+    src_top = _get_top_bom_number(conn, task['source_bom_id'])
+    tgt_top = _get_top_bom_number(conn, task['target_bom_id'])
+    if not src_top:
+        src_top = src_row['bom_name'] or 'N/A'
+    if not tgt_top:
+        tgt_top = tgt_row['bom_name'] or 'N/A'
 
-    # Extract short model names — 从目标BOM提取机芯号，机型名各自从对应BOM提取
-    src_short = _extract_model(src_full)
-    tgt_short = _extract_model(tgt_full)
-    machine_core = _extract_core(tgt_full)   # 机芯号取自目标BOM
+    machine_core = _extract_core(tgt_row['bom_number'] or tgt_top)
 
     diff_rows = get_diff_rows(conn, task_id,
                               source_bom_id=task['source_bom_id'],
@@ -580,8 +579,8 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
 
     # ── Fill table header cells ──
     table = doc.tables[0]
-    _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
-                          src_label, tgt_label, order_no, stage, quantity,
+    _fill_template_header(table, machine_core, today_str,
+                          src_top, tgt_top, order_no, stage, quantity,
                           drafter, reviewer)
 
     # ── Build content inside template table's "更改内容" cell ──
@@ -593,7 +592,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Save ──
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if output_name is None:
-        output_name = f'{order_no or "XX"}_{machine_core}_{tgt_short}_{quantity or "1"}台_{stage or "XX"}_整机更改通知单'
+        output_name = f'{order_no or "XX"}_{machine_core}_{tgt_top}_{quantity or "1"}台_{stage or "XX"}_整机更改通知单'
     output_path = os.path.join(OUTPUT_DIR, f'{output_name}.docx')
     doc.save(output_path)
     return output_path
@@ -623,8 +622,8 @@ def _set_cell_text(cell, text):
     _set_font(run)
 
 
-def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
-                         src_label='', tgt_label='',
+def _fill_template_header(table, machine_core, today_str,
+                         src_top, tgt_top,
                          order_no='2606002KL', stage='DVT', quantity='1',
                          drafter=None, reviewer=None):
     """Fill template header rows (rows 0–5)."""
@@ -651,8 +650,8 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
 
     # ── Row 4: 说明 ──
     # 使用短型号名（从 bom_number 提取），而非上传文件名（bom_name）
-    note_text = (f'此份差异核对结果来源于 {src_short}（源BOM）与 {tgt_short}（目标BOM）'
-                 f'的{stage}阶段比对，仅适用于 {tgt_short}（目标机型）使用。')
+    note_text = (f'此份差异核对结果来源于 {src_top}（源BOM）与 {tgt_top}（目标BOM）'
+                 f'的{stage}阶段比对，仅适用于 {tgt_top}（目标机型）使用。')
     note_cell = table.rows[4].cells[1]
     for p in list(note_cell.paragraphs):
         p._element.getparent().remove(p._element)
@@ -753,6 +752,15 @@ def _build_content_body(content_cell, groups):
         _add_spacer()
 
 
+def _get_top_bom_number(conn, bom_id):
+    """获取顶层BOM号（bom_item 中 level 最小的物料的 part_number）。"""
+    row = conn.execute(
+        'SELECT part_number FROM bom_item WHERE bom_id=? ORDER BY level ASC, line_no ASC LIMIT 1',
+        (bom_id,)
+    ).fetchone()
+    return (row['part_number'] or '').strip() if row else ''
+
+
 def _extract_model(bom_code):
     """Extract short model name from BOM code like 'P1C85V68HP7T871001' → '85V68HP'."""
     import re
@@ -805,17 +813,14 @@ def generate_change_notice_excel(task_id: int, output_name: str = None, db_path:
                               target_bom_id=task['target_bom_id'])
     conn.close()
 
-    src_name = _extract_model(diff_rows[0]['pn']) if diff_rows else 'N/A'  # fallback
-    # Better: get from DB
+    # 顶层BOM号：从 bom_item 查顶层物料 part_number
     conn2 = sqlite3.connect(db_path); conn2.row_factory = sqlite3.Row
     sn = conn2.execute('SELECT bom_name, bom_number FROM bom_header WHERE id=?', (task['source_bom_id'],)).fetchone()
     tn = conn2.execute('SELECT bom_name, bom_number FROM bom_header WHERE id=?', (task['target_bom_id'],)).fetchone()
+    src_model = _get_top_bom_number(conn2, task['source_bom_id']) or (sn['bom_name'] if sn else 'SRC')
+    tgt_model = _get_top_bom_number(conn2, task['target_bom_id']) or (tn['bom_name'] if tn else 'TGT')
+    machine_core = _extract_core((tn['bom_number'] or '') if tn else '8R713')
     conn2.close()
-    src_full = sn['bom_number'] or sn['bom_name'] if sn else 'N/A'
-    tgt_full = tn['bom_number'] or tn['bom_name'] if tn else 'N/A'
-    src_model = _extract_model(src_full) if sn else 'SRC'
-    tgt_model = _extract_model(tgt_full) if tn else 'TGT'
-    machine_core = _extract_core(tgt_full) if tn else '8R713'  # 机芯号取自目标BOM
 
     added_c = sum(1 for r in diff_rows if r['type'] == 'added')
     removed_c = sum(1 for r in diff_rows if r['type'] == 'removed')
@@ -888,7 +893,7 @@ def generate_change_notice_excel(task_id: int, output_name: str = None, db_path:
     # ── Row 3: Summary ──
     ws.merge_cells('A3:H3')
     ws['A3'].value = (f'比对汇总：新增 {added_c} 项 | 删除 {removed_c} 项 | 变更 {modified_c} 项 | '
-                      f'合计 {len(diff_rows)} 项差异    |    源机型：{sn["bom_name"] if sn else "N/A"}    |    目标机型：{tn["bom_name"] if tn else "N/A"}')
+                      f'合计 {len(diff_rows)} 项差异    |    源机型：{src_model}    |    目标机型：{tgt_model}')
     ws['A3'].font = Font(name='宋体', size=9, italic=True, color='64748B')
     ws['A3'].alignment = left_a
     ws['A3'].fill = light_fill
