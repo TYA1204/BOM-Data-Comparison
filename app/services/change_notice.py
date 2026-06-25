@@ -639,7 +639,10 @@ def _build_content_body(content_cell, groups):
 
     def _add_group_header(g):
         comp_pn = g.get('parent_pn', '')
-        comp_name = g.get('short_name', g['parent_name'])
+        raw_name = g.get('short_name', g['parent_name'])
+        # 用功能键截取核心组件名，去掉尾部技术参数（电压/功率/电流等）
+        key = _get_functional_key(raw_name)
+        comp_name = key if key and len(key) >= 2 else raw_name.split()[0] if raw_name.split() else raw_name
         _add_cell_para(
             f'在{comp_pn} {comp_name}里',
             Pt(11), bold=True, color='1E40AF')
