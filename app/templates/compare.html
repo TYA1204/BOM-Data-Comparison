@@ -1246,10 +1246,12 @@ function exportChangeNotice() {
         return;
     }
 
-    // 弹窗输入导出参数（阶段/订单号/数量）
+    // 弹窗输入导出参数（阶段/订单号/数量/拟制/审核）
     var stage = prompt('请输入阶段 (DVT/PVT/MP):', 'DVT') || 'DVT';
     var orderNo = prompt('请输入订单号:', '2606002KL') || '2606002KL';
     var qty = prompt('请输入数量:', '1') || '1';
+    var drafter = prompt('请输入拟制人:', '杨芮') || '杨芮';
+    var reviewer = prompt('请输入审核人:', '程涛') || '程涛';
 
     var btn = document.getElementById('btn-export-docx');
     var origText = btn.textContent;
@@ -1258,7 +1260,9 @@ function exportChangeNotice() {
 
     var params = 'order_no=' + encodeURIComponent(orderNo)
                + '&stage=' + encodeURIComponent(stage)
-               + '&quantity=' + encodeURIComponent(qty);
+               + '&quantity=' + encodeURIComponent(qty)
+               + '&drafter=' + encodeURIComponent(drafter)
+               + '&reviewer=' + encodeURIComponent(reviewer);
 
     BOMApp.API.get('/compare/api/change-notice/' + currentTaskId + '?' + params)
         .then(function(data) {

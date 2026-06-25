@@ -90,14 +90,18 @@ def generate_change_notice(task_id):
     order_no = request.args.get('order_no', '').strip()
     stage = request.args.get('stage', '').strip()
     quantity = request.args.get('quantity', '1').strip()
+    drafter = request.args.get('drafter', '').strip()
+    reviewer = request.args.get('reviewer', '').strip()
     db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
 
     try:
         if fmt == 'xlsx':
-            path = generate_change_notice_excel(task_id, db_path=db_path)
+            path = generate_change_notice_excel(task_id, db_path=db_path,
+                                                drafter=drafter, reviewer=reviewer)
         else:
             path = gen_docx(task_id, db_path=db_path,
-                            order_no=order_no, stage=stage, quantity=quantity)
+                            order_no=order_no, stage=stage, quantity=quantity,
+                            drafter=drafter, reviewer=reviewer)
 
         filename = os.path.basename(path)
         return jsonify({
@@ -120,15 +124,19 @@ def download_change_notice(task_id):
     order_no = request.args.get('order_no', '').strip()
     stage = request.args.get('stage', '').strip()
     quantity = request.args.get('quantity', '1').strip()
+    drafter = request.args.get('drafter', '').strip()
+    reviewer = request.args.get('reviewer', '').strip()
     db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
 
     try:
         if fmt == 'xlsx':
-            path = generate_change_notice_excel(task_id, db_path=db_path)
+            path = generate_change_notice_excel(task_id, db_path=db_path,
+                                                drafter=drafter, reviewer=reviewer)
             mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         else:
             path = gen_docx(task_id, db_path=db_path,
-                            order_no=order_no, stage=stage, quantity=quantity)
+                            order_no=order_no, stage=stage, quantity=quantity,
+                            drafter=drafter, reviewer=reviewer)
             mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
         filename = os.path.basename(path)

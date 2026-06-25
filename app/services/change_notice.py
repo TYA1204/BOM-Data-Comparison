@@ -436,13 +436,16 @@ def _ensure_template():
 
 
 def generate_change_notice(task_id: int, output_name: str = None, db_path: str = None,
-                            order_no: str = None, stage: str = None, quantity: str = None):
+                            order_no: str = None, stage: str = None, quantity: str = None,
+                            drafter: str = None, reviewer: str = None):
     """Generate change notice by filling the official template.
 
     Parameters:
-      order_no: 订单号 (default '2606002KL')
-      stage:    阶段   (default 'DVT')
-      quantity: 数量   (default '1')
+      order_no: 订单号
+      stage:    阶段   (DVT/PVT/MP)
+      quantity: 数量
+      drafter:  拟制人
+      reviewer: 审核人
     """
     _ensure_template()  # 确保模板存在
     if db_path is None:
@@ -514,7 +517,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Fill table header cells ──
     table = doc.tables[0]
     _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
-                          order_no, stage, quantity)
+                          order_no, stage, quantity, drafter, reviewer)
 
     # ── Build content inside template table's "更改内容" cell ──
     # Table Row 3, Column 1 is the wide merged cell (span=9) marked "更改内容"
@@ -557,8 +560,9 @@ def _set_cell_text(cell, text):
 
 
 def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
-                         order_no='2606002KL', stage='DVT', quantity='1'):
-    """Fill template header rows (rows 0–2)."""
+                         order_no='2606002KL', stage='DVT', quantity='1',
+                         drafter=None, reviewer=None):
+    """Fill template header rows (rows 0–5)."""
 
     # ── Quantity formatter: show as int if whole number ──
     def _fmt_qty(q):
@@ -579,6 +583,12 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
     # ── Row 2: 阶段 + 数量 ──
     _set_cell_text(table.rows[2].cells[3], stage)
     _set_cell_text(table.rows[2].cells[8], quantity)
+
+    # ── Row 5: 拟制 + 审核 ──
+    if drafter:
+        _set_cell_text(table.rows[5].cells[2], drafter)
+    if reviewer:
+        _set_cell_text(table.rows[5].cells[9], reviewer)
 
 
 def _build_content_body(content_cell, groups):
@@ -688,7 +698,8 @@ def _extract_core(bom_code):
 
 # ── Excel Export ────────────────────────────────────────────
 
-def generate_change_notice_excel(task_id: int, output_name: str = None, db_path: str = None):
+def generate_change_notice_excel(task_id: int, output_name: str = None, db_path: str = None,
+                                  drafter: str = None, reviewer: str = None):
     """Generate a professional Excel change notice matching the official form layout."""
     if db_path is None:
         db_path = os.path.join(PROJECT_ROOT, 'data', 'bom_compare.db')
@@ -847,12 +858,12 @@ def generate_change_notice_excel(task_id: int, output_name: str = None, db_path:
 
     sig_row += 1
     ws.merge_cells(f'A{sig_row}:C{sig_row}')
-    ws[f'A{sig_row}'].value = '拟制：杨芮'
+    ws[f'A{sig_row}'].value = f'拟制：{drafter or "杨芮"}'
     ws[f'A{sig_row}'].font = bold_font
     ws[f'A{sig_row}'].alignment = left_a
 
     ws.merge_cells(f'E{sig_row}:H{sig_row}')
-    ws[f'E{sig_row}'].value = '审核：程涛'
+    ws[f'E{sig_row}'].value = f'审核：{reviewer or "程涛"}'
     ws[f'E{sig_row}'].font = bold_font
     ws[f'E{sig_row}'].alignment = right_a
 
