@@ -113,6 +113,17 @@ def clean_material_name(name):
         # Tech descriptors
         "底收声",
         "PDM",
+        # Hardware screw/bolt descriptors
+        "镀黑锌", "镀锌", "镀镍", "镀锡", "镀银", "白锌", "彩锌",
+        "十字", "一字", "内六角", "外六角", "梅花",
+        "加硬", "硬化", "热处理",
+        "非耐落", "耐落",
+        "无垫圈", "有垫圈", "带垫圈", "含垫圈",
+        "无弹垫", "有弹垫", "无平垫", "有平垫",
+        "机械牙", "自攻牙", "机牙", "自攻",
+        "平尾", "尖尾", "锥尾", "割尾",
+        "全螺纹", "半螺纹",
+        "环保", "环保型",
         # Misc noise
         "附接订单", "此订单。",
     }
@@ -167,6 +178,14 @@ def clean_material_name(name):
         if t in NOISE_EXACT:
             continue
         if _is_noise_pattern(t):
+            continue
+        # 复合噪声词检查：仅当token全部由噪声词组合而成时才剔除
+        # 如 '机械牙平尾' = '机械牙' + '平尾' → 全是噪声 → 剔除
+        # 如 '机牙螺钉B' 含 '机牙' 但有 '螺钉B' 非噪声 → 保留
+        stripped = t
+        for s in sorted(NOISE_SUBSTR, key=len, reverse=True):
+            stripped = stripped.replace(s, '')
+        if not stripped.strip():
             continue
         # 遇到截断标记 → 该token及之后全部丢弃
         if _is_cutoff(t):
