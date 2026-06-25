@@ -580,8 +580,10 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Fill table header cells ──
     table = doc.tables[0]
     _fill_template_header(table, machine_core, today_str,
-                          src_top, tgt_top, order_no, stage, quantity,
-                          drafter, reviewer)
+                          src_top, tgt_top,
+                          src_label=src_row['bom_name'], tgt_label=tgt_row['bom_name'],
+                          order_no=order_no, stage=stage, quantity=quantity,
+                          drafter=drafter, reviewer=reviewer)
 
     # ── Build content inside template table's "更改内容" cell ──
     # Table Row 3, Column 1 is the wide merged cell (span=9) marked "更改内容"
@@ -624,6 +626,7 @@ def _set_cell_text(cell, text):
 
 def _fill_template_header(table, machine_core, today_str,
                          src_top, tgt_top,
+                         src_label='', tgt_label='',
                          order_no='2606002KL', stage='DVT', quantity='1',
                          drafter=None, reviewer=None):
     """Fill template header rows (rows 0–5)."""
@@ -641,7 +644,7 @@ def _fill_template_header(table, machine_core, today_str,
     _set_cell_text(table.rows[0].cells[8], today_str)
 
     # ── Row 1: 机型 + 订单号 ──
-    _set_cell_text(table.rows[1].cells[3], tgt_short)
+    _set_cell_text(table.rows[1].cells[3], tgt_top)
     _set_cell_text(table.rows[1].cells[8], order_no)
 
     # ── Row 2: 阶段 + 数量 ──
