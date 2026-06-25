@@ -542,6 +542,8 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
         tgt_top = tgt_row['bom_name'] or 'N/A'
 
     machine_core = _extract_core(tgt_row['bom_number'] or tgt_top)
+    # 从目标BOM的 bom_number 提取短机型名用于表头显示和文件名
+    tgt_model = _extract_model(tgt_row['bom_number'] or tgt_top)
 
     diff_rows = get_diff_rows(conn, task_id,
                               source_bom_id=task['source_bom_id'],
@@ -580,7 +582,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Fill table header cells ──
     table = doc.tables[0]
     _fill_template_header(table, machine_core, today_str,
-                          src_top, tgt_top,
+                          src_top, tgt_model,
                           src_label=src_row['bom_number'] or src_row['bom_name'],
                           tgt_label=tgt_row['bom_number'] or tgt_row['bom_name'],
                           order_no=order_no, stage=stage, quantity=quantity,
@@ -595,7 +597,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     # ── Save ──
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if output_name is None:
-        output_name = f'{order_no or "XX"}_{machine_core}_{tgt_top}_{quantity or "1"}台_{stage or "XX"}_整机更改通知单'
+        output_name = f'{order_no or "XX"}_{machine_core}_{tgt_model}_{quantity or "1"}台_{stage or "XX"}_整机更改通知单'
     output_path = os.path.join(OUTPUT_DIR, f'{output_name}.docx')
     doc.save(output_path)
     return output_path
