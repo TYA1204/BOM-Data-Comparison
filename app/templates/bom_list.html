@@ -672,35 +672,25 @@ function buildTreeSVG(treeNodes) {
     svg.style.overflow = 'visible';
     svg.style.display = 'block';
 
-    // Defs — build imperatively to avoid innerHTML compatibility issues
-    var defs = document.createElementNS(xmlns, 'defs');
-
-    function addDefEl(tag, attrs, children) {
-        var el = document.createElementNS(xmlns, tag);
-        for (var key in attrs) { if (attrs.hasOwnProperty(key)) el.setAttribute(key, attrs[key]); }
-        if (children) el.innerHTML = children;
-        return el;
+    // Build defs via innerHTML on the SVG root (works in all modern browsers)
+    var defsBlock = '<defs>' +
+        '<filter id="node-shadow" x="-5%" y="-5%" width="110%" height="120%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.08"/></filter>' +
+        '<marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker>' +
+        '<linearGradient id="grad-l0" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#fde68a"/></linearGradient>' +
+        '<linearGradient id="grad-l1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient>' +
+        '<linearGradient id="grad-l2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#dcfce7"/><stop offset="100%" stop-color="#86efac"/></linearGradient>' +
+        '<linearGradient id="grad-l3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f3e8ff"/><stop offset="100%" stop-color="#c4b5fd"/></linearGradient>' +
+        '<linearGradient id="grad-l4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fce7f3"/><stop offset="100%" stop-color="#f9a8d4"/></linearGradient>' +
+        '<linearGradient id="grad-l5" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#7dd3fc"/></linearGradient>' +
+        '<linearGradient id="grad-default" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#e2e8f0"/></linearGradient>' +
+    '</defs>';
+    // innerHTML on SVG root element is reliable for injecting defs
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = '<svg xmlns="' + xmlns + '">' + defsBlock + '</svg>';
+    var parsedSvg = wrapper.firstChild;
+    while (parsedSvg.firstChild) {
+        svg.appendChild(parsedSvg.firstChild);
     }
-
-    defs.appendChild(addDefEl('filter', {id:'node-shadow', x:'-5%', y:'-5%', width:'110%', height:'120%'},
-        '<feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.08"/>'));
-    defs.appendChild(addDefEl('marker', {id:'arrowhead', markerWidth:'8', markerHeight:'6', refX:'8', refY:'3', orient:'auto'},
-        '<polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-l0', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#fde68a"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-l1', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#93c5fd"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-l2', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#dcfce7"/><stop offset="100%" stop-color="#86efac"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-l3', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#f3e8ff"/><stop offset="100%" stop-color="#c4b5fd"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-l4', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#fce7f3"/><stop offset="100%" stop-color="#f9a8d4"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-l5', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#7dd3fc"/>'));
-    defs.appendChild(addDefEl('linearGradient', {id:'grad-default', x1:'0', y1:'0', x2:'1', y2:'1'},
-        '<stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#e2e8f0"/>'));
-    svg.appendChild(defs);
 
     // Group for all tree elements
     var g = document.createElementNS(xmlns, 'g');
