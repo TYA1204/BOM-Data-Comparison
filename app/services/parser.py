@@ -418,10 +418,11 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
         bom_status = sap_metadata.get('status', '')
         bom_plant = sap_metadata.get('plant', '')
 
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor = db.execute('''
             INSERT INTO bom_header (bom_name, bom_version, source_type, source_file,
-                total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             bom_name,
             bom_version,
@@ -434,6 +435,7 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
             ecn_val,
             bom_status,
             bom_plant,
+            now_str,
         ))
         bom_id = cursor.lastrowid
 
@@ -537,10 +539,11 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
             meta_values[mf] = ''
     meta_values['valid_from'] = _normalize_date(meta_values['valid_from'])
 
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cursor = db.execute('''
         INSERT INTO bom_header (bom_name, bom_version, source_type, source_file,
-            total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            total_items, total_quantity, valid_from, bom_number, ecn, bom_status, bom_plant, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         bom_name,
         bom_version,
@@ -553,6 +556,7 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
         meta_values['ecn'],
         meta_values['bom_status'],
         meta_values['bom_plant'],
+        now_str,
     ))
     bom_id = cursor.lastrowid
 
