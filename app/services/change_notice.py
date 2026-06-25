@@ -650,8 +650,9 @@ def _fill_template_header(table, machine_core, today_str, src_short, tgt_short,
     _set_cell_text(table.rows[2].cells[8], quantity)
 
     # ── Row 4: 说明 ──
-    note_text = (f'此份差异核对结果来源于 {src_label}（源BOM）与 {tgt_label}（目标BOM）'
-                 f'的{stage}阶段比对，仅适用于 {tgt_label}（目标机型）使用。')
+    # 使用短型号名（从 bom_number 提取），而非上传文件名（bom_name）
+    note_text = (f'此份差异核对结果来源于 {src_short}（源BOM）与 {tgt_short}（目标BOM）'
+                 f'的{stage}阶段比对，仅适用于 {tgt_short}（目标机型）使用。')
     note_cell = table.rows[4].cells[1]
     for p in list(note_cell.paragraphs):
         p._element.getparent().remove(p._element)
