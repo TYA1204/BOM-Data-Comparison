@@ -811,27 +811,43 @@ def _get_top_bom_number(conn, bom_id):
 
 
 def _extract_model(bom_code):
-    """Extract short model name from BOM code like 'P1C85V68HP7T871001' → '85V68HP'."""
+    """Extract short model name from BOM code.
+
+    Supports two formats:
+      P1C{model}{core}{suffix}  → P1C85V68HP7T871001 → 85V68HP
+      PCC{model}{core}{suffix}  → PCCF27G56M1MEC3000 → F27G56M
+    """
     import re
+    # PCC format (newer SAP exports): PCC + model + core + 3-digit suffix
+    m = re.match(r'^PCC(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
+    if m:
+        return m.group(1)
+    # P1C format: P1C + model + core + 3-digit suffix
     m = re.match(r'^P1C(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
     if m:
         return m.group(1)
+    # Fallback: find first 3-digit + alphanumeric chunk
     m = re.search(r'(\d{3}[A-Z0-9]+)', bom_code)
     return m.group(1) if m else bom_code
 
 
 def _extract_core(bom_code):
-    """Extract machine core from full BOM code like 'P1C100H5FP8R713002' → '8R713'.
+    """Extract machine core from full BOM code.
 
-    Suffix is always exactly 3 digits (001, 002, 000, etc.), so \\d{3}$ anchors
-    the core pattern safely between model and suffix.
+    Supports two formats:
+      P1C{model}{core}{suffix}  → P1C100H5FP8R713002 → 8R713
+      PCC{model}{core}{suffix}  → PCCF27G56M1MEC3000 → 1MEC3
     """
     import re
-    # P1C + model + core(\\d+[A-Z]+\\d+) + 3-digit-suffix
+    # PCC format (newer SAP exports)
+    m = re.match(r'^PCC(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
+    if m:
+        return m.group(2)
+    # P1C format
     m = re.match(r'^P1C(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
     if m:
-        return m.group(2)  # e.g. '8R713' from 'P1C100H5FP8R713002'
-    # Fallback: bare model name (no P1C prefix)
+        return m.group(2)
+    # Fallback
     m = re.search(r'(\d+[A-Z]+\d+)(\d{3})$', bom_code)
     if m:
         return m.group(1)
