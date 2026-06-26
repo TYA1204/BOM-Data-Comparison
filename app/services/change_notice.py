@@ -752,12 +752,16 @@ def _build_content_body(content_cell, groups):
         except (TypeError, ValueError):
             return str(q) if q else '1'
 
-    def _add_cell_para(text, font_size=Pt(10), bold=False, color='333333'):
+    def _add_cell_para(text, font_size=Pt(10), bold=False, color='333333',
+                       page_break_before=False):
         """Add a paragraph inside the content cell with consistent styling."""
         p = content_cell.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p.paragraph_format.keep_with_next = False
         p.paragraph_format.widow_control = False
+        p.paragraph_format.keep_together = False
+        if page_break_before:
+            p.paragraph_format.page_break_before = True
         run = p.add_run(text)
         run.font.size = font_size
         run.font.bold = bold
@@ -784,27 +788,19 @@ def _build_content_body(content_cell, groups):
     def _add_spacer():
         _add_cell_para_counted('', Pt(4))
 
-    # ── Page-break logic: insert a page break every ~28 lines to avoid
-    #     Word pushing the entire merged cell to the next page.
+    # ── Page-break logic: after every 28 lines, set page_break_before
+    #     on the NEXT paragraph. Word respects paragraph-level page breaks
+    #     even inside merged cells.
     LINES_PER_PAGE = 28
     line_counter = 0
-
-    def _maybe_page_break():
-        nonlocal line_counter
-        if line_counter > 0 and line_counter % LINES_PER_PAGE == 0:
-            p = content_cell.add_paragraph()
-            run = p.add_run()
-            run.add_break(WD_BREAK.PAGE)
-            p.paragraph_format.space_before = Pt(0)
-            p.paragraph_format.space_after = Pt(0)
-            # Reset counter so next break fires after another LINES_PER_PAGE lines
-            line_counter = 0
+    need_page_break = False
 
     def _add_cell_para_counted(text, font_size=Pt(10), bold=False, color='333333'):
-        nonlocal line_counter
+        nonlocal line_counter, need_page_break
         line_counter += 1
-        p = _add_cell_para(text, font_size=font_size, bold=bold, color=color)
-        _maybe_page_break()
+        p = _add_cell_para(text, font_size=font_size, bold=bold, color=color,
+                           page_break_before=need_page_break)
+        need_page_break = (line_counter % LINES_PER_PAGE == 0)
         return p
 
     for g in groups:
