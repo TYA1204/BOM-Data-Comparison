@@ -744,6 +744,15 @@ def _build_content_body(content_cell, groups):
     for p in list(content_cell.paragraphs):
         p._element.getparent().remove(p._element)
 
+    # ── Disable cantSplit on content row so Word CAN split it across pages ──
+    from docx.oxml.ns import qn
+    row3_tr = content_cell._tc.getparent()
+    row3_trPr = row3_tr.find(qn('w:trPr'))
+    if row3_trPr is not None:
+        cant = row3_trPr.find(qn('w:cantSplit'))
+        if cant is not None:
+            row3_trPr.remove(cant)
+
     # ── Quantity formatter ──
     def _fmt_qty(q):
         try:
