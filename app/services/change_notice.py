@@ -717,13 +717,9 @@ def _build_content_body(content_cell, groups):
             Pt(11), bold=True, color='1E40AF')
 
     def _add_item_line(prefix, pn, name, qty_text):
-        text = f'{pn} {name}\t{qty_text}'
+        text = f'{pn} {name}     {qty_text}'
         line = f'{prefix}:{text}' if prefix else f'     {text}'
-        p = _add_cell_para(line, Pt(10), color='334155')
-        # 用量对齐：在 11cm 处设右对齐制表位
-        from docx.shared import Cm
-        from docx.enum.text import WD_TAB_ALIGNMENT
-        p.paragraph_format.tab_stops.add_tab_stop(Cm(11), WD_TAB_ALIGNMENT.RIGHT)
+        _add_cell_para(line, Pt(10), color='334155')
 
     def _add_spacer():
         _add_cell_para('', Pt(4))
