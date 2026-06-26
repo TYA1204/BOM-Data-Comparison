@@ -9,7 +9,7 @@ from datetime import datetime
 
 from docx import Document
 from docx.shared import Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 
 
 # ── Constants ──────────────────────────────────────────────
@@ -756,6 +756,8 @@ def _build_content_body(content_cell, groups):
         """Add a paragraph inside the content cell with consistent styling."""
         p = content_cell.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.keep_with_next = False
+        p.paragraph_format.widow_control = False
         run = p.add_run(text)
         run.font.size = font_size
         run.font.bold = bold
@@ -770,17 +772,40 @@ def _build_content_body(content_cell, groups):
         # 用功能键截取核心组件名，去掉尾部技术参数（电压/功率/电流等）
         key = _get_functional_key(raw_name)
         comp_name = key if key and len(key) >= 2 else raw_name.split()[0] if raw_name.split() else raw_name
-        _add_cell_para(
+        _add_cell_para_counted(
             f'在{comp_pn} {comp_name}里',
             Pt(11), bold=True, color='1E40AF')
 
     def _add_item_line(prefix, pn, name, qty_text):
         text = f'{pn} {name}     {qty_text}'
         line = f'{prefix}:{text}' if prefix else f'     {text}'
-        _add_cell_para(line, Pt(10), color='334155')
+        _add_cell_para_counted(line, Pt(10), color='334155')
 
     def _add_spacer():
-        _add_cell_para('', Pt(4))
+        _add_cell_para_counted('', Pt(4))
+
+    # ── Page-break logic: insert a page break every ~28 lines to avoid
+    #     Word pushing the entire merged cell to the next page.
+    LINES_PER_PAGE = 28
+    line_counter = 0
+
+    def _maybe_page_break():
+        nonlocal line_counter
+        if line_counter > 0 and line_counter % LINES_PER_PAGE == 0:
+            p = content_cell.add_paragraph()
+            run = p.add_run()
+            run.add_break(WD_BREAK.PAGE)
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after = Pt(0)
+            # Reset counter so next break fires after another LINES_PER_PAGE lines
+            line_counter = 0
+
+    def _add_cell_para_counted(text, font_size=Pt(10), bold=False, color='333333'):
+        nonlocal line_counter
+        line_counter += 1
+        p = _add_cell_para(text, font_size=font_size, bold=bold, color=color)
+        _maybe_page_break()
+        return p
 
     for g in groups:
         if not (g['adds'] or g['dels'] or g['mods']):
