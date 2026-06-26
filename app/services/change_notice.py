@@ -105,7 +105,7 @@ def clean_material_name(name):
         "陶瓷基板", "双面", "同面", "非高频膜",
         "2Point", "80g",
         # Platform codes
-        "8R713", "8R710", "7T871", "7T611",
+        "8R713", "8R710", "7T871", "7T611", "8R102", "100A7H", "100A5H",
         # trailing status codes (also handled in step 4, belt & suspenders)
         "NMN", "L1", "A", "B", "C", "BC",
         # Process types
@@ -126,13 +126,28 @@ def clean_material_name(name):
         "环保", "环保型",
         # Misc noise
         "附接订单", "此订单。",
+        # Color descriptors (non-identifying for most parts)
+        "黑色", "白色", "灰色", "本色", "中黑", "磨砂黑",
+        # Material form descriptors
+        "片料", "规则", "不规则",
+        "HAIMIAN",
+        "不加硬",
+        # Tech process / material type
+        "高频膜", "单面", "邮票机贴",
+        "A.彩色", "2P",
+        "fpc", "FPC",
+        "fengwoban",
+        # Directional / positional markers
+        "下", "上", "左", "右",
+        "INSIDE", "BOTTOM", "BOX",
     }
 
     # Step 3: pattern-based noise
     # Any token matching these patterns is technical noise and will be stripped.
     # If a token is a "cutoff marker", it AND all tokens after it are removed.
     CUTOFF_PATTERNS = [
-        r'±\d+\.?\d*%',          # tolerance: ±1%, ±10%
+        r'±\d+\.?\d*%?[pP]?[fF]?$',  # tolerance: ±1%, ±10%, ±0.1pF
+        r'±\d+',                     # generic tolerance
         r'\d+/\d+W',             # power rating: 1/16W, 1/8W
         r'\d+\.?\d*W$',          # power: 230W
         r'\d+\.?\d*mA$',         # current: 650mA
@@ -143,6 +158,27 @@ def clean_material_name(name):
         r'AC:\S+',               # AC spec
         r'\d+V\d+',              # voltage model: 2V4000
         r'\d+PC$',               # quantity: 2PC, 1PC
+        r'\d+pin\b',             # pin count: 41pin, 80pin
+        r'\d+P$',                # print pages: 2P
+        r'\d+~?\d*GHz',          # frequency: 2.4GHz, 2.4~5.8GHz
+        r'\d+\.?\d*~?\d*\.?\d*GHz',  # frequency: 2.4~5.8GHz
+        r'\d+\.?\d*~?\d*\.?\d*MHz',  # frequency: 100MHz
+        r'USB\d+\.?\d*',         # USB3.0, USB2
+        r'\d+[\*xX]\d+.*',       # dimensions: 80*60, 80*60*0.05, 1200*650*
+        # Internal part codes: 1320-L2801010-01
+        r'\d+-[A-Z]\d+-\d+',
+        # Compliance / environmental markers
+        r'非REACH', r'非无卤', r'非防静电', r'非阻燃', r'非RoHS',
+        r'无耐温要求',            # temp requirement
+        r'防静电',                # ESD protection
+        r'耐高温\S*',             # high-temp material
+        r'非卤',                  # halogen-free
+        # Fire rating codes
+        r'V\d$',                 # V0, V1, V2
+        r'HB$',                  # UL94 HB
+        # Resistance / inductance value patterns (after trim)
+        r'\d+Ω$',                # 240Ω, 100Ω
+        r'\d+[KM]Ω$',            # 10KΩ, 1MΩ
     ]
 
     def _is_cutoff(t):
@@ -170,6 +206,18 @@ def clean_material_name(name):
             return True
         # LCD panel / model codes: CV850U1-L01 style
         if re.fullmatch(r"[A-Z]{2,}\d+[A-Z0-9-]*", t):
+            return True
+        # English instructional / filler words
+        if re.fullmatch(r"[A-Z][a-z]+", t):
+            return True
+        # Bare numbers (dimensions without unit)
+        if re.fullmatch(r"\d+", t):
+            return True
+        # Chinese pinyin / transliterated words
+        if re.fullmatch(r"[a-z]{4,}", t):
+            return True
+        # Abbreviation+spec: S-PCB, T-CON, etc
+        if re.fullmatch(r"[A-Z]-[A-Z]+", t):
             return True
         return False
 
