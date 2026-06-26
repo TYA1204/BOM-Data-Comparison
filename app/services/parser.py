@@ -159,12 +159,13 @@ def _parse_sap_bom_lines(text):
         # Extract remaining fields by position
         ne_dict = {j: v for j, v in non_empty}
 
+        raw_qty = ne_dict.get(17, '') or ne_dict.get(18, '') or ''
         row = {
             'level': level,
             'part_number': pn,
             'part_name': ne_dict.get(10, ''),
-            'quantity': ne_dict.get(17, ''),
-            'unit': ne_dict.get(24, ''),
+            'quantity': raw_qty,
+            'unit': ne_dict.get(24, '') or ne_dict.get(25, ''),
             'priority': ne_dict.get(19, ''),
             'ecn': ne_dict.get(22, ''),
             'notes': ne_dict.get(25, ''),
@@ -188,7 +189,10 @@ def parse_sap_bom_file(file_path):
     try:
         text = raw.decode('utf-16-le')
     except UnicodeDecodeError:
-        text = raw.decode('utf-8-sig', errors='replace')
+        try:
+            text = raw.decode('gbk')
+        except (UnicodeDecodeError, LookupError):
+            text = raw.decode('utf-8-sig', errors='replace')
 
     if not _is_sap_bom_tab(text):
         return None, None  # Not a SAP BOM file
