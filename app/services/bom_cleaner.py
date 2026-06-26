@@ -156,10 +156,12 @@ def extract_data_row(cols):
         if first in COMMON_UNITS:
             unit = references.pop(0)
 
+    # 用量兼容两种SAP导出格式: 旧版col[17], 新版col[18]
+    raw_qty = get(17) or get(18) or '0'
     return {
         'part_number': get(2, ''),
         'part_name': get(10, ''),
-        'quantity': float(get(17, '0') or '0'),
+        'quantity': float(raw_qty),
         'unit': unit,
         'priority': get(19, ''),
         'ecn': get(22, ''),
