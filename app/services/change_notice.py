@@ -213,11 +213,15 @@ def clean_material_name(name):
         # Bare numbers (dimensions without unit)
         if re.fullmatch(r"\d+", t):
             return True
-        # Chinese pinyin / transliterated words
-        if re.fullmatch(r"[a-z]{4,}", t):
+        # Chinese pinyin / transliterated words (3+ lowercase letters)
+        if re.fullmatch(r"[a-z]{3,}", t):
             return True
         # Abbreviation+spec: S-PCB, T-CON, etc
         if re.fullmatch(r"[A-Z]-[A-Z]+", t):
+            return True
+        # Common English filler words
+        _ENGLISH_FILLER = {'for', 'and', 'the', 'with', 'from', 'type', 'color', 'part', 'size', 'width'}
+        if t.lower() in _ENGLISH_FILLER:
             return True
         return False
 
@@ -262,6 +266,12 @@ def clean_material_name(name):
             cleaned.pop()
         else:
             break
+
+    # Step 5 (fallback): 取前N个token兜底 — 绝大多数物料核心标识在前5个词
+    # 避免依赖规则库穷尽所有噪声模式
+    MAX_TOKENS = 5
+    if len(cleaned) > MAX_TOKENS:
+        cleaned = cleaned[:MAX_TOKENS]
 
     result = " ".join(cleaned).strip()
     result = re.sub(r" +", " ", result)
