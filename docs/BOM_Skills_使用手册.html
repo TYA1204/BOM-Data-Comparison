@@ -147,21 +147,21 @@
 
 <header>
   <h1>BOM 数据处理工具 &mdash; 使用 SOP</h1>
-  <p>版本 1.0 &nbsp;|&nbsp; 2026-06-05 &nbsp;|&nbsp; 适用 WorkBuddy 智能助手</p>
+  <p>版本 2.0 &nbsp;|&nbsp; 2026-06-26 &nbsp;|&nbsp; 适用 BOM 比对 Web 系统</p>
   <div style="margin-top:14px;display:flex;justify-content:center;gap:28px;flex-wrap:wrap;font-size:13px;opacity:0.9;">
-    <span>&#9993; tangyongan@skyworth.com</span>
-    <span>&#9742; 651636</span>
-    <span>&#128100; Theo</span>
+    <span>&#9993; tangan2026@gmail.com</span>
+    <span>&#127760; http://172.20.217.12:40045/compare/</span>
+    <span>&#128100; 安哥</span>
   </div>
 </header>
 
 <nav>
   <div class="nav-inner">
     <a href="#before">一、准备工作</a>
-    <a href="#skill1">二、BOM 数据清洗</a>
-    <a href="#skill2">三、BOM 组件导出</a>
-    <a href="#scenarios">四、实战场景</a>
-    <a href="#skills-placement">五、安装 Skills</a>
+    <a href="#upload">二、上传 BOM</a>
+    <a href="#compare">三、比对操作</a>
+    <a href="#export">四、导出报告</a>
+    <a href="#bomlist">五、BOM 管理</a>
     <a href="#faq">六、常见问题</a>
     <a href="#summary">七、速查卡片</a>
   </div>
@@ -170,34 +170,132 @@
 <main>
 
 <p style="font-size:15px;color:var(--muted);margin-bottom:24px;">
-  本手册介绍 <strong>bom-data-cleaner</strong>（数据清洗入库）和 <strong>bom-component-exporter</strong>（组件导出报告）
-  两个 WorkBuddy 专用技能的使用方法。全程无需手动操作代码，通过自然语言对话即可完成复杂 BOM 数据处理。
+  本手册介绍 <strong>BOM 数据比对分析系统</strong>（Web 版）的使用方法。
+  支持跨机型 BOM 叶子物料差异比对，一键导出 WORD 更改通知单和 Excel 报告。
+  全程通过浏览器操作，无需安装任何软件。
 </p>
 
 <hr style="border:none;border-top:1px solid var(--border);margin:24px 0;">
 
-<h2 id="before">一、准备工作（3 分钟搞定）</h2>
+<h2 id="before">一、准备工作（1 分钟搞定）</h2>
 
 <div class="card">
 <h3 style="margin-top:0;">你需要有什么？</h3>
 <table>
   <tr><th style="width:25%;">项目</th><th>说明</th></tr>
   <tr>
-    <td><span class="tag tag-purple">必备</span> WorkBuddy</td>
-    <td>桌面应用已安装，能正常启动并与 AI 对话</td>
+    <td><span class="tag tag-purple">必备</span> 浏览器</td>
+    <td>Chrome / Edge / Firefox 任意现代浏览器</td>
   </tr>
   <tr>
-    <td><span class="tag tag-purple">必备</span> BOM 项目</td>
-    <td>确保 <code>D:\04_系统开发\BOM Data Comparison</code> 路径存在（这是工作目录）</td>
+    <td><span class="tag tag-purple">必备</span> 网络</td>
+    <td>能访问内网地址 <code>http://172.20.217.12:40045/</code></td>
   </tr>
   <tr>
-    <td><span class="tag tag-purple">必备</span> 两个 Skills</td>
-    <td><code>bom-data-cleaner</code> 和 <code>bom-component-exporter</code> 已安装到 WorkBuddy</td>
+    <td><span class="tag tag-green">必备</span> BOM 文件</td>
+    <td>从 SAP 导出的 BOM 展开表文件（UTF-16 LE 或 GBK 编码）</td>
   </tr>
   <tr>
-    <td><span class="tag tag-green">可选</span> SAP BOM 文件</td>
-    <td>从 SAP 系统导出的 UTF-16 LE 编码、Tab 分隔的展开表文件</td>
+    <td><span class="tag tag-green">可选</span> SAP 账号</td>
+    <td>如需直接从 SAP 导出 BOM</td>
   </tr>
+</table>
+</div>
+
+<div class="card">
+<h3>系统地址</h3>
+<p>浏览器输入：<code style="font-size:15px;">http://172.20.217.12:40045/compare/</code></p>
+<p>页面顶部有四个标签：<strong>首页</strong> | <strong>上传BOM</strong> | <strong>开始比对</strong> | <strong>已上传的BOM</strong></p>
+</div>
+
+<h2 id="upload">二、上传 BOM 文件</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body"><strong>切到「上传BOM」页签。</strong>点页面顶部的「上传BOM」标签。</div>
+</div>
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body"><strong>选择文件。</strong>点「选择文件」按钮，找到你的 BOM 文件（.xls 或 .xlsx 都可以，系统自动识别格式）。</div>
+</div>
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-body"><strong>上传解析。</strong>点「上传解析」，等几秒，右边会显示解析出来的 BOM 树。</div>
+</div>
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-body"><strong>上传第二份。</strong>同样操作，把要对比的另一份 BOM 也传上去。</div>
+</div>
+
+<div class="tip">两份都上传完才能去比对，少一份比不了。</div>
+
+<h2 id="compare">三、比对操作</h2>
+
+<h3>3.1 选择比对类型</h3>
+<table>
+  <tr><th>按钮</th><th>用途</th></tr>
+  <tr><td><span class="tag tag-blue">跨机型比对（默认）</span></td><td>不同机型互相对比（如 100P3EM vs 100H5F）— 最常用</td></tr>
+  <tr><td><span class="tag tag-purple">版本比对</span></td><td>同一机型新旧版本对比</td></tr>
+</table>
+
+<h3>3.2 选择对比范围</h3>
+<table>
+  <tr><th>选项</th><th>比什么</th><th>什么时候用</th></tr>
+  <tr><td>全层级对比（含物料）</td><td>所有东西都出来对比，组件+物料全上</td><td>想看到每个细节差异，推荐</td></tr>
+  <tr><td>组件对比（排除物料）</td><td>只比组件，叶子物料不参与</td><td>想看结构变化</td></tr>
+</table>
+
+<h3>3.3 选择组件</h3>
+<p>页面左边显示两份 BOM 的组件树（电子BOM、结构BOM 等大类），默认全部勾选。不想比某个组件就把它的复选框点掉（不勾的组件及其全部子件会从比对中完全移除）。</p>
+
+<h3>3.4 开跑</h3>
+<p>点「开始比对」按钮。比对完成后页面显示差异明细。</p>
+
+<h2 id="export">四、导出更改通知单</h2>
+
+<h3>4.1 填写导出配置</h3>
+<p>比对完成后左侧会自动显示「导出配置」卡片，填好：</p>
+<table>
+  <tr><th>字段</th><th>说明</th><th>示例</th></tr>
+  <tr><td>阶段</td><td>下拉选 DVT / PVT / MP</td><td>PVT</td></tr>
+  <tr><td>数量</td><td>填数字</td><td>12</td></tr>
+  <tr><td>订单号</td><td>订单编号</td><td>2604002W</td></tr>
+  <tr><td>拟制</td><td>你的名字</td><td>杨芮</td></tr>
+  <tr><td>审核</td><td>审核人名字</td><td>程涛</td></tr>
+</table>
+<div class="tip">填一次就记住了，下次打开自动回填。</div>
+
+<h3>4.2 WORD 更改通知单</h3>
+<p>点差异明细右上角蓝色「导出 Word 更改通知单」按钮，自动生成标准格式的更改通知单。</p>
+<div class="info">
+<strong>WORD 报告特性：</strong><br>
+• 自动按父组件分组，蓝色粗体组件头 + 深灰色物料行<br>
+• 物料名称自动清洗（去品牌/认证/规格/颜色等噪声词）<br>
+• 智能分页 — 每页约 28 行，不会出现首页整页留空<br>
+• 文件名：<code>{订单号}_{机芯}_{机型}_{数量}台_{阶段}_整机更改通知单.docx</code><br>
+• 说明栏自动填入正确的 BOM 编号
+</div>
+
+<h3>4.3 Excel 报告</h3>
+<p>差异明细右上角「导出 Excel 报告」按钮，下下来是一份结构化表格，方便二次加工。</p>
+
+<h2 id="bomlist">五、BOM 管理</h2>
+
+<h3>5.1 查看已上传 BOM</h3>
+<p>点顶部「已上传的 BOM」标签，表格显示所有已上传的 BOM：上传文件名、BOM号、条目数、状态、上传时间等。</p>
+
+<h3>5.2 操作按钮</h3>
+<table>
+  <tr><th>按钮</th><th>功能</th></tr>
+  <tr><td>导出</td><td>下载该 BOM 的 Excel 文件</td></tr>
+  <tr><td>组件</td><td>导出全部组件</td></tr>
+  <tr><td>逻辑图</td><td>在线查看 BOM 层级结构树（SVG 可缩放平移）</td></tr>
+  <tr><td>XMind</td><td>下载 .xmind 思维导图文件</td></tr>
+  <tr><td>删除</td><td>删除该 BOM 及关联比对数据</td></tr>
+</table>
+
+<h3>5.3 清除全部数据</h3>
+<p>右上角「清除全部数据」按钮一键清空所有 BOM 和比对结果，方便重新上传。</p>
   <tr>
     <td><span class="tag tag-green">可选</span> Excel BOM 文件</td>
     <td>任何 .xlsx / .xls / .csv 格式的 BOM 物料清单</td>
@@ -501,33 +599,38 @@ bom-component-exporter.skill
 <h2 id="faq">六、常见问题 FAQ</h2>
 
 <div class="card">
-  <h4>Q: SAP 文件导入失败，提示格式无法识别？</h4>
-  <p><strong>A:</strong> 最常见的原因是文件被 Excel 打开过并另存了。请确保使用的是 SAP 直接导出的原始 UTF-16 LE 编码文件。判断方法：用记事本打开文件，如果能看到 "B O M 展开表" 字样且编码显示为 UTF-16 LE，就是正确的。</p>
+  <h4>Q: BOM 上传后用量显示为 0？</h4>
+  <p><strong>A:</strong> 已修复。系统现在支持 UTF-16 LE 和 GBK 两种 SAP 编码格式，并兼容新旧两种列位布局。如仍出现请刷新页面后重新上传。</p>
 </div>
 
 <div class="card">
-  <h4>Q: Excel BOM 导入后层级不对？</h4>
-  <p><strong>A:</strong> 如果你的 Excel 中没有 Level（层级）列，系统会尝试用栈自动推导。推导依据是数据的<strong>物理行顺序</strong>（越靠前的行层级越高）。请确保你的 BOM 数据按层级从高到低的顺序排列。</p>
+  <h4>Q: 导出的 WORD 首页大片空白？</h4>
+  <p><strong>A:</strong> 已修复。现在每约 28 行自动分页，Word 不会再把整个合并单元格内容推到下一页。如仍有问题请 Ctrl+F5 强制刷新后重新导出。</p>
 </div>
 
 <div class="card">
-  <h4>Q: 导出的 Excel 中 PN 编码前面还有数字？</h4>
-  <p><strong>A:</strong> 导出时会自动清理 <code>1、</code> <code>2．</code> 这样的前置序号，但清洗入库时的原始数据不会修改。如果导出结果不对，可以用 <code>重新清洗 BOM ID X 中的 PN 编码</code> 指令再次处理。</p>
+  <h4>Q: WORD 中机型显示不对（如显示 3000 而非 F27G56M）？</h4>
+  <p><strong>A:</strong> 已修复。现在支持 <code>P1C</code> 和 <code>PCC</code> 两种 BOM 编码格式的机型提取。重新上传 BOM 再导出即可。</p>
 </div>
 
 <div class="card">
-  <h4>Q: 按组件导出时，找不到想要的组件？</h4>
-  <p><strong>A:</strong> 自动模式下只筛选 <code>unit=ST</code> 的物料作为组件。如果你的组件单位不是 ST，可以手动指定：<code>按 PN 列表导出：物料号1, 物料号2</code></p>
+  <h4>Q: 物料名称太长，不方便查阅？</h4>
+  <p><strong>A:</strong> 系统已内置名称清洗功能，自动去除品牌、认证、规格参数、颜色、合规标记等噪声词。另有限制 5 个核心词的兜底策略。</p>
 </div>
 
 <div class="card">
-  <h4>Q: 如何查看数据库中已有哪些 BOM？</h4>
-  <p><strong>A:</strong> 输入 <code>列出所有已导入的 BOM</code> 或 <code>查看 BOM 列表</code>，AI 会返回所有 BOM 的 ID、名称、导入时间。</p>
+  <h4>Q: 删除 BOM 时报错？</h4>
+  <p><strong>A:</strong> 已修复。删除 BOM 时会自动级联清理关联的比对任务和比对结果，不再报外键约束错误。</p>
 </div>
 
 <div class="card">
-  <h4>Q: 文件要放在哪里？</h4>
-  <p><strong>A:</strong> 所有 BOM 源文件放在 <code>D:\04_系统开发\BOM Data Comparison\uploads\</code>，导出的 Excel 报告在 <code>D:\04_系统开发\BOM Data Comparison\reports\</code>。</p>
+  <h4>Q: BOM 列表数据显示不全？</h4>
+  <p><strong>A:</strong> 表格列宽已优化，12 列全部居中显示。如果屏幕较小可横向滚动查看全部列。</p>
+</div>
+
+<div class="card">
+  <h4>Q: 页面打开是旧版本？</h4>
+  <p><strong>A:</strong> 按 <code>Ctrl + F5</code> 强制刷新，清除浏览器缓存后再试。</p>
 </div>
 
 <hr style="border:none;border-top:1px solid var(--border);margin:24px 0;">
@@ -535,84 +638,75 @@ bom-component-exporter.skill
 <h2 id="summary">七、速查卡片（打印贴桌面）</h2>
 
 <div class="card" style="border:2px solid var(--primary);">
-<h3 style="margin-top:0;color:var(--primary);">常用指令速查</h3>
+<h3 style="margin-top:0;color:var(--primary);">操作流程速查</h3>
 
 <table>
   <tr>
-    <th style="width:40%;">你想做什么</th>
-    <th>直接这样说</th>
+    <th style="width:30%;">步骤</th>
+    <th>操作</th>
   </tr>
   <tr>
-    <td>导入 SAP BOM</td>
-    <td><code>导入 uploads/ 下的 SAP BOM 文件</code></td>
+    <td>1. 打开系统</td>
+    <td>浏览器输入 <code>http://172.20.217.12:40045/</code></td>
   </tr>
   <tr>
-    <td>导入 Excel BOM</td>
-    <td><code>导入 uploads/my_bom.xlsx</code></td>
+    <td>2. 上传 BOM</td>
+    <td>上传BOM → 选择文件 → 上传解析（两份都传）</td>
   </tr>
   <tr>
-    <td>查看已入库 BOM</td>
-    <td><code>已导入的 BOM 有哪些</code></td>
+    <td>3. 比对</td>
+    <td>开始比对 → 选跨机型比对 → 全层级对比 → 开始比对</td>
   </tr>
   <tr>
-    <td>导出单 BOM 清单</td>
-    <td><code>导出 BOM ID 3 的清洗数据到 Excel</code></td>
+    <td>4. 导出 WORD</td>
+    <td>填导出配置 → 导出 Word 更改通知单</td>
   </tr>
   <tr>
-    <td>按组件导出</td>
-    <td><code>按组件导出 BOM ID 3，所有 ST 物料</code></td>
+    <td>5. 导出 Excel</td>
+    <td>导出 Excel 报告</td>
   </tr>
   <tr>
-    <td>比对两个 BOM</td>
-    <td><code>比对 BOM ID 2 和 ID 3</code></td>
-  </tr>
-  <tr>
-    <td>导出差异报告</td>
-    <td><code>导出差异报告</code></td>
-  </tr>
-  <tr>
-    <td>双 BOM 对比</td>
-    <td><code>把 BOM-A 和 BOM-B 导出到同一个 Excel</code></td>
+    <td>管理 BOM</td>
+    <td>已上传的 BOM → 导出/组件/逻辑图/XMind/删除</td>
   </tr>
 </table>
 </div>
 
 <h3>关键路径一览</h3>
 <pre>
-项目根目录： D:\04_系统开发\BOM Data Comparison\
+系统地址： http://172.20.217.12:40045/compare/
 
-放置 BOM 源文件 →          uploads\     （拖到这里）
-导出的 Excel 报告 →        reports\     （从这里取）
-数据库文件 →               data\        （不要手动删）
+导出文件下载到浏览器默认下载目录
+文件名格式： {订单号}_{机芯}_{机型}_{数量}台_{阶段}_整机更改通知单.docx
 </pre>
 
 <hr style="border:none;border-top:1px solid var(--border);margin:24px 0;">
 
-<h2 style="border:none;">两个 Skills 的分工总结</h2>
+<h2 style="border:none;">系统核心功能</h2>
 <div class="comparison">
   <div>
-    <h4 style="margin-top:0;color:var(--primary);">bom-data-cleaner</h4>
+    <h4 style="margin-top:0;color:var(--primary);">BOM 解析引擎</h4>
     <p style="font-size:13px;">负责<strong>"进"</strong></p>
-    <p style="font-size:13px;">文件 → 格式识别 → 层级推导 → 清洗编码和名称 → 存入数据库</p>
-    <p style="font-size:12px;color:var(--muted);">支持 5 种格式 / SAP v3.0 清洗器</p>
+    <p style="font-size:13px;">SAP BOM → 编码检测（UTF-16/GBK）→ 层级推导 → 清洗 → 入库</p>
+    <p style="font-size:12px;color:var(--muted);">bom_cleaner v3.0 / parser</p>
   </div>
   <div>
-    <h4 style="margin-top:0;color:var(--accent);">bom-component-exporter</h4>
+    <h4 style="margin-top:0;color:var(--accent);">差异比对 + 导出</h4>
     <p style="font-size:13px;">负责<strong>"出"</strong></p>
-    <p style="font-size:13px;">数据库 → 树形展开 → 层级着色 → 按组件拆分/对比/差异 → Excel 报告</p>
-    <p style="font-size:12px;color:var(--muted);">4 种导出模式 / 专业 Excel 格式</p>
+    <p style="font-size:13px;">比对 → 差异归类 → 名称清洗 → WORD/Excel 导出</p>
+    <p style="font-size:12px;color:var(--muted);">WORD 更改通知单 / Excel 报告 / 返工单</p>
   </div>
 </div>
 
 </main>
 
 <footer>
-  <p>BOM 数据处理工具 SOP &middot; v1.0 &middot; 2026-06-05</p>
-  <p>如有问题，在 WorkBuddy 中直接输入 <code>帮助，BOM 导入报错了</code> 即可获得 AI 辅助排查</p>
+  <p>BOM 数据比对分析系统 SOP &middot; v2.0 &middot; 2026-06-26</p>
+  <p>如有问题，联系系统管理员或在 WorkBuddy 中反馈</p>
   <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
-    <span>&#128100; 联系人：Theo</span>
-    <span>&#9993; tangyongan@skyworth.com</span>
-    <span>&#9742; 电话：651636</span>
+    <span>&#128100; 联系人：安哥</span>
+    <span>&#9993; tangan2026@gmail.com</span>
+    <span>&#127760; http://172.20.217.12:40045/compare/</span>
   </div>
 </footer>
 
