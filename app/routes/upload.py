@@ -246,6 +246,14 @@ def export_all_components(bom_id):
 def delete_bom(bom_id):
     """删除单个BOM及其所有关联数据。"""
     try:
+        # 先删除关联的比对结果和比对任务
+        tasks = db_module.execute(
+            'SELECT id FROM comparison_task WHERE source_bom_id=? OR target_bom_id=?',
+            (bom_id, bom_id)
+        ).fetchall()
+        for t in tasks:
+            db_module.execute('DELETE FROM comparison_result WHERE task_id=?', (t[0],))
+            db_module.execute('DELETE FROM comparison_task WHERE id=?', (t[0],))
         db_module.execute('DELETE FROM bom_item WHERE bom_id=?', (bom_id,))
         db_module.execute('DELETE FROM bom_header WHERE id=?', (bom_id,))
         return jsonify({'ok': True, 'msg': '已删除'})
@@ -263,6 +271,15 @@ def batch_delete_boms():
 
     try:
         placeholders = ','.join(['?'] * len(ids))
+        # 先删除关联的比对结果和比对任务
+        for bid in ids:
+            tasks = db_module.execute(
+                'SELECT id FROM comparison_task WHERE source_bom_id=? OR target_bom_id=?',
+                (bid, bid)
+            ).fetchall()
+            for t in tasks:
+                db_module.execute('DELETE FROM comparison_result WHERE task_id=?', (t[0],))
+                db_module.execute('DELETE FROM comparison_task WHERE id=?', (t[0],))
         db_module.execute(f'DELETE FROM bom_item WHERE bom_id IN ({placeholders})', tuple(ids))
         db_module.execute(f'DELETE FROM bom_header WHERE id IN ({placeholders})', tuple(ids))
         return jsonify({'ok': True, 'msg': f'已删除 {len(ids)} 个BOM'})
