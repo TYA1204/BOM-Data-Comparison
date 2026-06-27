@@ -53,7 +53,7 @@ TYPE_LABELS = {
 DIFF_CATEGORY_LABELS = {
     'component': '组件变化', 'leaf': '物料变化',
     'quantity': '用量变化', 'unit': '单位变化',
-    'version': '版本变化',
+    'version': '版本变化', 'reference': '位号变化',
 }
 
 

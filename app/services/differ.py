@@ -288,6 +288,36 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 'line_no_b': item_b['line_no'],
             })
 
+        # Reference change (位号变更)
+        ref_a_raw = (item_a.get('reference') or '').strip()
+        ref_b_raw = (item_b.get('reference') or '').strip()
+        if ref_a_raw or ref_b_raw:
+            ref_set_a = set(r for r in ref_a_raw.split() if r)
+            ref_set_b = set(r for r in ref_b_raw.split() if r)
+            ref_added = ref_set_b - ref_set_a
+            ref_removed = ref_set_a - ref_set_b
+            if ref_added or ref_removed:
+                diff_records.append({
+                    'diff_type': 'modified',
+                    'diff_category': 'reference',
+                    'part_number_a': item_a['part_number'],
+                    'part_number_b': item_b['part_number'],
+                    'part_name_a': item_a['part_name'],
+                    'part_name_b': item_b['part_name'],
+                    'field_name': 'reference',
+                    'old_value': ' '.join(sorted(ref_removed)),
+                    'new_value': ' '.join(sorted(ref_added)),
+                    'quantity_a': item_a['quantity'],
+                    'quantity_b': item_b['quantity'],
+                    'reference_a': ref_a_raw,
+                    'reference_b': ref_b_raw,
+                    'match_confidence': 100,
+                    'parent_pn_a': item_a.get('parent_pn', ''),
+                    'parent_pn_b': item_b.get('parent_pn', ''),
+                    'line_no_a': item_a['line_no'],
+                    'line_no_b': item_b['line_no'],
+                })
+
     # =================================================================
     # Step 3b — Version changes (版本比对 only):
     #   Same PN + same parent, different version/revision
