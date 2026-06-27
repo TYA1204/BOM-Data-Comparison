@@ -254,6 +254,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'ADD'
             line_no = d['line_no_b'] or d['line_no_a'] or 0
+            ref_val = (_g(d, 'reference_b') or _g(d, 'reference_a') or '').strip()
         elif dt == 'removed':
             pn = (_g(d, 'part_number_a') or '').strip()
             nm = clean_material_name((_g(d, 'part_name_a') or '').strip())
@@ -264,6 +265,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             parent_name = parent_lookup_src.get(parent_pn, parent_lookup_tgt.get(parent_pn, ''))
             type_label = 'DEL'
             line_no = d['line_no_a'] or d['line_no_b'] or 0
+            ref_val = (_g(d, 'reference_a') or _g(d, 'reference_b') or '').strip()
         else:
             pn = (_g(d, 'part_number_a') or _g(d, 'part_number_b') or '').strip()
             nm = clean_material_name((_g(d, 'part_name_a') or _g(d, 'part_name_b') or '').strip())
@@ -274,6 +276,8 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'MOD'
             line_no = d['line_no_a'] or d['line_no_b'] or 0
+            # MOD ref → 优先用目标 BOM 位号（当前状态），源位号做回退
+            ref_val = (_g(d, 'reference_b') or _g(d, 'reference_a') or '').strip()
 
         row_data = {
             'pn': pn, 'name': nm,
@@ -281,7 +285,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             'parent_name': parent_name,
             'type': dt, 'type_label': type_label,
             'line_no': line_no,
-            'ref': (_g(d, 'reference_a') or _g(d, 'reference_b') or '').strip(),
+            'ref': ref_val,
         }
         if dt == 'modified':
             row_data['old_qty'] = old_qty
