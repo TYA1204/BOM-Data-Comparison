@@ -390,6 +390,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
         if dt == 'modified':
             row_data['old_qty'] = old_qty
             row_data['new_qty'] = new_qty
+            row_data['diff_category'] = _g(d, 'diff_category', '')
         else:
             row_data['qty'] = qty_str
         rows.append(row_data)
@@ -832,11 +833,18 @@ def _build_content_body(content_cell, groups):
             qty = _fmt_qty(item['qty'])
             _add_item_line('DEL' if i == 0 else '', item['pn'], item['name'], f'{qty}PC')
 
-        # MOD items
+        # MOD items — quantity changes → split into DEL + ADD rows
         for mi, m in enumerate(g['mods']):
-            old_q = _fmt_qty(m.get('old_qty', '1'))
-            new_q = _fmt_qty(m.get('new_qty', '1'))
-            _add_item_line('MOD' if mi == 0 else '', m['pn'], m['name'], f'{old_q}\u2192{new_q}')
+            is_qty = m.get('diff_category') == 'quantity'
+            if is_qty:
+                del_qty = _fmt_qty(m.get('old_qty', '1'))
+                add_qty = _fmt_qty(m.get('new_qty', '1'))
+                _add_item_line('DEL', m['pn'], m['name'], f'{del_qty}PC')
+                _add_item_line('ADD', m['pn'], m['name'], f'{add_qty}PC')
+            else:
+                old_q = _fmt_qty(m.get('old_qty', '1'))
+                new_q = _fmt_qty(m.get('new_qty', '1'))
+                _add_item_line('MOD' if mi == 0 else '', m['pn'], m['name'], f'{old_q}\u2192{new_q}')
 
         _add_spacer()
 
