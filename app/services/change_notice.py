@@ -738,8 +738,7 @@ def _build_content_body(content_cell, groups):
             del_lines.append((item['pn'], item['name'], f'{qty}PC', ref))
 
         # MOD items — quantity changes → net ADD or DEL
-        #              reference changes → note lines
-        ref_notes = []  # (pn, ref_added, ref_removed)
+        #              reference changes → split into ADD/DEL lines
         for m in g['mods']:
             is_qty = m.get('diff_category') == 'quantity'
             is_ref = m.get('diff_category') == 'reference'
@@ -758,10 +757,16 @@ def _build_content_body(content_cell, groups):
                 else:
                     del_lines.append((m['pn'], m['name'], f'{net_str}PC', m.get('ref', '')))
             elif is_ref:
-                ref_added = (m.get('new_qty') or '').strip()
-                ref_removed = (m.get('old_qty') or '').strip()
-                if ref_added or ref_removed:
-                    ref_notes.append((m['pn'], ref_added, ref_removed))
+                ref_added_str = (m.get('new_qty') or '').strip()
+                ref_removed_str = (m.get('old_qty') or '').strip()
+                if ref_added_str:
+                    ref_added_list = [r for r in ref_added_str.split() if r]
+                    cnt = len(ref_added_list)
+                    add_lines.append((m['pn'], m['name'], f'{cnt}PC', ref_added_str))
+                if ref_removed_str:
+                    ref_removed_list = [r for r in ref_removed_str.split() if r]
+                    cnt = len(ref_removed_list)
+                    del_lines.append((m['pn'], m['name'], f'{cnt}PC', ref_removed_str))
             else:
                 del_lines.append((m['pn'], m['name'], f'{old_q}\u2192{new_q}', m.get('ref', '')))
 
@@ -770,16 +775,6 @@ def _build_content_body(content_cell, groups):
             _add_item_line('ADD' if i == 0 else '', pn, nm, qt, ref)
         for i, (pn, nm, qt, ref) in enumerate(del_lines):
             _add_item_line('DEL' if i == 0 else '', pn, nm, qt, ref)
-
-        # Render ref change notes under the same group
-        for pn, ref_added, ref_removed in ref_notes:
-            parts = []
-            if ref_removed:
-                parts.append(f'\u4f4d\u53f7\u5220\u9664: {ref_removed}')
-            if ref_added:
-                parts.append(f'\u4f4d\u53f7\u65b0\u589e: {ref_added}')
-            note_line = f'     {pn}     | {"  |  ".join(parts)}'
-            _add_cell_para_counted(note_line, Pt(9), color='E67E22')
 
         _add_spacer()
 
