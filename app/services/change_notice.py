@@ -69,213 +69,88 @@ def _g(d, key, default=None):
 
 
 def clean_material_name(name):
-    """Strip redundant brand/certification/metadata, keep core name + model.
+    """Extract core material name by stripping specs and noise.
 
-    Rules (in order):
-      1. Remove parenthesized content (round & full-width brackets)
-      2. Remove exact-match noise tokens (brand, certification, region, status)
-      3. Remove pattern-matching noise (dimensions, temperature, internal PN)
-      4. Remove trailing status tokens (0,1,2,3,A,B,C,BC)
-      5. Collapse multiple spaces
+    Strategy: scan tokens until we hit a digit-starting or special-char
+    token (spec boundary), keeping only the core identifier. A tiny
+    blacklist handles universal noise words (brands, colors, certs).
     """
     import re
 
     if not name:
         return ""
 
-    # Step 1: strip parenthesized content (replace with space to avoid word merge)
+    # Step 1: strip parenthesized content
     name = re.sub(r"[（【].*[）】]", " ", name)
     name = re.sub(r"\([^)]*\)", " ", name)
-
     tokens = name.split()
 
-    # Step 2: exact-match noise tokens
-    NOISE_EXACT = {
+    # Universal noise — only words that are never part of a core material name
+    SKIP = {
+        # Brands / regions
+        "SKYWORTH", "coocaa", "COOCAA", "HKC", "WANZHONG", "wanzhong", "WZ",
+        "Shenzhen", "CHUANGWEI-RGB", "Electro", "深圳创维RGB电子",
+        "内销", "通用", "中国", "无",
         # Certifications
         "RoHS", "REACH", "CBU",
-        # Brands
-        "SKYWORTH", "coocaa", "COOCAA",
-        "HKC", "WANZHONG", "wanzhong", "WZ",
-        # Regions / status
-        "内销", "通用", "中国", "无", "非生产打印",
-        # Misc
-        "彩色印刷", "CARTONBOX", "NEW", "EMMC", "64G",
-        "Shenzhen", "CHUANGWEI-RGB", "Electro",
-        "深圳创维RGB电子", "High-Performance",
-        "陶瓷基板", "双面", "同面", "非高频膜",
-        "2Point", "80g",
-        # Platform codes
-        "8R713", "8R710", "7T871", "7T611", "8R102", "100A7H", "100A5H",
-        # trailing status codes (also handled in step 4, belt & suspenders)
-        "NMN", "L1", "A", "B", "C", "BC",
-        # Process types
-        "研发机贴", "研发手插", "研发机插",
-        # Tech descriptors
-        "底收声",
-        "PDM",
-        # Hardware screw/bolt descriptors
-        "镀黑锌", "镀锌", "镀镍", "镀锡", "镀银", "白锌", "彩锌",
+        # Colors
+        "黑色", "白色", "灰色", "本色", "中黑", "磨砂黑",
+        # Materials / forms
+        "PU", "HAIMIAN", "EVA", "PET", "PE", "HIPS", "PC+ABS", "SECC",
+        "片料", "规则", "不规则",
+        # Process / tech
+        "不加硬", "镀黑锌", "镀锌", "镀镍", "镀锡", "镀银", "白锌", "彩锌",
+        "加硬", "硬化", "热处理", "环保", "环保型",
+        # Screw descriptors
         "十字", "一字", "内六角", "外六角", "梅花",
-        "加硬", "硬化", "热处理",
-        "非耐落", "耐落",
-        "无垫圈", "有垫圈", "带垫圈", "含垫圈",
-        "无弹垫", "有弹垫", "无平垫", "有平垫",
-        "机械牙", "自攻牙", "机牙", "自攻",
+        "工业牙", "自攻牙", "机牙", "自攻",
         "平尾", "尖尾", "锥尾", "割尾",
         "全螺纹", "半螺纹",
-        "环保", "环保型",
-        # Misc noise
-        "附接订单", "此订单。",
-        # Color descriptors (non-identifying for most parts)
-        "黑色", "白色", "灰色", "本色", "中黑", "磨砂黑",
-        # Material form descriptors
-        "片料", "规则", "不规则",
-        "HAIMIAN",
-        "不加硬",
-        # Tech process / material type
-        "高频膜", "单面", "邮票机贴",
-        "A.彩色", "2P",
-        "fpc", "FPC",
-        "fengwoban",
-        # Directional / positional markers
+        "无垫圈", "有垫圈", "带垫圈", "含垫圈",
+        "无弹垫", "有弹垫", "无平垫", "有平垫",
+        "非耐落", "耐落",
+        # Directional
         "下", "上", "左", "右",
         "INSIDE", "BOTTOM", "BOX",
+        # Filler
+        "Pro", "for", "and", "the", "with", "width",
+        "防静电", "耐高温",
+        "非REACH", "非无卤", "非防静电", "非阻燃", "非RoHS", "无耐温要求", "非卤",
+        "彩色印刷", "A.彩色", "2P", "NEW", "EMMC", "64G", "PDM",
+        "高频膜", "单面", "邮票机贴", "非高频膜",
+        "研发机贴", "研发手插", "研发机插",
+        "fpc", "FPC", "fengwoban",
+        "附接订单", "此订单。",
     }
 
-    # Step 3: pattern-based noise
-    # Any token matching these patterns is technical noise and will be stripped.
-    # If a token is a "cutoff marker", it AND all tokens after it are removed.
-    CUTOFF_PATTERNS = [
-        r'±\d+\.?\d*%?[pP]?[fF]?$',  # tolerance: ±1%, ±10%, ±0.1pF
-        r'±\d+',                     # generic tolerance
-        r'\d+/\d+W',             # power rating: 1/16W, 1/8W
-        r'\d+\.?\d*W$',          # power: 230W
-        r'\d+\.?\d*mA$',         # current: 650mA
-        r'\dCH$',                # channels: 2CH
-        r'X\d+R$',               # temp coeff: X7R
-        r'Y5V$',                 # dielectric: Y5V
-        r'NP0$',                 # dielectric: NP0
-        r'AC:\S+',               # AC spec
-        r'\d+V\d+',              # voltage model: 2V4000
-        r'\d+PC$',               # quantity: 2PC, 1PC
-        r'\d+pin\b',             # pin count: 41pin, 80pin
-        r'\d+P$',                # print pages: 2P
-        r'\d+~?\d*GHz',          # frequency: 2.4GHz, 2.4~5.8GHz
-        r'\d+\.?\d*~?\d*\.?\d*GHz',  # frequency: 2.4~5.8GHz
-        r'\d+\.?\d*~?\d*\.?\d*MHz',  # frequency: 100MHz
-        r'USB\d+\.?\d*',         # USB3.0, USB2
-        r'\d+[\*xX]\d+.*',       # dimensions: 80*60, 80*60*0.05, 1200*650*
-        # Internal part codes: 1320-L2801010-01
-        r'\d+-[A-Z]\d+-\d+',
-        # Compliance / environmental markers
-        r'非REACH', r'非无卤', r'非防静电', r'非阻燃', r'非RoHS',
-        r'无耐温要求',            # temp requirement
-        r'防静电',                # ESD protection
-        r'耐高温\S*',             # high-temp material
-        r'非卤',                  # halogen-free
-        # Fire rating codes
-        r'V\d$',                 # V0, V1, V2
-        r'HB$',                  # UL94 HB
-        # Resistance / inductance value patterns (after trim)
-        r'\d+Ω$',                # 240Ω, 100Ω
-        r'\d+[KM]Ω$',            # 10KΩ, 1MΩ
-    ]
-
-    def _is_cutoff(t):
-        for pat in CUTOFF_PATTERNS:
-            if re.fullmatch(pat, t):
-                return True
-        return False
-
-    def _is_noise_pattern(t):
-        if re.fullmatch(r"\d+mm", t):
-            return True
-        if re.fullmatch(r"\d+\.\d+mm", t):
-            return True
-        if re.fullmatch(r"[-~]?\d+~?\d*℃?", t):
-            return True
-        if re.fullmatch(r"N\d{6}-\d{6}-\d{3}", t):
-            return True
-        if re.fullmatch(r"WZ\.\d+.*", t):
-            return True
-        if re.fullmatch(r"N\d{11,}", t):
-            return True
-        if t.startswith('_'):
-            return True
-        if re.fullmatch(r"[A-Z0-9_.-]{6,}", t) and '_' in t:
-            return True
-        # LCD panel / model codes: CV850U1-L01 style
-        if re.fullmatch(r"[A-Z]{2,}\d+[A-Z0-9-]*", t):
-            return True
-        # English instructional / filler words
-        if re.fullmatch(r"[A-Z][a-z]+", t):
-            return True
-        # Bare numbers (dimensions without unit)
-        if re.fullmatch(r"\d+", t):
-            return True
-        # Chinese pinyin / transliterated words (3+ lowercase letters)
-        if re.fullmatch(r"[a-z]{3,}", t):
-            return True
-        # Abbreviation+spec: S-PCB, T-CON, etc
-        if re.fullmatch(r"[A-Z]-[A-Z]+", t):
-            return True
-        # Common English filler words
-        _ENGLISH_FILLER = {'for', 'and', 'the', 'with', 'from', 'type', 'color', 'part', 'size', 'width'}
-        if t.lower() in _ENGLISH_FILLER:
-            return True
-        return False
-
-    cleaned = []
+    kept = []
     for t in tokens:
-        if t in NOISE_EXACT:
+        if t in SKIP:
             continue
-        if _is_noise_pattern(t):
-            continue
-        # 复合噪声词检查：仅当token全部由噪声词组合而成时才剔除
-        # 如 '机械牙平尾' = '机械牙' + '平尾' → 全是噪声 → 剔除
-        # 如 '机牙螺钉B' 含 '机牙' 但有 '螺钉B' 非噪声 → 保留
-        NOISE_SUBSTR = [
-            "镀黑锌", "镀锌", "镀镍", "镀锡", "白锌", "彩锌",
-            "十字", "一字", "内六角", "外六角", "梅花",
-            "加硬", "硬化", "热处理",
-            "非耐落", "耐落",
-            "无垫圈", "有垫圈", "带垫圈", "含垫圈",
-            "无弹垫", "有弹垫", "无平垫", "有平垫",
-            "机械牙", "自攻牙", "机牙", "自攻",
-            "平尾", "尖尾", "锥尾", "割尾",
-            "全螺纹", "半螺纹",
-            "环保",
-        ]
-        stripped = t
-        for s in sorted(NOISE_SUBSTR, key=len, reverse=True):
-            stripped = stripped.replace(s, '')
-        if not stripped.strip():
-            continue
-        # 遇到截断标记 → 该token及之后全部丢弃
-        if _is_cutoff(t):
+        # Special-char token with no Chinese → spec boundary
+        if re.search(r"[*~/±°→×]", t) and not re.search(r"[\u4e00-\u9fff]", t):
             break
-        # strip 8Rxxx- prefix (e.g. 8R713-100P5FP -> 100P5FP)
-        t = re.sub(r"^8R71[03]-", "", t)
-        cleaned.append(t)
-
-    # Step 4: remove trailing status tokens (handles 0. 1. etc.)
-    TRAILING_NOISE = {'0', '1', '2', '3', 'A', 'B', 'C', 'BC'}
-    while cleaned:
-        last = cleaned[-1].rstrip('.')
-        if last in TRAILING_NOISE:
-            cleaned.pop()
-        else:
+        # Starts with digit → spec boundary (but model codes like 100A5H are kept)
+        if re.match(r"^\d", t):
+            if re.match(r"^\d+[A-Za-z]+\d", t):
+                kept.append(t)  # model code: 100A5H, 8R713
             break
+        # Pure codes (T20, BOX, USB3.0, fengwoban, S-PCB, Hanger, etc.)
+        if re.fullmatch(r"[A-Z0-9_.-]{2,}", t):
+            continue
+        if re.fullmatch(r"[A-Z][a-z]+", t):
+            continue
+        if re.fullmatch(r"[a-z]{3,}", t):
+            continue
+        if re.fullmatch(r"[A-Z]-[A-Z]+", t):
+            continue
+        kept.append(t)
 
-    # Step 5 (fallback): 取前N个token兜底 — 绝大多数物料核心标识在前5个词
-    # 避免依赖规则库穷尽所有噪声模式
-    MAX_TOKENS = 5
-    if len(cleaned) > MAX_TOKENS:
-        cleaned = cleaned[:MAX_TOKENS]
+    # Max 5 tokens fallback
+    if len(kept) > 5:
+        kept = kept[:5]
 
-    result = " ".join(cleaned).strip()
-    result = re.sub(r" +", " ", result)
-    return result
+    return " ".join(kept).strip()
 
 
 
