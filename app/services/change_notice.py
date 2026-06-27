@@ -281,6 +281,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             'parent_name': parent_name,
             'type': dt, 'type_label': type_label,
             'line_no': line_no,
+            'ref': (_g(d, 'reference_a') or _g(d, 'reference_b') or '').strip(),
         }
         if dt == 'modified':
             row_data['old_qty'] = old_qty
@@ -685,9 +686,11 @@ def _build_content_body(content_cell, groups):
             f'在{comp_pn} {comp_name}里',
             Pt(11), bold=True, color='1E40AF')
 
-    def _add_item_line(prefix, pn, name, qty_text):
-        text = f'{pn} {name}     {qty_text}'
-        line = f'{prefix}:{text}' if prefix else f'     {text}'
+    def _add_item_line(prefix, pn, name, qty_text, ref=''):
+        parts = f'{pn} {name}     {qty_text}'
+        if ref:
+            parts += f'  [{ref}]'
+        line = f'{prefix}:{parts}' if prefix else f'     {parts}'
         _add_cell_para_counted(line, Pt(10), color='334155')
 
     def _add_spacer():
@@ -725,12 +728,14 @@ def _build_content_body(content_cell, groups):
         # Pure ADD items
         for item in g['adds']:
             qty = _fmt_qty(item['qty'])
-            add_lines.append((item['pn'], item['name'], f'{qty}PC'))
+            ref = item.get('ref', '')
+            add_lines.append((item['pn'], item['name'], f'{qty}PC', ref))
 
         # Pure DEL items
         for item in g['dels']:
             qty = _fmt_qty(item['qty'])
-            del_lines.append((item['pn'], item['name'], f'{qty}PC'))
+            ref = item.get('ref', '')
+            del_lines.append((item['pn'], item['name'], f'{qty}PC', ref))
 
         # MOD items — quantity changes → net ADD or DEL
         for m in g['mods']:
@@ -746,22 +751,17 @@ def _build_content_body(content_cell, groups):
                     continue
                 net_str = _fmt_qty(abs(net))
                 if net > 0:
-                    add_lines.append((m['pn'], m['name'], f'{net_str}PC'))
+                    add_lines.append((m['pn'], m['name'], f'{net_str}PC', m.get('ref', '')))
                 else:
-                    del_lines.append((m['pn'], m['name'], f'{net_str}PC'))
+                    del_lines.append((m['pn'], m['name'], f'{net_str}PC', m.get('ref', '')))
             else:
-                # Non-quantity MOD: keep as-is
-                old_q = _fmt_qty(m.get('old_qty', '1'))
-                new_q = _fmt_qty(m.get('new_qty', '1'))
-                # Treat directionally — if new >= old, ADD area, else DEL area
-                # (unit/version changes: fallback to MOD label in DEL area as safety net)
-                del_lines.append((m['pn'], m['name'], f'{old_q}\u2192{new_q}'))
+                del_lines.append((m['pn'], m['name'], f'{old_q}\u2192{new_q}', m.get('ref', '')))
 
         # Render: ADD section first, then DEL section
-        for i, (pn, nm, qt) in enumerate(add_lines):
-            _add_item_line('ADD' if i == 0 else '', pn, nm, qt)
-        for i, (pn, nm, qt) in enumerate(del_lines):
-            _add_item_line('DEL' if i == 0 else '', pn, nm, qt)
+        for i, (pn, nm, qt, ref) in enumerate(add_lines):
+            _add_item_line('ADD' if i == 0 else '', pn, nm, qt, ref)
+        for i, (pn, nm, qt, ref) in enumerate(del_lines):
+            _add_item_line('DEL' if i == 0 else '', pn, nm, qt, ref)
 
         _add_spacer()
 
