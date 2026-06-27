@@ -833,14 +833,23 @@ def _build_content_body(content_cell, groups):
             qty = _fmt_qty(item['qty'])
             _add_item_line('DEL' if i == 0 else '', item['pn'], item['name'], f'{qty}PC')
 
-        # MOD items — quantity changes → split into DEL + ADD rows
+        # MOD items — quantity changes → net ADD or DEL (single line per PN)
         for mi, m in enumerate(g['mods']):
             is_qty = m.get('diff_category') == 'quantity'
             if is_qty:
-                del_qty = _fmt_qty(m.get('old_qty', '1'))
-                add_qty = _fmt_qty(m.get('new_qty', '1'))
-                _add_item_line('DEL', m['pn'], m['name'], f'{del_qty}PC')
-                _add_item_line('ADD', m['pn'], m['name'], f'{add_qty}PC')
+                try:
+                    old_q = float(m.get('old_qty', 0) or 0)
+                    new_q = float(m.get('new_qty', 0) or 0)
+                except (TypeError, ValueError):
+                    old_q = new_q = 0
+                net = new_q - old_q
+                if abs(net) < 0.001:
+                    continue  # no effective change, skip
+                net_str = _fmt_qty(abs(net))
+                if net > 0:
+                    _add_item_line('ADD', m['pn'], m['name'], f'{net_str}PC')
+                else:
+                    _add_item_line('DEL', m['pn'], m['name'], f'{net_str}PC')
             else:
                 old_q = _fmt_qty(m.get('old_qty', '1'))
                 new_q = _fmt_qty(m.get('new_qty', '1'))
