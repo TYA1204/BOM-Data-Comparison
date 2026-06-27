@@ -123,17 +123,37 @@ def clean_material_name(name):
         "附接订单", "此订单。",
     }
 
+    # Electronic component value units — these ARE core identity (resistors, caps, etc.)
+    _comp_unit_re = re.compile(
+        r'[\u03BCu]?[FfHh]$'        # μF, nF, pF, μH, nH
+        r'|[KMkm]?[Ω]$'            # Ω, KΩ, MΩ
+        r'|[VvAa]$'                # V, A, mA
+    )
+
     kept = []
+    value_count = 0
     for t in tokens:
         if t in SKIP:
             continue
         # Special-char token with no Chinese → spec boundary
         if re.search(r"[*~/±°→×]", t) and not re.search(r"[\u4e00-\u9fff]", t):
             break
-        # Starts with digit → spec boundary (but model codes like 100A5H are kept)
+        # Starts with digit
         if re.match(r"^\d", t):
+            # Model code (100A5H, 8R713) → keep then stop
             if re.match(r"^\d+[A-Za-z]+\d", t):
-                kept.append(t)  # model code: 100A5H, 8R713
+                kept.append(t)
+                break
+            # Type code (4T, 10A, 500V-like) — keep, continue for values
+            # Only short codes: max 3 digits + 1-2 letters, and NOT ending in common units
+            if re.match(r"^\d{1,3}[A-Za-z]{1,2}$", t) and not re.match(r'.*[mMVVA]$', t):
+                kept.append(t)
+                continue
+            # Component value: 10KΩ, 240Ω, 100nF, 4.7μH, 50V, 650mA
+            if _comp_unit_re.search(t) and value_count < 2:
+                kept.append(t)
+                value_count += 1
+                continue
             break
         # Pure codes (T20, BOX, USB3.0, fengwoban, S-PCB, Hanger, etc.)
         if re.fullmatch(r"[A-Z0-9_.-]{2,}", t):
