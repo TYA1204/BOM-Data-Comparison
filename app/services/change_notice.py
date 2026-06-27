@@ -823,18 +823,22 @@ def _build_content_body(content_cell, groups):
 
         _add_group_header(g)
 
-        # ADD items
-        for i, item in enumerate(g['adds']):
-            qty = _fmt_qty(item['qty'])
-            _add_item_line('ADD' if i == 0 else '', item['pn'], item['name'], f'{qty}PC')
+        # Collect all items into ADD and DEL buckets
+        add_lines = []
+        del_lines = []
 
-        # DEL items
-        for i, item in enumerate(g['dels']):
+        # Pure ADD items
+        for item in g['adds']:
             qty = _fmt_qty(item['qty'])
-            _add_item_line('DEL' if i == 0 else '', item['pn'], item['name'], f'{qty}PC')
+            add_lines.append((item['pn'], item['name'], f'{qty}PC'))
 
-        # MOD items — quantity changes → net ADD or DEL (single line per PN)
-        for mi, m in enumerate(g['mods']):
+        # Pure DEL items
+        for item in g['dels']:
+            qty = _fmt_qty(item['qty'])
+            del_lines.append((item['pn'], item['name'], f'{qty}PC'))
+
+        # MOD items — quantity changes → net ADD or DEL
+        for m in g['mods']:
             is_qty = m.get('diff_category') == 'quantity'
             if is_qty:
                 try:
@@ -844,16 +848,25 @@ def _build_content_body(content_cell, groups):
                     old_q = new_q = 0
                 net = new_q - old_q
                 if abs(net) < 0.001:
-                    continue  # no effective change, skip
+                    continue
                 net_str = _fmt_qty(abs(net))
                 if net > 0:
-                    _add_item_line('ADD', m['pn'], m['name'], f'{net_str}PC')
+                    add_lines.append((m['pn'], m['name'], f'{net_str}PC'))
                 else:
-                    _add_item_line('DEL', m['pn'], m['name'], f'{net_str}PC')
+                    del_lines.append((m['pn'], m['name'], f'{net_str}PC'))
             else:
+                # Non-quantity MOD: keep as-is
                 old_q = _fmt_qty(m.get('old_qty', '1'))
                 new_q = _fmt_qty(m.get('new_qty', '1'))
-                _add_item_line('MOD' if mi == 0 else '', m['pn'], m['name'], f'{old_q}\u2192{new_q}')
+                # Treat directionally — if new >= old, ADD area, else DEL area
+                # (unit/version changes: fallback to MOD label in DEL area as safety net)
+                del_lines.append((m['pn'], m['name'], f'{old_q}\u2192{new_q}'))
+
+        # Render: ADD section first, then DEL section
+        for i, (pn, nm, qt) in enumerate(add_lines):
+            _add_item_line('ADD' if i == 0 else '', pn, nm, qt)
+        for i, (pn, nm, qt) in enumerate(del_lines):
+            _add_item_line('DEL' if i == 0 else '', pn, nm, qt)
 
         _add_spacer()
 
