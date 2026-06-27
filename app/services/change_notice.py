@@ -743,10 +743,20 @@ def _build_content_body(content_cell, groups):
 
         # MOD items — quantity changes → net ADD or DEL
         #              reference changes → split into ADD/DEL lines
+        # 如果同一个 PN 同时有数量和位号变更，则位号 ADD/DEL 优先，
+        # 数量行不再单独显示（位号不变的数量差无法拆分到具体位号）。
+        mod_pns_with_ref = set()
+        for m in g['mods']:
+            if m.get('diff_category') == 'reference':
+                mod_pns_with_ref.add(m['pn'])
+
         for m in g['mods']:
             is_qty = m.get('diff_category') == 'quantity'
             is_ref = m.get('diff_category') == 'reference'
+            pn_key = m['pn']
             if is_qty:
+                if pn_key in mod_pns_with_ref:
+                    continue  # 位号变更已覆盖，不重复显示纯数量差
                 try:
                     old_q = float(m.get('old_qty', 0) or 0)
                     new_q = float(m.get('new_qty', 0) or 0)
