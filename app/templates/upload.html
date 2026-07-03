@@ -148,30 +148,6 @@
                 </div>
             </div>
 
-            <div id="dual-export-card" class="card hidden">
-                <div class="card__header">
-                    <h2 class="card__title">批量导出对比</h2>
-                </div>
-                <div class="card__body">
-                    <p class="text-xs text-slate-500 mb-3">选择两份 BOM 导出到同一 Excel 进行对比</p>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs text-slate-500 mb-1">基准 BOM</label>
-                            <select id="export-a" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"></select>
-                        </div>
-                        <div class="flex items-center justify-center">
-                            <span class="text-xs text-slate-300 font-medium">VS</span>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-500 mb-1">目标 BOM</label>
-                            <select id="export-b" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"></select>
-                        </div>
-                    </div>
-                    <button onclick="exportDualBoms()" class="btn btn--primary btn--sm w-full mt-3">
-                        导出两份 BOM 对比 Excel
-                    </button>
-                </div>
-            </div>
         </div>
 
     </div>
@@ -343,7 +319,6 @@ function loadBomSidebar() {
             if (!data.ok) return;
             var boms = data.boms || [];
             var el = document.getElementById('bom-sidebar-list');
-            var dualCard = document.getElementById('dual-export-card');
 
             if (boms.length === 0) {
                 el.innerHTML =
@@ -351,7 +326,6 @@ function loadBomSidebar() {
                         '<p class="empty-state__title text-sm">暂无 BOM</p>' +
                         '<p class="empty-state__desc text-xs">上传文件后在此处查看</p>' +
                     '</div>';
-                dualCard.classList.add('hidden');
                 return;
             }
 
@@ -373,33 +347,11 @@ function loadBomSidebar() {
                 '</div>';
             }).join('');
 
-            // Dual export dropdowns
-            if (boms.length >= 2) {
-                dualCard.classList.remove('hidden');
-                var opts = boms.map(function (b) {
-                    return '<option value="' + b.id + '">' + BOMApp.escapeHtml(b.bom_name) + '（' + b.total_items + '条）</option>';
-                }).join('');
-                document.getElementById('export-a').innerHTML = opts;
-                document.getElementById('export-b').innerHTML = opts;
-                document.getElementById('export-b').selectedIndex = 1;
-            } else {
-                dualCard.classList.add('hidden');
-            }
         });
 }
 
 function exportBom(bomId) {
     window.location.href = '/upload/api/export/' + bomId;
-}
-
-function exportDualBoms() {
-    var a = document.getElementById('export-a').value;
-    var b = document.getElementById('export-b').value;
-    if (a === b) {
-        BOMApp.Toast.warning('请选择两份不同的 BOM');
-        return;
-    }
-    window.location.href = '/upload/api/export-dual?bom_a=' + a + '&bom_b=' + b;
 }
 
 // Init
