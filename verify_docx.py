@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Comprehensive Word document verification for BOM change notice — v2."""
 
-import sqlite3
-import re
+import sqlite3, os, re
 from collections import Counter
 from docx import Document
 from docx.shared import Pt, RGBColor
 
-DOC_PATH = "D:/BOM Data Comparison/reports/整机清机更改通知单_100H5F_vs_100P3EM_20260612_172243.docx"
-DB_PATH = "D:/BOM Data Comparison/data/bom_compare.db"
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DOC_PATH = os.path.join(PROJECT_ROOT, "reports", "整机清机更改通知单_100H5F_vs_100P3EM_20260612_172243.docx")
+DB_PATH = os.path.join(PROJECT_ROOT, "data", "bom_compare.db")
 
 TYPE_MAP = {'ADD': 'added', 'DEL': 'removed', 'MOD': 'modified'}
 

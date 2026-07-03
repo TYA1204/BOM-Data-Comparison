@@ -26,8 +26,9 @@ import zipfile
 
 
 # ============ 默认配置 ============
-DEFAULT_XMIND_INPUT = r"D:\BOM Data Comparison\ogic block diagram\P1C85Q7HXX8TB56000.xmind"
-DEFAULT_DB_PATH = r"D:\BOM Data Comparison\data\bom_compare.db"
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_XMIND_INPUT = os.path.join(_PROJECT_ROOT, "ogic block diagram", "P1C85Q7HXX8TB56000.xmind")
+DEFAULT_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "bom_compare.db")
 DEFAULT_BOM_ID = 1
 DEFAULT_MAX_NOTES_ITEMS = 200  # notes 最多显示的物料数（防止过大）
 

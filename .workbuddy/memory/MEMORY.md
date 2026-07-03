@@ -11,15 +11,15 @@
 ## 项目背景
 
 - 跨机型 BOM 比对工具，核心目标：确认叶子物料差异（物料新增/删除/用量变更），结构变更无业务价值，已移除。
-- 差异类型仅保留：`material`（物料）、`quantity`（数量）、`unit`（单位）、`version`（版本）。
+- 差异类型仅保留：`material`（物料）、`quantity`（数量）、`unit`（单位）、`version`（版本）、`reference`（位号，2026-06-27 新增）。
 - `severity`（严重度）字段已彻底清除，不在任何文件中出现。
 - WORD 导出：只展示 P3EM 父节点，H5F 父节点隐藏，H5F 叶子数据按功能键合并到对应 P3EM 父节点下。
 - WORD 导出归组逻辑：按叶子节点的直接上级父组件归组，中间层级节点不输出。
 
 ## 关键技术决策
 
-- `differ.py`：Step 3c（同 PN 不同父件的结构变更）已删除。
-- `change_notice.py`：`group_diffs_by_parent()` 按叶子判定（PN ∉ parent_pn_set）重新归组，无 self-referencing。
+- `differ.py`：Step 3c（同 PN 不同父件的结构变更）已删除。Step 3 新增位号集合对比（同 PN + 同 parent，比对 reference_a/reference_b 集合差集，生成 diff_category='reference' 记录）。
+- `change_notice.py`：`group_diffs_by_parent()` 按叶子判定（PN ∉ parent_pn_set）重新归组，无 self-referencing。WORD 导出中 reference 变更直接归类到组件 ADD/DEL 区（位号新增→ADD，位号删除→DEL）。同 PN 同时有数量+位号变更时，位号 ADD/DEL 优先，数量行自动隐藏。
 - `compare.html`：无严重度筛选器/列，无 structure 相关 UI。
 - `reporter.py`：Excel 报告无严重度列/着色，`structure` 已从分类标签中移除。
 

@@ -1,6 +1,6 @@
 """Debug: generate Word and verify content is inside table cell."""
-import sys
-sys.path.insert(0, 'D:/BOM Data Comparison')
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.services.change_notice import generate_change_notice
 
