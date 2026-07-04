@@ -87,6 +87,21 @@ def clean_material_name(name):
     # Step 1b: strip ALT/BOM metadata markers (| #ALT#..., | ECN, | REACH, etc.)
     name = re.sub(r'\s*\|\s*#.*$', '', name)
     name = re.sub(r'\s*\|\s*(ECN|REACH|RoHS|NCN\d+).*$', '', name)
+    # Step 1c: simplify verbose component type prefixes
+    name = re.sub(r'插件交流安规(薄膜|陶瓷)电容', r'安规\1电容', name)
+    name = re.sub(r'贴片低容陶瓷电容', '陶瓷电容', name)
+    name = re.sub(r'贴片高容陶瓷电容', '陶瓷电容', name)
+    name = re.sub(r'贴片射频陶瓷电容', '射频电容', name)
+    name = re.sub(r'高频低阻电解电容', '电解电容', name)
+    name = re.sub(r'高压铝电解电容', '电解电容', name)
+    name = re.sub(r'贴片铝电解电容', '铝电解电容', name)
+    name = re.sub(r'中低压MOS管500V以下', 'MOS管', name)
+    # Step 1d: strip packaging suffixes
+    name = re.sub(r'\b卧式成型\b', '', name)
+    name = re.sub(r'\b立式成型\b', '', name)
+    name = re.sub(r'\b直脚编带\b', '', name)
+    name = re.sub(r'\b安全膜\b', '', name)
+    name = re.sub(r'\b非安全膜\b', '', name)
     tokens = name.split()
 
     # Universal noise — only words that are never part of a core material name
@@ -155,6 +170,11 @@ def clean_material_name(name):
                 continue
             # Component value: 10KΩ, 240Ω, 100nF, 4.7μH, 50V, 650mA
             if _comp_unit_re.search(t) and value_count < 2:
+                # Skip reverse leakage current specs (multi-million μA)
+                if re.search(r'[\u03BCu]A$', t):
+                    val_match = re.match(r'([\d.]+)', t)
+                    if val_match and float(val_match.group(1)) > 100000:
+                        break
                 kept.append(t)
                 value_count += 1
                 continue
