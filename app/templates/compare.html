@@ -216,20 +216,6 @@
             <!-- Component Selection Panel (Horizontal Table) -->
             <div id="component-selection" class="comp-panels-grid hidden animate-slide-up">
 
-                <!-- Diff Mode Toggle Bar -->
-                <div id="diff-mode-bar" class="diff-mode-bar diff-mode-bar--disabled" style="grid-column:1/-1;" title="切换为仅显示有差异的组件">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
-                    </svg>
-                    <span class="diff-mode-bar__label" id="diff-mode-label">组件视图：全部显示</span>
-                    <span class="diff-mode-bar__badge" id="diff-mode-badge" style="display:none;"></span>
-                    <label class="diff-toggle">
-                        <input type="checkbox" id="diff-toggle" onchange="toggleDiffMode()" disabled>
-                        <div class="diff-toggle__track"><div class="diff-toggle__thumb"></div></div>
-                    </label>
-                    <span class="diff-mode-bar__hint">请先执行比对</span>
-                </div>
-
                 <!-- Source BOM Component Panel -->
                 <div class="comp-panel" id="comp-panel-source">
                     <div class="comp-panel__header">
@@ -728,7 +714,6 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
     var seq = 0;
     var defaultExpand = Object.keys(expandedSet).length === 0 && !searchTerm && filterVal === 'all';
     var visibleCount = 0;
-    var hiddenCount = 0;
 
     function renderNodes(nodes, depth) {
         var out = '';
@@ -736,30 +721,17 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
             var n = nodes[i];
             var hasKids = n.children && n.children.length > 0;
             var pn = n.part_number;
-
-            // Diff mode: hide nodes without diffs (and no diff descendants)
-            var shouldHide = false;
-            if (diffMode && !hasDiffDescendant(n, side)) {
-                shouldHide = true;
-                hiddenCount++;
-            }
-
             var expanded = !!expandedSet[pn];
             // 用户未显式设置过的节点 → 应用默认展开逻辑
             if (hasKids && !(pn in expandedSet)) {
-                // In diff mode, auto-expand nodes with diff descendants
-                if (diffMode && hasDiffDescendant(n, side)) {
-                    expanded = true;
-                } else {
-                    var anyChildHasKids = false;
-                    for (var c = 0; c < n.children.length; c++) {
-                        if (n.children[c].children && n.children[c].children.length > 0) {
-                            anyChildHasKids = true;
-                            break;
-                        }
+                var anyChildHasKids = false;
+                for (var c = 0; c < n.children.length; c++) {
+                    if (n.children[c].children && n.children[c].children.length > 0) {
+                        anyChildHasKids = true;
+                        break;
                     }
-                    expanded = anyChildHasKids;
                 }
+                expanded = anyChildHasKids;
             }
 
             // 混合节点检测: 仅首次加载时生效（非用户手动展开）
@@ -793,18 +765,12 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
             var matchesSearch = !searchTerm || rowMatches(n, searchTerm);
             var matchesFilter = filterVal === 'all' || (filterVal === 'has_children' ? hasKids : !hasKids);
             var hideRow = (searchTerm && !matchesSearch && !(expanded && hasKids)) || !matchesFilter;
-            if (!hideRow && !shouldHide) visibleCount++;
-
-            // Diff badge for parent components with diffs
-            var diffBadge = '';
-            if (diffMode && hasKids && diffParentPNs[side].has(pn)) {
-                diffBadge = ' <span class="tree-diff-badge">diff</span>';
-            }
+            if (!hideRow) visibleCount++;
 
             var isChecked = (pn in compCheckedState[side]) ? compCheckedState[side][pn] : true;
-            out += '<tr class="comp-row tree-row' + (shouldHide ? ' tree-row--diff-hidden' : ' tree-row--diff-visible') + '" data-pn="' + BOMApp.escapeHtml(pn) + '" data-side="' + side + '" data-depth="' + depth + '" data-has-children="' + (hasKids ? '1' : '0') + '" data-expanded="' + (expanded ? '1' : '0') + '"' + (hideRow && !shouldHide ? ' style="display:none"' : '') + '>' +
+            out += '<tr class="comp-row tree-row" data-pn="' + BOMApp.escapeHtml(pn) + '" data-side="' + side + '" data-depth="' + depth + '" data-has-children="' + (hasKids ? '1' : '0') + '" data-expanded="' + (expanded ? '1' : '0') + '"' + (hideRow ? ' style="display:none"' : '') + '>' +
                 '<td class="col-checkbox">' + (hasKids ? '<input type="checkbox" class="comp-cb comp-' + side + '-cb" value="' + BOMApp.escapeHtml(pn) + '"' + (isChecked ? ' checked' : '') + ' onchange="onCompCheckChange(\'' + side + '\', this)">' : '') + '</td>' +
-                '<td class="col-code" title="' + BOMApp.escapeHtml(pn) + '" style="padding-left:' + (indent + 8) + 'px">' + toggleHtml + BOMApp.escapeHtml(pn) + diffBadge + '</td>' +
+                '<td class="col-code" title="' + BOMApp.escapeHtml(pn) + '" style="padding-left:' + (indent + 8) + 'px">' + toggleHtml + BOMApp.escapeHtml(pn) + '</td>' +
                 '<td class="col-name" onmouseenter="showCompTooltipNode(event, n)" onmouseleave="hideCompTooltip()">' + BOMApp.escapeHtml((n.part_name || '-').substring(0, 80)) + '</td>' +
                 '<td class="col-quantity">' + (n.quantity != null ? n.quantity : '-') + '</td>' +
                 '<td class="col-unit">' + BOMApp.escapeHtml(n.unit || 'ST') + (hasKids ? ' <span class="comp-panel__badge" style="font-size:10px">' + n.children.length + '</span>' : '') + '</td>' +
@@ -841,25 +807,10 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
 
     tbody.innerHTML = renderNodes(tree, 0);
 
-    // Diff mode summary row
-    if (diffMode && hiddenCount > 0) {
-        var totalTree = countTreeNodes(tree);
-        tbody.insertAdjacentHTML('beforeend', '<tr class="diff-summary-row"><td colspan="5">'
-            + '\u{1F50D} ' + hiddenCount + ' 个组件无差异已隐藏'
-            + ' （共 ' + totalTree + ' 个，' + visibleCount + ' 个有差异）'
-            + '</td></tr>');
-    }
-
     // Update count
     var countEl = document.getElementById('comp-' + side + '-count');
     var totalTree = countTreeNodes(tree);
-    if (countEl) {
-        if (diffMode) {
-            countEl.textContent = visibleCount + ' / ' + totalTree + ' (diff)';
-        } else {
-            countEl.textContent = visibleCount === totalTree ? totalTree + ' items' : visibleCount + ' / ' + totalTree + ' items';
-        }
-    }
+    if (countEl) countEl.textContent = visibleCount === totalTree ? totalTree + ' items' : visibleCount + ' / ' + totalTree + ' items';
 
     // Bind toggle clicks
     tbody.querySelectorAll('.tree-toggle:not(.tree-toggle--void)').forEach(function(el) {
@@ -1043,12 +994,6 @@ function rowMatches(node, term) {
 // Tree expand/collapse state: { source: {pn: true}, target: {pn: true} }
 var treeExpanded = { source: {}, target: {} };
 
-// Diff mode state
-var diffMode = false;
-var diffParentPNs = { source: new Set(), target: new Set() };
-var diffHiddenCount = { source: 0, target: 0 };
-var diffHasDiffCache = { source: {}, target: {} };
-
 function expandTreeNode(side, pn) {
     treeExpanded[side][pn] = true;
     rebuildTreeView(side);
@@ -1068,99 +1013,6 @@ function rebuildTreeView(side) {
     var searchVal = (document.getElementById('comp-search-' + side).value || '').toLowerCase().trim();
     var filterVal = document.getElementById('comp-filter-' + side).value;
     renderComponentTree(side, expanded, searchVal, filterVal);
-}
-
-// ── Diff Mode ──
-/**
- * Build the set of parent PNs that have diffs for each side.
- * A parent PN has diffs if any descendant appears in allResults.
- * Also walks the tree upward to mark all ancestors of diff-having nodes.
- */
-function buildDiffParentPNs() {
-    diffParentPNs.source = new Set();
-    diffParentPNs.target = new Set();
-    diffHasDiffCache = { source: {}, target: {} };
-    if (!allResults || allResults.length === 0) return;
-
-    for (var i = 0; i < allResults.length; i++) {
-        var r = allResults[i];
-        var ppnA = (r.parent_pn_a || '').trim();
-        var ppnB = (r.parent_pn_b || '').trim();
-        var pnA = (r.part_number_a || '').trim();
-        var pnB = (r.part_number_b || '').trim();
-        if (ppnA) diffParentPNs.source.add(ppnA);
-        if (ppnB) diffParentPNs.target.add(ppnB);
-        if (pnA) diffParentPNs.source.add(pnA);
-        if (pnB) diffParentPNs.target.add(pnB);
-    }
-
-    function walk(nodes, side) {
-        var any = false;
-        for (var j = 0; j < nodes.length; j++) {
-            var childAny = nodes[j].children ? walk(nodes[j].children, side) : false;
-            var pn = nodes[j].part_number.trim();
-            if (diffParentPNs[side].has(pn) || childAny) {
-                diffParentPNs[side].add(pn);
-                any = true;
-            }
-        }
-        return any;
-    }
-    if (compData.source.length) walk(compData.source, 'source');
-    if (compData.target.length) walk(compData.target, 'target');
-}
-
-function hasDiffDescendant(node, side) {
-    var pn = (node.part_number || '').trim();
-    if (pn in diffHasDiffCache[side]) return diffHasDiffCache[side][pn];
-    if (diffParentPNs[side].has(pn)) { diffHasDiffCache[side][pn] = true; return true; }
-    if (node.children && node.children.length) {
-        for (var i = 0; i < node.children.length; i++) {
-            if (hasDiffDescendant(node.children[i], side)) {
-                diffHasDiffCache[side][pn] = true;
-                return true;
-            }
-        }
-    }
-    diffHasDiffCache[side][pn] = false;
-    return false;
-}
-
-function toggleDiffMode() {
-    diffMode = document.getElementById('diff-toggle').checked;
-    var bar = document.getElementById('diff-mode-bar');
-    var label = document.getElementById('diff-mode-label');
-    var badge = document.getElementById('diff-mode-badge');
-    if (diffMode) {
-        bar.classList.add('diff-mode-bar--active');
-        label.textContent = '组件视图：仅显差异';
-        var s = diffParentPNs.source.size;
-        var t = diffParentPNs.target.size;
-        badge.style.display = '';
-        badge.textContent = '源' + s + ' / 目' + t + ' 有差异';
-    } else {
-        bar.classList.remove('diff-mode-bar--active');
-        label.textContent = '组件视图：全部显示';
-        badge.style.display = 'none';
-    }
-    rebuildTreeView('source');
-    rebuildTreeView('target');
-}
-
-function showDiffModeBar() {
-    var bar = document.getElementById('diff-mode-bar');
-    var toggle = document.getElementById('diff-toggle');
-    var hint = bar.querySelector('.diff-mode-bar__hint');
-    bar.classList.remove('hidden', 'diff-mode-bar--disabled');
-    toggle.disabled = false;
-    if (hint) hint.style.display = 'none';
-    if (diffMode) {
-        diffMode = false;
-        toggle.checked = false;
-        bar.classList.remove('diff-mode-bar--active');
-        document.getElementById('diff-mode-label').textContent = '组件视图：全部显示';
-        document.getElementById('diff-mode-badge').style.display = 'none';
-    }
 }
 
 // ── Search/Filter ──
@@ -1291,10 +1143,6 @@ function loadResult(taskId) {
             allResults = data.results;
             filteredResults = allResults;
             resultPage = 1;
-
-            // Build diff parent PN sets and show diff mode toggle
-            buildDiffParentPNs();
-            showDiffModeBar();
 
             renderStats(allResults);
             applyAllFilters();
