@@ -146,6 +146,10 @@ def _is_ref_continuation_line(line, cols=None):
     # 排除 #ALT# 替代物料行，避免替代物料 PN 被误收为位号
     if cols[0].strip().startswith('#ALT#'):
         return False
+    # 排除签名占位符行（页脚: 批 准: __ 审 核: __ 拟 制: __）
+    line_joined = '\t'.join(cols)
+    if re.search(r'(?:批\s*准|审\s*核|拟\s*制)[:：]', line_joined):
+        return False
     return any(c.strip() for c in cols)
 
 
