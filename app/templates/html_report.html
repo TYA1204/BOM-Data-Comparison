@@ -120,7 +120,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for item in group.items %}
+    {% for item in group.diff_items %}
     <tr class="ct-{{ 'add' if item.type == 'ADD' else 'del' }}">
       <td class="ct-pn"><span class="ct-tag">{{ item.type }}</span></td>
       <td class="ct-pn">{{ item.pn }}</td>

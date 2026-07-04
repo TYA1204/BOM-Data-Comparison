@@ -197,7 +197,7 @@ def html_report(task_id):
                     'qty_text': m.get('qty', ''),
                     'ref_lines': ref_lines,
                 })
-            g['items'] = items
+            g['diff_items'] = items
 
         src_bom = (src['bom_number'] or src['bom_name']).strip()
         tgt_bom = (tgt['bom_number'] or tgt['bom_name']).strip()
