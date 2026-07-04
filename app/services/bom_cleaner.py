@@ -131,6 +131,42 @@ def extract_metadata(lines):
 
 # ==================== 数据行解析 ====================
 
+def _is_ref_continuation_line(line, cols=None):
+    """判断是否为位号延续行：非表头/标题/数据行，仅含位号标记的后续行"""
+    if not line.strip():
+        return False
+    if is_header_line(line) or is_column_title_line(line):
+        return False
+    if cols is None:
+        cols = line.split('\t')
+    if is_title_row(cols):
+        return False
+    if is_data_row(cols):
+        return False
+    return any(c.strip() for c in cols)
+
+
+def _collect_continuation_refs(lines, start_idx):
+    """从 start_idx 开始收集位号延续行中的位号，直到下一个数据行/标题行/EOF"""
+    refs = []
+    for k in range(start_idx, len(lines)):
+        line = lines[k].rstrip('\n\r')
+        if not line.strip():
+            continue
+        if is_header_line(line) or is_column_title_line(line):
+            continue
+        cols = line.split('\t')
+        if is_title_row(cols) or is_data_row(cols):
+            break
+        if not _is_ref_continuation_line(line, cols):
+            break
+        for v in cols:
+            v = v.strip()
+            if v and v != '#':
+                refs.append(v)
+    return refs
+
+
 def extract_data_row(cols):
     """从数据行提取核心字段（不含level和parent_pn，后续赋值）"""
     def get(idx, default=''):
@@ -329,9 +365,12 @@ def parse_bom_clean(file_path):
     # ---- 第二步：遍历数据行，赋值level和parent_pn ----
     items = []
     current_section_pn = root_bom  # 当前section的标题PN
-
-    for line in lines:
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         cols = line.split('\t')
+        i += 1
+
         if not any(c.strip() for c in cols):
             continue
         if is_header_line(line) or is_column_title_line(line):
@@ -340,6 +379,10 @@ def parse_bom_clean(file_path):
         # 子件展开标题行 → 切换当前section
         if is_title_row(cols, root_bom):
             current_section_pn = cols[0].strip()
+            continue
+
+        # 位号延续行（由数据行收尾逻辑处理）
+        if _is_ref_continuation_line(line, cols):
             continue
 
         # 有效数据行
@@ -360,6 +403,13 @@ def parse_bom_clean(file_path):
 
             # 清洗名称
             row['part_name'] = clean_part_name(row['part_name'])
+
+            # 收集位号延续行中的额外位号
+            continuation_refs = _collect_continuation_refs(lines, i)
+            if continuation_refs:
+                existing_refs = row['reference'].split() if row['reference'] else []
+                existing_refs.extend(continuation_refs)
+                row['reference'] = ' '.join(existing_refs)
 
             items.append(row)
 
@@ -403,9 +453,12 @@ def clean_bom_data(file_path):
 
     items = []
     current_section_pn = root_bom
-
-    for line in lines:
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         cols = line.split('\t')
+        i += 1
+
         if not any(c.strip() for c in cols):
             continue
         if is_header_line(line) or is_column_title_line(line):
@@ -413,6 +466,10 @@ def clean_bom_data(file_path):
 
         if is_title_row(cols):
             current_section_pn = cols[0].strip()
+            continue
+
+        # 位号延续行（由数据行收尾逻辑处理）
+        if _is_ref_continuation_line(line, cols):
             continue
 
         if is_data_row(cols):
@@ -427,6 +484,14 @@ def clean_bom_data(file_path):
 
             row['parent_pn'] = current_section_pn
             row['part_name'] = clean_part_name(row['part_name'])
+
+            # 收集位号延续行中的额外位号
+            continuation_refs = _collect_continuation_refs(lines, i)
+            if continuation_refs:
+                existing_refs = row['reference'].split() if row['reference'] else []
+                existing_refs.extend(continuation_refs)
+                row['reference'] = ' '.join(existing_refs)
+
             items.append(row)
 
     # 校验层级完整性
