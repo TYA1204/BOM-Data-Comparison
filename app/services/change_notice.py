@@ -730,7 +730,7 @@ def _build_content_body(content_cell, groups):
         """Render one item line; if ref has >5 designators, wrap to continuation lines
         aligned with the first ref position."""
         base = f'{pn} {name}     {qty_text}'
-        prefix_str = f'{prefix}:' if prefix else '     '
+        prefix_str = f'{prefix}: ' if prefix else '     '
         first_line = prefix_str + base
 
         if not ref:
