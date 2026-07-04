@@ -707,14 +707,29 @@ def _build_content_body(content_cell, groups):
             Pt(11), bold=True, color='1E40AF')
 
     def _add_item_line(prefix, pn, name, qty_text, ref=''):
-        parts = f'{pn} {name}     {qty_text}'
-        if ref:
-            ref_parts = ref.split()
-            if len(ref_parts) > 18:
-                ref = ' '.join(ref_parts[:15]) + f' ... +{len(ref_parts) - 15}'
-            parts += f'  | {ref}'
-        line = f'{prefix}:{parts}' if prefix else f'     {parts}'
-        _add_cell_para_counted(line, Pt(10), color='334155')
+        """Render one item line; if ref has >5 designators, wrap to continuation lines
+        aligned with the first ref position."""
+        base = f'{pn} {name}     {qty_text}'
+        prefix_str = f'{prefix}:' if prefix else '     '
+        first_line = prefix_str + base
+
+        if not ref:
+            _add_cell_para_counted(first_line, Pt(10), color='334155')
+            return
+
+        ref_parts = ref.split()
+        # Calculate indent: position of "| " after the base text
+        ref_prefix = first_line + '  | '
+        ref_indent = ' ' * len(ref_prefix)
+
+        # First line: up to 5 refs
+        chunk0 = ref_parts[:5]
+        _add_cell_para_counted(ref_prefix + ' '.join(chunk0), Pt(10), color='334155')
+
+        # Continuation lines: 5 refs per line
+        for i in range(5, len(ref_parts), 5):
+            chunk = ref_parts[i:i+5]
+            _add_cell_para_counted(ref_indent + ' '.join(chunk), Pt(10), color='334155')
 
     def _add_spacer():
         _add_cell_para_counted('', Pt(4))
