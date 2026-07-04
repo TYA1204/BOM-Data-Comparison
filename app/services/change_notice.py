@@ -797,7 +797,9 @@ def _build_content_body(content_cell, groups):
                     cnt = len(ref_removed_list)
                     del_lines.append((m['pn'], m['name'], f'{cnt}PC', ref_removed_str))
             else:
-                del_lines.append((m['pn'], m['name'], f'{old_q}\u2192{new_q}', m.get('ref', '')))
+                old_val = str(m.get('old_qty', '')).strip()
+                new_val = str(m.get('new_qty', '')).strip()
+                del_lines.append((m['pn'], m['name'], f'{old_val}\u2192{new_val}', m.get('ref', '')))
 
         # Render: ADD section first, then DEL section
         for i, (pn, nm, qt, ref) in enumerate(add_lines):
