@@ -722,7 +722,16 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
             var hasKids = n.children && n.children.length > 0;
             var pn = n.part_number;
             var expanded = !!expandedSet[pn];
-            if (defaultExpand && hasKids) expanded = true;
+            if (defaultExpand && hasKids) {
+                var anyChildHasKids = false;
+                for (var c = 0; c < n.children.length; c++) {
+                    if (n.children[c].children && n.children[c].children.length > 0) {
+                        anyChildHasKids = true;
+                        break;
+                    }
+                }
+                expanded = anyChildHasKids;
+            }
             if (searchTerm && hasKids && !expanded) {
                 var cpnList = collectDescendantPNs(n);
                 var anyMatch = false;
