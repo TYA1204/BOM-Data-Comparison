@@ -181,10 +181,8 @@ def _clean_ref_text(ref_text):
     """Remove signature placeholder and other template noise from reference text."""
     if not ref_text:
         return ref_text
-    # Strip trailing signature placeholder: __________ 准: 制: 审 批 拟 核:
-    ref_text = re.sub(r'\s*[_]{3,}\s*(准|制|审|批|拟|核)[:：].*$', '', ref_text)
-    # Strip standalone signature markers
-    ref_text = re.sub(r'\s*(准|制|审|批|拟|核)[:：]', '', ref_text)
+    # Strip signature placeholders: 批 准: __________ 审 核: __________ 拟 制: __________
+    ref_text = re.sub(r'\s*(?:批\s*准|审\s*核|拟\s*制)[:：]\s*_{3,}.*$', '', ref_text)
     return ref_text.strip()
 
 
