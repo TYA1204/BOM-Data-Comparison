@@ -708,6 +708,9 @@ def _build_content_body(content_cell, groups):
     def _add_item_line(prefix, pn, name, qty_text, ref=''):
         parts = f'{pn} {name}     {qty_text}'
         if ref:
+            ref_parts = ref.split()
+            if len(ref_parts) > 18:
+                ref = ' '.join(ref_parts[:15]) + f' ... +{len(ref_parts) - 15}'
             parts += f'  | {ref}'
         line = f'{prefix}:{parts}' if prefix else f'     {parts}'
         _add_cell_para_counted(line, Pt(10), color='334155')
