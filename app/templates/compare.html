@@ -722,7 +722,8 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
             var hasKids = n.children && n.children.length > 0;
             var pn = n.part_number;
             var expanded = !!expandedSet[pn];
-            if (defaultExpand && hasKids) {
+            // 用户未显式设置过的节点 → 应用默认展开逻辑
+            if (hasKids && !(pn in expandedSet)) {
                 var anyChildHasKids = false;
                 for (var c = 0; c < n.children.length; c++) {
                     if (n.children[c].children && n.children[c].children.length > 0) {
@@ -733,7 +734,7 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
                 expanded = anyChildHasKids;
             }
 
-            // 混合节点检测: 子件中既有父组件又有叶子物料
+            // 混合节点检测: 仅首次加载时生效（非用户手动展开）
             var mixedLeafCount = 0;
             if (defaultExpand && hasKids && expanded) {
                 for (var c = 0; c < n.children.length; c++) {
