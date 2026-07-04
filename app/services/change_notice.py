@@ -564,6 +564,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
 
     # ── Build content inside template table's "更改内容" cell ──
     # Table Row 3, Column 1 is the wide merged cell (span=9) marked "更改内容"
+    table.rows[3].cells[1].merge(table.rows[3].cells[9])
     content_cell = table.rows[3].cells[1]
     groups = group_diffs_by_parent(diff_rows)
     _build_content_body(content_cell, groups)
