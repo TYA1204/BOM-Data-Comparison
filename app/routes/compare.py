@@ -143,3 +143,94 @@ def download_change_notice(task_id):
         return send_file(path, mimetype=mime, as_attachment=True, download_name=filename)
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+@bp.route('/api/html-report/<int:task_id>')
+def html_report(task_id):
+    """Generate HTML format change notice report."""
+    import sqlite3
+    from datetime import datetime
+    from app.services.change_notice import get_diff_rows, group_diffs_by_parent, clean_material_name
+
+    order_no = request.args.get('order_no', '').strip()
+    stage = request.args.get('stage', '').strip()
+    quantity = request.args.get('quantity', '1').strip()
+    drafter = request.args.get('drafter', '').strip()
+    reviewer = request.args.get('reviewer', '').strip()
+    db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        task = conn.execute('SELECT * FROM comparison_task WHERE id=?', (task_id,)).fetchone()
+        if not task:
+            return '<h1>Task not found</h1>', 404
+
+        src = conn.execute('SELECT bom_number, bom_name FROM bom_header WHERE id=?',
+                           (task['source_bom_id'],)).fetchone()
+        tgt = conn.execute('SELECT bom_number, bom_name FROM bom_header WHERE id=?',
+                           (task['target_bom_id'],)).fetchone()
+        if not src or not tgt:
+            return '<h1>BOM not found</h1>', 404
+
+        machine_core = _extract_core((tgt['bom_number'] or tgt['bom_name']).strip())
+        model = _extract_model((tgt['bom_number'] or tgt['bom_name']).strip())
+
+        diff_rows = get_diff_rows(conn, task_id,
+                                  source_bom_id=task['source_bom_id'],
+                                  target_bom_id=task['target_bom_id'])
+        groups = group_diffs_by_parent(diff_rows)
+
+        # Build items for each group
+        for g in groups:
+            items = []
+            for m in g.get('items', g.get('modified', [])):
+                ref = m.get('ref', '') or ''
+                ref_parts = ref.split() if ref else []
+                ref_lines = []
+                for i in range(0, len(ref_parts), 5):
+                    ref_lines.append(' '.join(ref_parts[i:i+5]))
+                items.append({
+                    'type': m.get('type_label', m.get('type', 'MOD')),
+                    'pn': m.get('pn', ''),
+                    'name': m.get('name', ''),
+                    'qty_text': m.get('qty', ''),
+                    'ref_lines': ref_lines,
+                })
+            g['items'] = items
+
+        src_bom = (src['bom_number'] or src['bom_name']).strip()
+        tgt_bom = (tgt['bom_number'] or tgt['bom_name']).strip()
+
+        html = render_template('html_report.html',
+                               machine_core=machine_core,
+                               model=model,
+                               date=datetime.now().strftime('%Y-%m-%d'),
+                               order_no=order_no,
+                               stage=stage,
+                               quantity=quantity,
+                               drafter=drafter,
+                               reviewer=reviewer,
+                               src_bom=src_bom,
+                               tgt_bom=tgt_bom,
+                               groups=groups)
+        return html
+    finally:
+        conn.close()
+
+
+def _extract_core(bom_code):
+    """Extract machine core from BOM code like P1C100P3EM8R713001 → 8R713."""
+    import re
+    m = re.search(r'(\d+[A-Z]+\d+)', bom_code)
+    return m.group(1) if m else bom_code
+
+
+def _extract_model(bom_code):
+    """Extract short model name from BOM code like P1C100P3EM8R713001 → 100P3EM."""
+    import re
+    m = re.search(r'\d{2,3}[A-Z]\d+[A-Z]*', bom_code)
+    if m:
+        parts = re.findall(r'(\d{2,3}[A-Z]\d+[A-Z]*)', bom_code)
+        return parts[-1] if parts else bom_code
+    return bom_code

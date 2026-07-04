@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>整机更改通知单 — {{ model }}</title>
+<style>
+  @page { size: A4; margin: 15mm 18mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "SimSun", "宋体", serif;
+    font-size: 12pt;
+    color: #1e293b;
+    line-height: 1.8;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 10mm 0;
+    background: #fff;
+  }
+
+  /* ── Header ── */
+  .header { text-align: center; margin-bottom: 16pt; }
+  .header__code { font-size: 11pt; color: #475569; margin-bottom: 6pt; }
+  .header__title { font-size: 18pt; font-weight: bold; letter-spacing: 8pt; margin-left: 8pt; }
+
+  /* ── Info Table ── */
+  .info-table { width: 100%; border-collapse: collapse; margin-bottom: 16pt; font-size: 11pt; }
+  .info-table td { padding: 4pt 8pt; border: 1px solid #333; }
+  .info-table .label { width: 10%; text-align: center; background: #f1f5f9; font-weight: bold; }
+  .info-table .value { width: 23%; text-align: center; }
+  .info-table .gap { width: 1%; border: none; }
+  .info-table .val-small { width: 15%; text-align: center; }
+
+  /* ── Section ── */
+  .section-title {
+    font-size: 12pt; font-weight: bold; color: #1e40af;
+    margin: 12pt 0 4pt 0; padding: 4pt 8pt;
+    border-left: 4px solid #1e40af; background: #eff6ff;
+  }
+
+  /* ── Change Content Table ── */
+  .change-table { width: 100%; border-collapse: collapse; margin-bottom: 8pt; font-size: 10.5pt; }
+  .change-table td { padding: 2pt 6pt; border: 0.5px solid #cbd5e1; vertical-align: top; }
+  .change-table .ct-pn { width: 25%; white-space: nowrap; }
+  .change-table .ct-name { width: 35%; }
+  .change-table .ct-qty { width: 10%; text-align: center; }
+  .change-table .ct-ref { width: 30%; }
+  .change-table .ct-add td { background: #f0fdf4; }
+  .change-table .ct-del td { background: #fef2f2; }
+  .change-table .ct-add .ct-tag { color: #16a34a; font-weight: bold; }
+  .change-table .ct-del .ct-tag { color: #dc2626; font-weight: bold; }
+
+  /* ── Ref lines ── */
+  .ref-continuation { padding-left: 75% !important; }
+
+  /* ── Footer ── */
+  .footer { margin-top: 16pt; padding-top: 8pt; border-top: 1px solid #e2e8f0; font-size: 10pt; color: #64748b; }
+  .footer p { margin-bottom: 4pt; }
+  .footer .sign-line { display: flex; justify-content: space-between; margin-top: 12pt; font-size: 11pt; color: #334155; }
+  .footer .sign-line span { min-width: 120pt; }
+
+  /* ── Print ── */
+  @media print {
+    body { padding: 0; }
+    .no-print { display: none; }
+    .section-title { break-after: avoid; }
+    .change-table { break-inside: avoid; }
+    .change-table tr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header__code">SKY-RKZXS-07</div>
+  <div class="header__title">更 改 通 知 单</div>
+</div>
+
+<!-- Info Table -->
+<table class="info-table">
+  <tr>
+    <td class="label">机&emsp;&emsp;芯</td>
+    <td class="value">{{ machine_core }}</td>
+    <td class="gap"></td>
+    <td class="label">日&emsp;&emsp;期</td>
+    <td class="val-small">{{ date }}</td>
+  </tr>
+  <tr>
+    <td class="label">机&emsp;&emsp;型</td>
+    <td class="value">{{ model }}</td>
+    <td class="gap"></td>
+    <td class="label">订 单 号</td>
+    <td class="val-small">{{ order_no }}</td>
+  </tr>
+  <tr>
+    <td class="label">阶&emsp;&emsp;段</td>
+    <td class="value">{{ stage }}</td>
+    <td class="gap"></td>
+    <td class="label">数&emsp;&emsp;量</td>
+    <td class="val-small">{{ quantity }}</td>
+  </tr>
+</table>
+
+<!-- Change Content -->
+<div class="section-title">更 改 内 容</div>
+
+{% for group in groups %}
+<div class="section-title" style="font-size:11pt;margin-top:8pt;">
+  在 {{ group.parent_pn }} {{ group.parent_name }} 里
+</div>
+<table class="change-table">
+  <thead>
+    <tr style="background:#f8fafc;">
+      <td class="ct-pn" style="font-weight:bold;">类型</td>
+      <td class="ct-pn" style="font-weight:bold;">物料号</td>
+      <td class="ct-name" style="font-weight:bold;">物料名称</td>
+      <td class="ct-qty" style="font-weight:bold;">用量</td>
+      <td class="ct-ref" style="font-weight:bold;">位号</td>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in group.items %}
+    <tr class="ct-{{ 'add' if item.type == 'ADD' else 'del' }}">
+      <td class="ct-pn"><span class="ct-tag">{{ item.type }}</span></td>
+      <td class="ct-pn">{{ item.pn }}</td>
+      <td class="ct-name">{{ item.name }}</td>
+      <td class="ct-qty">{{ item.qty_text }}</td>
+      <td class="ct-ref">
+        {% for ref_line in item.ref_lines %}
+        {{ ref_line }}{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+
+<!-- Description -->
+<div class="footer">
+  <p>此份差异核对结果来源于 {{ src_bom }}（源BOM）与 {{ tgt_bom }}（目标BOM）的{{ stage }}阶段比对，仅适用于 {{ tgt_bom }}（目标机型）使用。</p>
+  <div class="sign-line">
+    <span>拟制：{{ drafter }}</span>
+    <span>审核：{{ reviewer }}</span>
+  </div>
+</div>
+
+</body>
+</html>

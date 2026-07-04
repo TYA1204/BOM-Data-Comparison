@@ -351,6 +351,10 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             导出 Excel 报告
                         </button>
+                        <button onclick="exportHtmlReport()" id="btn-export-html" class="btn btn--sm" style="background:#059669;color:white;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            导出 HTML 报告
+                        </button>
                         <button onclick="exportChangeNotice()" id="btn-export-docx" class="btn btn--sm" style="background:#1E40AF;color:white;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                             导出 Word 更改通知单
@@ -1379,6 +1383,60 @@ function exportChangeNotice() {
             btn.disabled = false;
             BOMApp.Toast.error('网络错误，请重试');
         });
+}
+
+function exportHtmlReport() {
+    if (!currentTaskId) {
+        BOMApp.Toast.warning('请先执行 BOM 比对');
+        return;
+    }
+
+    var fields = [
+        { id: 'export-stage',   name: '阶段' },
+        { id: 'export-order',   name: '订单号' },
+        { id: 'export-qty',     name: '数量' },
+        { id: 'export-drafter', name: '拟制人' },
+        { id: 'export-reviewer',name: '审核人' },
+    ];
+    var emptyFields = [];
+    fields.forEach(function(f) {
+        var val = (document.getElementById(f.id).value || '').trim();
+        if (!val) emptyFields.push(f.name);
+    });
+    if (emptyFields.length > 0) {
+        BOMApp.Toast.error('请先填写：' + emptyFields.join('、'));
+        return;
+    }
+
+    var stage = document.getElementById('export-stage').value;
+    var orderNo = document.getElementById('export-order').value.trim();
+    var qty = document.getElementById('export-qty').value.trim();
+    var drafter = document.getElementById('export-drafter').value.trim();
+    var reviewer = document.getElementById('export-reviewer').value.trim();
+    saveExportConfig();
+
+    var btn = document.getElementById('btn-export-html');
+    var origText = btn.textContent;
+    btn.textContent = '生成中...';
+    btn.disabled = true;
+
+    var params = 'order_no=' + encodeURIComponent(orderNo)
+               + '&stage=' + encodeURIComponent(stage)
+               + '&quantity=' + encodeURIComponent(qty)
+               + '&drafter=' + encodeURIComponent(drafter)
+               + '&reviewer=' + encodeURIComponent(reviewer);
+
+    var url = '/compare/api/html-report/' + currentTaskId + '?' + params;
+    var win = window.open(url, '_blank');
+    if (win) {
+        btn.textContent = origText;
+        btn.disabled = false;
+        BOMApp.Toast.success('HTML 报告已在新标签页打开');
+    } else {
+        btn.textContent = origText;
+        btn.disabled = false;
+        BOMApp.Toast.error('弹窗被拦截，请允许弹出窗口');
+    }
 }
 
 // ── Export config localStorage persistence ──
