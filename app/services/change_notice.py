@@ -9,7 +9,7 @@ import sqlite3
 from datetime import datetime
 
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt, RGBColor, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 
 
@@ -728,7 +728,7 @@ def _build_content_body(content_cell, groups):
 
     def _add_item_line(prefix, pn, name, qty_text, ref=''):
         """Render one item line; if ref has >5 designators, wrap to continuation lines
-        aligned with the first ref position."""
+        aligned with the first ref position via paragraph indent."""
         base = f'{pn} {name}     {qty_text}'
         prefix_str = f'{prefix}: ' if prefix else '     '
         first_line = prefix_str + base
@@ -738,18 +738,16 @@ def _build_content_body(content_cell, groups):
             return
 
         ref_parts = ref.split()
-        # Calculate indent: position of "| " after the base text
         ref_prefix = first_line + '  | '
-        ref_indent = ' ' * len(ref_prefix)
-
         # First line: up to 5 refs
         chunk0 = ref_parts[:5]
         _add_cell_para_counted(ref_prefix + ' '.join(chunk0), Pt(10), color='334155')
 
-        # Continuation lines: 5 refs per line
+        # Continuation lines: 5 refs per line, indented via left_indent
         for i in range(5, len(ref_parts), 5):
             chunk = ref_parts[i:i+5]
-            _add_cell_para_counted(ref_indent + ' '.join(chunk), Pt(10), color='334155')
+            p = _add_cell_para_counted(' '.join(chunk), Pt(10), color='334155')
+            p.paragraph_format.left_indent = Cm(5.2)
 
     def _add_spacer():
         _add_cell_para_counted('', Pt(4))
@@ -766,6 +764,7 @@ def _build_content_body(content_cell, groups):
         line_counter += 1
         p = _add_cell_para(text, font_size=font_size, bold=bold, color=color,
                            page_break_before=need_page_break)
+        return p
         need_page_break = (line_counter % LINES_PER_PAGE == 0)
         return p
 
