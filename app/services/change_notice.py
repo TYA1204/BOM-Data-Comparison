@@ -83,6 +83,9 @@ def clean_material_name(name):
     # Step 1: strip parenthesized content
     name = re.sub(r"[（【].*[）】]", " ", name)
     name = re.sub(r"\([^)]*\)", " ", name)
+    # Step 1b: strip ALT/BOM metadata markers (| #ALT#..., | ECN, | REACH, etc.)
+    name = re.sub(r'\s*\|\s*#.*$', '', name)
+    name = re.sub(r'\s*\|\s*(ECN|REACH|RoHS|NCN\d+).*$', '', name)
     tokens = name.split()
 
     # Universal noise — only words that are never part of a core material name
@@ -173,6 +176,16 @@ def clean_material_name(name):
     return " ".join(kept).strip()
 
 
+def _clean_ref_text(ref_text):
+    """Remove signature placeholder and other template noise from reference text."""
+    if not ref_text:
+        return ref_text
+    # Strip trailing signature placeholder: __________ 准: 制: 审 批 拟 核:
+    ref_text = re.sub(r'\s*[_]{3,}\s*(准|制|审|批|拟|核)[:：].*$', '', ref_text)
+    # Strip standalone signature markers
+    ref_text = re.sub(r'\s*(准|制|审|批|拟|核)[:：]', '', ref_text)
+    return ref_text.strip()
+
 
 def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
     """Get all diff rows for the task, ready for table insertion.
@@ -255,6 +268,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             type_label = 'ADD'
             line_no = d['line_no_b'] or d['line_no_a'] or 0
             ref_val = (_g(d, 'reference_b') or _g(d, 'reference_a') or '').strip()
+            ref_val = _clean_ref_text(ref_val)
         elif dt == 'removed':
             pn = (_g(d, 'part_number_a') or '').strip()
             nm = clean_material_name((_g(d, 'part_name_a') or '').strip())
@@ -266,6 +280,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             type_label = 'DEL'
             line_no = d['line_no_a'] or d['line_no_b'] or 0
             ref_val = (_g(d, 'reference_a') or _g(d, 'reference_b') or '').strip()
+            ref_val = _clean_ref_text(ref_val)
         else:
             pn = (_g(d, 'part_number_a') or _g(d, 'part_number_b') or '').strip()
             nm = clean_material_name((_g(d, 'part_name_a') or _g(d, 'part_name_b') or '').strip())
@@ -278,6 +293,7 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             line_no = d['line_no_a'] or d['line_no_b'] or 0
             # MOD ref → 优先用目标 BOM 位号（当前状态），源位号做回退
             ref_val = (_g(d, 'reference_b') or _g(d, 'reference_a') or '').strip()
+            ref_val = _clean_ref_text(ref_val)
 
         row_data = {
             'pn': pn, 'name': nm,
