@@ -732,6 +732,17 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
                 }
                 expanded = anyChildHasKids;
             }
+
+            // 混合节点检测: 子件中既有父组件又有叶子物料
+            var mixedLeafCount = 0;
+            if (defaultExpand && hasKids && expanded) {
+                for (var c = 0; c < n.children.length; c++) {
+                    if (!(n.children[c].children && n.children[c].children.length > 0)) {
+                        mixedLeafCount++;
+                    }
+                }
+            }
+            var isMixed = mixedLeafCount > 0 && mixedLeafCount < n.children.length;
             if (searchTerm && hasKids && !expanded) {
                 var cpnList = collectDescendantPNs(n);
                 var anyMatch = false;
@@ -765,7 +776,24 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
             '</tr>';
 
             if (hasKids && expanded) {
-                out += renderNodes(n.children, depth + 1);
+                if (isMixed) {
+                    var subParents = [];
+                    for (var c = 0; c < n.children.length; c++) {
+                        if (n.children[c].children && n.children[c].children.length > 0) {
+                            subParents.push(n.children[c]);
+                        }
+                    }
+                    out += renderNodes(subParents, depth + 1);
+                    visibleCount++;
+                    out += '<tr class="comp-row tree-row comp-leaf-summary" data-depth="' + (depth + 1) + '">' +
+                        '<td class="col-checkbox"></td>' +
+                        '<td class="col-code" style="padding-left:' + ((depth + 1) * 18 + 8) + 'px;color:#94a3b8;font-size:12px;" colspan="5">' +
+                            '··· +' + mixedLeafCount + ' 个底层物料（单击 ▸ 展开查看）' +
+                        '</td>' +
+                    '</tr>';
+                } else {
+                    out += renderNodes(n.children, depth + 1);
+                }
             }
         }
         return out;

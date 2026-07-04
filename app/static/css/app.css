@@ -1301,6 +1301,10 @@ code, .font-mono, [class*="font-mono"] {
 
 .tree-row:hover { filter: brightness(0.94); }
 
+.comp-leaf-summary { background: transparent !important; cursor: default; }
+.comp-leaf-summary:hover { filter: none !important; }
+.comp-leaf-summary td { padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+
 /* Missing row placeholder (PN exists in other BOM but not this one) */
 .tree-row--missing {
   background: #fafafa !important;
