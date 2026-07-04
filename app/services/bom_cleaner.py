@@ -132,7 +132,7 @@ def extract_metadata(lines):
 # ==================== 数据行解析 ====================
 
 def _is_ref_continuation_line(line, cols=None):
-    """判断是否为位号延续行：非表头/标题/数据行，仅含位号标记的后续行"""
+    """判断是否为位号延续行：非表头/标题/数据行/ALT行，仅含位号标记的后续行"""
     if not line.strip():
         return False
     if is_header_line(line) or is_column_title_line(line):
@@ -142,6 +142,9 @@ def _is_ref_continuation_line(line, cols=None):
     if is_title_row(cols):
         return False
     if is_data_row(cols):
+        return False
+    # 排除 #ALT# 替代物料行，避免替代物料 PN 被误收为位号
+    if cols[0].strip().startswith('#ALT#'):
         return False
     return any(c.strip() for c in cols)
 
