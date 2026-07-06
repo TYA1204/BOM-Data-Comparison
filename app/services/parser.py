@@ -236,12 +236,23 @@ def parse_bom_file(file_path, bom_name, bom_version='', column_map_json=''):
         if _is_likely_sap_bom(file_path):
             fmt = 'sap_bom'
 
-    # SAP BOM 展开表: use bom_cleaner v3.0
-    if fmt == 'sap_bom':
-        from app.services.bom_cleaner import clean_bom_data
-        sap_metadata, sap_items, sap_stats = clean_bom_data(file_path)
+    # PLM CSV format: detected by column headers
+    if fmt == 'csv':
+        from app.services.bom_cleaner import is_plm_csv
+        if is_plm_csv(file_path):
+            fmt = 'plm_csv'
+
+    # SAP BOM / PLM CSV → use bom_cleaner
+    if fmt in ('sap_bom', 'plm_csv'):
+        from app.services.bom_cleaner import clean_bom_data, clean_plm_csv_data
+        
+        if fmt == 'plm_csv':
+            sap_metadata, sap_items, sap_stats = clean_plm_csv_data(file_path)
+        else:
+            sap_metadata, sap_items, sap_stats = clean_bom_data(file_path)
+            
         if not sap_items:
-            raise ValueError('SAP BOM展开表中未找到有效数据行')
+            raise ValueError('BOM 文件中未找到有效数据行')
         if not bom_name:
             bom_name = sap_metadata.get('bom_number', bom_name)
         if not bom_version:

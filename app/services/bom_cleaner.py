@@ -665,5 +665,144 @@ def main():
         print('\n' + '=' * 80 + '\n')
 
 
+# ==================== PLM CSV 格式解析 ====================
+
+# PLM CSV 特征列名
+PLM_CSV_HEADERS = {'状态', '编号', '中文长描述', '数量', '位号', '单位', '物料组'}
+
+
+def is_plm_csv(file_path):
+    """检测文件是否为 PLM 导出的 CSV BOM 格式"""
+    if not file_path.lower().endswith('.csv'):
+        return False
+    try:
+        import csv
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            reader = csv.reader(f)
+            headers = [h.strip() for h in next(reader, [])]
+            matched = PLM_CSV_HEADERS & set(headers)
+            return len(matched) >= 5
+    except Exception:
+        return False
+
+
+def clean_plm_csv_data(file_path):
+    """解析 PLM CSV BOM 文件，输出与 clean_bom_data 相同格式。
+
+    格式: CSV (UTF-8 BOM), 14 列，第一行标题，第二行根机型
+
+    层级推导:
+      - MODEL_STAGE 行 = 组件/装配节点，压入父栈
+      - PRODUCTION_STAGE 行 = 物料/叶子节点，父亲=栈顶组件
+      - 同一层级出现新的 MODEL_STAGE 替换栈顶
+    """
+    import csv
+
+    with open(file_path, 'r', encoding='utf-8-sig') as f:
+        reader = csv.reader(f)
+        rows = list(reader)
+
+    if len(rows) < 2:
+        raise ValueError('CSV 文件行数不足，至少需要标题行+机型行')
+
+    # 标题行
+    headers = [h.strip() for h in rows[0]]
+
+    # 机型行 (row 1): MODEL_STAGE, P1C85P3HXX7T611000, 创维_Color TV_85P3H_7T611, ...
+    root_pn = (rows[1][1] or '').strip()
+    root_name = (rows[1][2] or '').strip()
+    if not root_pn:
+        raise ValueError('CSV 第2行未找到机型编号')
+
+    metadata = {
+        'bom_number': root_pn,
+        'bom_name': root_name,
+        'ecn': '',
+        'valid_date': '',
+        'status': '',
+        'plant': '',
+    }
+
+    items = []
+    parent_stack = []  # stack of (pn, name, level)
+
+    for i in range(2, len(rows)):
+        row = rows[i]
+        if len(row) < 5:
+            continue
+
+        stage = (row[0] or '').strip()
+        pn = (row[1] or '').strip()
+        name = (row[2] or '').strip()
+        qty_str = (row[3] or '').strip()
+        ref = (row[4] or '').strip()
+        unit = (row[11] or '').strip() if len(row) > 11 else 'PC'
+
+        if not pn:
+            continue
+
+        try:
+            qty = float(qty_str) if qty_str else 1.0
+        except ValueError:
+            qty = 1.0
+
+        if stage == 'MODEL_STAGE':
+            # 组件/装配节点: 父 = 当前栈顶，没有栈顶则为根
+            if parent_stack:
+                parent_pn, parent_name, parent_level = parent_stack[-1]
+                level = parent_level + 1
+            else:
+                parent_pn = ''
+                level = 1
+
+            # 检查是否为已存在组件的重复引用（同 PN，不入栈）
+            is_duplicate = any(p[0] == pn for p in parent_stack)
+            if not is_duplicate and level <= 5:
+                parent_stack.append((pn, name, level))
+
+            items.append({
+                'level': level,
+                'parent_pn': parent_pn,
+                'part_number': pn,
+                'part_name': name,
+                'quantity': qty,
+                'unit': unit,
+                'reference': ref,
+                'ecn': '',
+                'priority': '',
+            })
+            continue
+
+        if stage == 'PRODUCTION_STAGE':
+            # 物料/叶子节点: 父 = 栈顶
+            if parent_stack:
+                parent_pn = parent_stack[-1][0]
+                level = parent_stack[-1][2] + 1
+            else:
+                parent_pn = ''
+                level = 1
+
+            items.append({
+                'level': level,
+                'parent_pn': parent_pn,
+                'part_number': pn,
+                'part_name': name,
+                'quantity': qty,
+                'unit': unit,
+                'reference': ref,
+                'ecn': '',
+                'priority': '',
+            })
+            continue
+
+    stats = {
+        'total': len(items),
+        'components': sum(1 for it in items if it['parent_pn']),
+        'leaves': sum(1 for it in items if not it['parent_pn']),
+    }
+
+    return metadata, items, stats
+
+
 if __name__ == '__main__':
     main()
