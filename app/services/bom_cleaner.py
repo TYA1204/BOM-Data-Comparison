@@ -253,7 +253,7 @@ def extract_data_row(cols, offset=0):
 
     return {
         'part_number': get(2, ''),
-        'part_name': get(10, ''),
+        'part_name': get(10, '') or get(9, ''),
         'quantity': float(raw_qty),
         'unit': unit,
         'priority': get(priority_idx, ''),
