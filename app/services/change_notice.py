@@ -785,9 +785,9 @@ def _build_content_body(content_cell, groups):
         # CSV 数据无父组件时，comp_pn 为空，用差异物料数作为组名
         if not comp_pn:
             total_items = len(g['adds'] + g['dels'] + g['mods'])
-            g['parent_pn'] = '直接差异'
-            g['parent_name'] = f'共 {total_items} 项'
-            comp_pn = '直接差异'
+            g['parent_pn'] = ''
+            g['parent_name'] = f'直接差异-{total_items}项'
+            comp_pn = ''
 
         _add_group_header(g)
 
