@@ -691,11 +691,8 @@ def clean_plm_csv_data(file_path):
 
     格式: CSV (UTF-8 BOM), 14 列，第一行标题，第二行根机型
 
-    层级推导（3层：根→组件→物料）:
-      - Root 机型 = 隐含 L0
-      - MODEL_STAGE 行 = L1 组件，父为 Root
-      - PRODUCTION_STAGE 行 = L2 物料，父为最近 MODEL_STAGE
-      - CSV 为扁平格式无嵌套语义，不做深度递归推导
+    层级: CSV 为扁平清单不含父子关系语义，全部物料为 L1（平铺在根节点下）。
+          位号展开为空格分隔，单位映射为 PC。
     """
     import csv
     import re
@@ -707,10 +704,7 @@ def clean_plm_csv_data(file_path):
     if len(rows) < 2:
         raise ValueError('CSV 文件行数不足，至少需要标题行+机型行')
 
-    # 标题行
-    headers = [h.strip() for h in rows[0]]
-
-    # 机型行 (row 1): MODEL_STAGE, P1C85P3HXX7T611000, 创维_Color TV_85P3H_7T611, ...
+    # 机型行 (row 1): MODEL_STAGE, P1C85P3HXX7T611000, ...
     root_pn = (rows[1][1] or '').strip()
     root_name = (rows[1][2] or '').strip()
     if not root_pn:
@@ -726,11 +720,6 @@ def clean_plm_csv_data(file_path):
     }
 
     def _expand_ref(ref_text):
-        """Expand comma + dash-range reference to space-separated individual refs.
-
-        'C85,C87,C5P6-C5P8' -> 'C85 C87 C5P6 C5P7 C5P8'
-        'R1J1-R1J8,R2J1-R2J14' -> 'R1J1 R1J2 ... R1J8 R2J1 R2J2 ... R2J14'
-        """
         if not ref_text:
             return ''
         result = []
@@ -738,7 +727,6 @@ def clean_plm_csv_data(file_path):
             part = part.strip()
             if not part:
                 continue
-            # Range notation: 'R1J1-R1J8', 'C5P6-C5P8'
             m = re.match(r'^(.+?)(\d+)-(.+?)(\d+)$', part)
             if m and m.group(1) == m.group(3):
                 base = m.group(1)
@@ -750,19 +738,11 @@ def clean_plm_csv_data(file_path):
             result.append(part)
         return ' '.join(result)
 
-    def _normalize_unit(u):
-        """Map CSV unit to SAP-style unit."""
-        u = (u or '').strip()
-        if u in ('', '是', '否', '其他'):
-            return 'PC'
-        return u
-
     items = []
-    current_parent_pn = ''  # 最近一个 MODEL_STAGE 的 PN
 
     for i in range(2, len(rows)):
         row = rows[i]
-        if len(row) < 5:
+        if len(row) < 3:
             continue
 
         stage = (row[0] or '').strip()
@@ -770,7 +750,8 @@ def clean_plm_csv_data(file_path):
         name = (row[2] or '').strip()
         qty_str = (row[3] or '').strip()
         ref = _expand_ref((row[4] or '').strip())
-        unit = _normalize_unit((row[11] or '').strip() if len(row) > 11 else 'PC')
+        unit_raw = (row[11] or '').strip() if len(row) > 11 else 'PC'
+        unit = unit_raw if unit_raw not in ('', '是', '否', '其他') else 'PC'
 
         if not pn:
             continue
@@ -780,42 +761,20 @@ def clean_plm_csv_data(file_path):
         except ValueError:
             qty = 1.0
 
-        if stage == 'MODEL_STAGE':
-            current_parent_pn = pn
-            items.append({
-                'level': 1,
-                'parent_pn': '',
-                'part_number': pn,
-                'part_name': name,
-                'quantity': qty,
-                'unit': unit,
-                'reference': ref,
-                'ecn': '',
-                'priority': '',
-            })
-            continue
+        # 全平铺为 L1，无父组件
+        items.append({
+            'level': 1,
+            'parent_pn': '',
+            'part_number': pn,
+            'part_name': name,
+            'quantity': qty,
+            'unit': unit,
+            'reference': ref,
+            'ecn': '',
+            'priority': '',
+        })
 
-        if stage == 'PRODUCTION_STAGE':
-            items.append({
-                'level': 2,
-                'parent_pn': current_parent_pn,
-                'part_number': pn,
-                'part_name': name,
-                'quantity': qty,
-                'unit': unit,
-                'reference': ref,
-                'ecn': '',
-                'priority': '',
-            })
-            continue
-
-    stats = {
-        'total': len(items),
-        'components': sum(1 for it in items if it['level'] == 1),
-        'leaves': sum(1 for it in items if it['level'] == 2),
-    }
-
-    return metadata, items, stats
+    return metadata, items, {'total': len(items)}
 
 
 if __name__ == '__main__':
