@@ -691,12 +691,14 @@ def clean_plm_csv_data(file_path):
 
     格式: CSV (UTF-8 BOM), 14 列，第一行标题，第二行根机型
 
-    层级推导:
-      - MODEL_STAGE 行 = 组件/装配节点，压入父栈
-      - PRODUCTION_STAGE 行 = 物料/叶子节点，父亲=栈顶组件
-      - 同一层级出现新的 MODEL_STAGE 替换栈顶
+    层级推导（3层：根→组件→物料）:
+      - Root 机型 = 隐含 L0
+      - MODEL_STAGE 行 = L1 组件，父为 Root
+      - PRODUCTION_STAGE 行 = L2 物料，父为最近 MODEL_STAGE
+      - CSV 为扁平格式无嵌套语义，不做深度递归推导
     """
     import csv
+    import re
 
     with open(file_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.reader(f)
@@ -723,8 +725,40 @@ def clean_plm_csv_data(file_path):
         'plant': '',
     }
 
+    def _expand_ref(ref_text):
+        """Expand comma + dash-range reference to space-separated individual refs.
+
+        'C85,C87,C5P6-C5P8' -> 'C85 C87 C5P6 C5P7 C5P8'
+        'R1J1-R1J8,R2J1-R2J14' -> 'R1J1 R1J2 ... R1J8 R2J1 R2J2 ... R2J14'
+        """
+        if not ref_text:
+            return ''
+        result = []
+        for part in ref_text.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            # Range notation: 'R1J1-R1J8', 'C5P6-C5P8'
+            m = re.match(r'^(.+?)(\d+)-(.+?)(\d+)$', part)
+            if m and m.group(1) == m.group(3):
+                base = m.group(1)
+                start = int(m.group(2))
+                end = int(m.group(4))
+                for n in range(start, end + 1):
+                    result.append(f'{base}{n}')
+                continue
+            result.append(part)
+        return ' '.join(result)
+
+    def _normalize_unit(u):
+        """Map CSV unit to SAP-style unit."""
+        u = (u or '').strip()
+        if u in ('', '是', '否', '其他'):
+            return 'PC'
+        return u
+
     items = []
-    parent_stack = []  # stack of (pn, name, level)
+    current_parent_pn = ''  # 最近一个 MODEL_STAGE 的 PN
 
     for i in range(2, len(rows)):
         row = rows[i]
@@ -735,8 +769,8 @@ def clean_plm_csv_data(file_path):
         pn = (row[1] or '').strip()
         name = (row[2] or '').strip()
         qty_str = (row[3] or '').strip()
-        ref = (row[4] or '').strip()
-        unit = (row[11] or '').strip() if len(row) > 11 else 'PC'
+        ref = _expand_ref((row[4] or '').strip())
+        unit = _normalize_unit((row[11] or '').strip() if len(row) > 11 else 'PC')
 
         if not pn:
             continue
@@ -747,22 +781,10 @@ def clean_plm_csv_data(file_path):
             qty = 1.0
 
         if stage == 'MODEL_STAGE':
-            # 组件/装配节点: 父 = 当前栈顶，没有栈顶则为根
-            if parent_stack:
-                parent_pn, parent_name, parent_level = parent_stack[-1]
-                level = parent_level + 1
-            else:
-                parent_pn = ''
-                level = 1
-
-            # 检查是否为已存在组件的重复引用（同 PN，不入栈）
-            is_duplicate = any(p[0] == pn for p in parent_stack)
-            if not is_duplicate and level <= 5:
-                parent_stack.append((pn, name, level))
-
+            current_parent_pn = pn
             items.append({
-                'level': level,
-                'parent_pn': parent_pn,
+                'level': 1,
+                'parent_pn': '',
                 'part_number': pn,
                 'part_name': name,
                 'quantity': qty,
@@ -774,17 +796,9 @@ def clean_plm_csv_data(file_path):
             continue
 
         if stage == 'PRODUCTION_STAGE':
-            # 物料/叶子节点: 父 = 栈顶
-            if parent_stack:
-                parent_pn = parent_stack[-1][0]
-                level = parent_stack[-1][2] + 1
-            else:
-                parent_pn = ''
-                level = 1
-
             items.append({
-                'level': level,
-                'parent_pn': parent_pn,
+                'level': 2,
+                'parent_pn': current_parent_pn,
                 'part_number': pn,
                 'part_name': name,
                 'quantity': qty,
@@ -797,8 +811,8 @@ def clean_plm_csv_data(file_path):
 
     stats = {
         'total': len(items),
-        'components': sum(1 for it in items if it['parent_pn']),
-        'leaves': sum(1 for it in items if not it['parent_pn']),
+        'components': sum(1 for it in items if it['level'] == 1),
+        'leaves': sum(1 for it in items if it['level'] == 2),
     }
 
     return metadata, items, stats
