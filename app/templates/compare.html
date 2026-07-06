@@ -321,32 +321,12 @@
                 </div>
             </div>
 
-            <!-- Rework Mode Toggle (always visible after compare) -->
-            <div id="rework-bar" class="hidden animate-slide-up">
-                <div class="card p-3 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-medium text-slate-600">🔧 差异视角</span>
-                        <label class="relative inline-flex items-center cursor-pointer" title="切换返工视角：新增→需拆除，删除→需补装">
-                            <input type="checkbox" id="rework-toggle" class="sr-only peer" onchange="toggleReworkMode()">
-                            <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-orange-400 peer-focus:ring-2 peer-focus:ring-orange-200 transition-colors"></div>
-                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4"></div>
-                        </label>
-                        <span class="text-sm text-slate-500" id="rework-mode-label">BOM 差异对比</span>
-                    </div>
-                    <span class="text-xs text-slate-400" id="rework-hint">关闭时：新增/删除/变更 · 开启时：需拆除/需补装/用量调整</span>
-                </div>
-            </div>
-
             <!-- Result Table -->
             <div id="result-area" class="card hidden animate-slide-up">
                 <div class="card__header">
                     <h2 class="card__title">差异明细</h2>
                     <div class="flex gap-2">
                         <span id="filtered-count" class="text-xs text-slate-400 self-center"></span>
-                        <button onclick="exportReworkReport()" id="btn-export-rework" class="btn btn--sm" style="background:#f97316;color:white;display:none;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            导出返工变更单
-                        </button>
                         <button onclick="exportReport()" id="btn-export-diff" class="btn btn--primary btn--sm">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             导出 Excel 报告
@@ -396,7 +376,6 @@ var allResults = [];
 var filteredResults = [];
 var resultPage = 1;
 var RESULT_PAGE_SIZE = 200;
-var reworkMode = false;
 
 // Component data cache
 var compData = { source: [], target: [] };
@@ -1139,7 +1118,6 @@ function loadResult(taskId) {
     currentTaskId = taskId;
     document.getElementById('result-area').classList.add('hidden');
     document.getElementById('stats-bar').classList.add('hidden');
-    document.getElementById('rework-bar').classList.add('hidden');
 
     BOMApp.API.get('/compare/api/result/' + taskId)
         .then(function (data) {
@@ -1151,7 +1129,6 @@ function loadResult(taskId) {
             renderStats(allResults);
             applyAllFilters();
             document.getElementById('stats-bar').classList.remove('hidden');
-            document.getElementById('rework-bar').classList.remove('hidden');
             document.getElementById('result-area').classList.remove('hidden');
             document.getElementById('filter-panel').classList.remove('hidden');
             document.getElementById('export-config-card').classList.remove('hidden');
@@ -1235,7 +1212,7 @@ function renderResults(results) {
     }
 
     tbody.innerHTML = results.map(function (r, i) {
-        var typeLabels = reworkMode ? REWORK_TYPE_MAP : NORMAL_TYPE_MAP;
+        var typeLabels = NORMAL_TYPE_MAP;
         var typeIcon = '';
         if (r.diff_type === 'added') typeIcon = '<span class="diff-icon diff-icon--added">🗑 ' + typeLabels.added + '</span>';
         else if (r.diff_type === 'removed') typeIcon = '<span class="diff-icon diff-icon--removed">📦 ' + typeLabels.removed + '</span>';
@@ -1476,42 +1453,7 @@ function resetExportConfig() {
     saveExportConfig();
 }
 
-function exportReworkReport() {
-    if (!currentTaskId) {
-        BOMApp.Toast.warning('暂无可导出的返工结果');
-        return;
-    }
-    window.location.href = '/report/api/export-rework/' + currentTaskId;
-}
-
-// ── Rework Mode Toggle ──
-var REWORK_TYPE_MAP = { added: '需拆除', removed: '需补装', modified: '用量调整' };
 var NORMAL_TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
-
-function toggleReworkMode() {
-    reworkMode = document.getElementById('rework-toggle').checked;
-    var labelEl = document.getElementById('rework-mode-label');
-
-    if (reworkMode) {
-        labelEl.textContent = '返工视角（实物→目标）';
-        document.getElementById('btn-export-rework').style.display = '';
-        document.getElementById('btn-export-diff').style.display = 'none';
-    } else {
-        labelEl.textContent = 'BOM 差异对比';
-        document.getElementById('btn-export-rework').style.display = 'none';
-        document.getElementById('btn-export-diff').style.display = '';
-    }
-
-    // Update stat labels
-    document.getElementById('stat-label-added').textContent = reworkMode ? '🗑 需拆除' : '+ 新增';
-    document.getElementById('stat-label-removed').textContent = reworkMode ? '📦 需补装' : '- 删除';
-    document.getElementById('stat-label-modified').textContent = reworkMode ? '📐 用量调整' : '~ 变更';
-
-    // Re-render results with new labels
-    if (filteredResults.length > 0 || allResults.length > 0) {
-        applyAllFilters();
-    }
-}
 
 function loadHistory() {
     BOMApp.API.get('/compare/api/history')

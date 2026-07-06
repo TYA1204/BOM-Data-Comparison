@@ -14,16 +14,6 @@ def export_excel(task_id):
     return send_file(file_path, as_attachment=True)
 
 
-@bp.route('/api/export-rework/<int:task_id>')
-def export_rework_excel(task_id):
-    """Export rework change order as Excel."""
-    from app.services.reporter import generate_rework_order_excel
-    file_path = generate_rework_order_excel(task_id)
-    if not file_path or not os.path.exists(file_path):
-        return jsonify({'ok': False, 'msg': '返工变更单生成失败'}), 500
-    return send_file(file_path, as_attachment=True)
-
-
 @bp.route('/api/stats/<int:task_id>')
 def task_stats(task_id):
     """Get statistics for a comparison task."""
