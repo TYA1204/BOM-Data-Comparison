@@ -58,17 +58,18 @@ def is_column_title_line(line):
 def is_title_row(cols, root_bom=None):
     """
     判断是否为子件展开标题行。
-    格式: PN在col[0], 描述在col[10], 约11列。
+    格式: PN在col[0], 描述在col[9]或col[10]（宽列=10, 窄列=9）, 约10-11列。
     支持标准物料号(PN_PATTERN)和顶层BOM号(TOP_BOM_PATTERN)。
     root_bom 用于兜底匹配：当正则不匹配时，直接字符串比较 col[0]。
     """
-    if len(cols) < 10:
+    if len(cols) < 9:
         return False
     col0 = cols[0].strip()
     # 1. 正则匹配标准格式
     if PN_PATTERN.match(col0) or TOP_BOM_PATTERN.match(col0):
+        col9 = cols[9].strip() if len(cols) > 9 else ''
         col10 = cols[10].strip() if len(cols) > 10 else ''
-        return bool(col10)
+        return bool(col9 or col10)
     # 2. 兜底：直接和 root_bom 字符串比较（兼容尾数不足的正则边缘用例）
     if root_bom and col0 == root_bom:
         return True
@@ -174,40 +175,89 @@ def _collect_continuation_refs(lines, start_idx):
     return refs
 
 
-def extract_data_row(cols):
-    """从数据行提取核心字段（不含level和parent_pn，后续赋值）"""
+def detect_sap_layout(lines):
+    """Detect SAP BOM column layout variant by scanning first N data rows.
+
+    Returns 0 for wide format (quantity at col[17]), -2 for narrow format (quantity at col[15]).
+    """
+    narrow_votes = 0
+    wide_votes = 0
+    checked = 0
+    for line in lines:
+        cols = line.split('\t')
+        if not is_data_row(cols):
+            continue
+        q15 = cols[15].strip() if len(cols) > 15 else ''
+        q17 = cols[17].strip() if len(cols) > 17 else ''
+        n15 = False
+        n17 = False
+        try:
+            if q15:
+                float(q15)
+                n15 = True
+        except ValueError:
+            pass
+        try:
+            if q17:
+                float(q17)
+                n17 = True
+        except ValueError:
+            pass
+        if n15 and not n17:
+            narrow_votes += 1
+        elif n17 and not n15:
+            wide_votes += 1
+        checked += 1
+        if checked >= 20:
+            break
+    if narrow_votes > wide_votes:
+        return -2
+    return 0
+
+
+def extract_data_row(cols, offset=0):
+    """从数据行提取核心字段（不含level和parent_pn，后续赋值）。
+
+    offset=0  : 宽列格式（col[17]=quantity, col[19]=priority, col[22]=ECN, col[24]=unit）
+    offset=-2 : 窄列格式（col[15]=quantity, col[17]=priority, col[20]=ECN, col[22]=unit）
+    """
     def get(idx, default=''):
         return cols[idx].strip() if idx < len(cols) else default
 
     has_expand_marker = get(1) == '#'
 
-    # 合并 col[25] 之后的所有列为位号
+    # 合并位号列：宽列从 col[25] 开始，窄列从 col[23] 开始
+    ref_start = 25 + offset
     references = []
-    for idx in range(25, len(cols)):
+    for idx in range(ref_start, len(cols)):
         v = cols[idx].strip()
         if v and v != '#':
             references.append(v)
 
-    unit = get(24, '')
+    unit = get(24 + offset, '')
 
-    # 修复：某些 SAP 导出格式中 col[24] 为空，单位值混入 col[25+] 的首位
-    # 例: references = ["ST", "侧拉端子板"] → unit=ST, reference="侧拉端子板"
-    # 例: references = ["PC"] → unit=PC, reference=""
+    # 修复：某些 SAP 导出格式中 unit 列为空，单位值混入位号列的首位
     COMMON_UNITS = {'ST', 'PC', 'PCS', 'EA', 'M', 'MM', 'CM', 'G', 'KG', 'L', 'ML'}
     if not unit and references:
         first = references[0].strip().upper()
         if first in COMMON_UNITS:
             unit = references.pop(0)
 
-    # 用量兼容两种SAP导出格式: 旧版col[17], 新版col[18]
-    raw_qty = get(17) or get(18) or '0'
+    # 用量：宽列 col[17]/col[18]，窄列 col[15]/col[16]
+    qty_idx = 17 + offset
+    qty_idx2 = 18 + offset
+    raw_qty = get(qty_idx) or get(qty_idx2) or '0'
+
+    ecn_idx = 22 + offset
+    priority_idx = 19 + offset
+
     return {
         'part_number': get(2, ''),
         'part_name': get(10, ''),
         'quantity': float(raw_qty),
         'unit': unit,
-        'priority': get(19, ''),
-        'ecn': get(22, ''),
+        'priority': get(priority_idx, ''),
+        'ecn': get(ecn_idx, ''),
         'reference': ' '.join(references),
         'has_expand_marker': has_expand_marker,
     }
@@ -362,6 +412,7 @@ def parse_bom_clean(file_path):
         raise ValueError('不是 SAP BOM 展开表格式文件')
 
     lines = text.split('\n')
+    offset = detect_sap_layout(lines)
     metadata = extract_metadata(lines)
     root_bom = metadata.get('bom_number', '')
 
@@ -394,7 +445,7 @@ def parse_bom_clean(file_path):
 
         # 有效数据行
         if is_data_row(cols):
-            row = extract_data_row(cols)
+            row = extract_data_row(cols, offset)
             part_pn = row['part_number']
 
             # level: 从hierarchy查找，找不到则用当前section的层级+1
@@ -452,6 +503,7 @@ def clean_bom_data(file_path):
         raise ValueError('不是 SAP BOM 展开表格式文件')
 
     lines = text.split('\n')
+    offset = detect_sap_layout(lines)
     metadata = extract_metadata(lines)
     root_bom = metadata.get('bom_number', '')
 
@@ -480,7 +532,7 @@ def clean_bom_data(file_path):
             continue
 
         if is_data_row(cols):
-            row = extract_data_row(cols)
+            row = extract_data_row(cols, offset)
             part_pn = row['part_number']
 
             if part_pn in pn_level:
