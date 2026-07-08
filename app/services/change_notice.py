@@ -537,12 +537,7 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
 
     raw_bom = tgt_row['bom_number'] or tgt_top
     machine_core = _extract_core(raw_bom)
-    # 从目标BOM的 bom_number 提取短机型名用于表头显示和文件名
     tgt_model = _extract_model(raw_bom)
-    # 兜底：_extract_model 不支持非P1C/PCC格式（如Q1S75Q6HNX9KFBGXXX）时，
-    # 原样返回整串 → 改用上传时用户填写的 bom_name
-    if tgt_model == raw_bom:
-        tgt_model = tgt_row['bom_name'] or tgt_model
 
     diff_rows = get_diff_rows(conn, task_id,
                               source_bom_id=task['source_bom_id'],
@@ -878,21 +873,35 @@ def _get_top_bom_number(conn, bom_id):
 def _extract_model(bom_code):
     """Extract short model name from BOM code.
 
-    Supports two formats:
+    Supports three formats:
       P1C{model}{core}{suffix}  → P1C85V68HP7T871001 → 85V68HP
       PCC{model}{core}{suffix}  → PCCF27G56M1MEC3000 → F27G56M
+      Q1S{model}{suffix}        → Q1S75Q6HNX9KFBGXXX → 75Q6HN
+      Generic                   → any → best-effort match
     """
     import re
-    # PCC format (newer SAP exports): PCC + model + core + 3-digit suffix
+    # PCC format (newer SAP exports)
     m = re.match(r'^PCC(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
     if m:
         return m.group(1)
-    # P1C format: P1C + model + core + 3-digit suffix
+    # P1C format
     m = re.match(r'^P1C(.+?)(\d+[A-Z]+\d+)(\d{3})$', bom_code)
     if m:
         return m.group(1)
-    # Fallback: find first 3-digit + alphanumeric chunk
-    m = re.search(r'(\d{3}[A-Z0-9]+)', bom_code)
+    # Q1S format: 3-char prefix (letter+digit+letter) + model + suffix
+    m = re.match(r'^([A-Z]\d[A-Z])(.*)', bom_code)
+    if m:
+        rest = m.group(2)
+        # Model: 2-3 digits + 1-2 letters + 1-2 digits + 1-2 letters
+        m2 = re.search(r'^(\d{2,3}[A-Z]{1,2}\d{1,2}[A-Z]{1,2})', rest)
+        if m2:
+            return m2.group(1)
+        # Broader fallback within Q1S: 2+ digits + alphanumeric
+        m2 = re.search(r'^(\d{2,}[A-Z0-9]+)', rest)
+        if m2:
+            return m2.group(1)
+    # Generic fallback: find screen-size-led model pattern (2-3 digits + ...)
+    m = re.search(r'(\d{2,3}[A-Z]{1,2}\d{1,2}[A-Z]{1,3})', bom_code)
     return m.group(1) if m else bom_code
 
 
