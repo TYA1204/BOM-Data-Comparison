@@ -535,9 +535,14 @@ def generate_change_notice(task_id: int, output_name: str = None, db_path: str =
     if not tgt_top:
         tgt_top = tgt_row['bom_name'] or 'N/A'
 
-    machine_core = _extract_core(tgt_row['bom_number'] or tgt_top)
+    raw_bom = tgt_row['bom_number'] or tgt_top
+    machine_core = _extract_core(raw_bom)
     # 从目标BOM的 bom_number 提取短机型名用于表头显示和文件名
-    tgt_model = _extract_model(tgt_row['bom_number'] or tgt_top)
+    tgt_model = _extract_model(raw_bom)
+    # 兜底：_extract_model 不支持非P1C/PCC格式（如Q1S75Q6HNX9KFBGXXX）时，
+    # 原样返回整串 → 改用上传时用户填写的 bom_name
+    if tgt_model == raw_bom:
+        tgt_model = tgt_row['bom_name'] or tgt_model
 
     diff_rows = get_diff_rows(conn, task_id,
                               source_bom_id=task['source_bom_id'],
