@@ -293,9 +293,9 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             nm = clean_material_name((_g(d, 'part_name_a') or '').strip())
             qty = _g(d, 'quantity_a', 1)
             qty_str = str(int(qty)) if qty is not None else '1'
-            parent_pn = (_g(d, 'parent_pn_a') or '').strip()
-            # DEL = H5F side → prefer source BOM name, fallback to target
-            parent_name = parent_lookup_src.get(parent_pn, parent_lookup_tgt.get(parent_pn, ''))
+            # 优先用目标 BOM 侧父组件，归集到目标组件下
+            parent_pn = (_g(d, 'parent_pn_b') or _g(d, 'parent_pn_a') or '').strip()
+            parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'DEL'
             line_no = d['line_no_a'] or d['line_no_b'] or 0
             ref_val = (_g(d, 'reference_a') or _g(d, 'reference_b') or '').strip()
@@ -305,12 +305,11 @@ def get_diff_rows(conn, task_id, source_bom_id=None, target_bom_id=None):
             nm = clean_material_name((_g(d, 'part_name_a') or _g(d, 'part_name_b') or '').strip())
             old_qty = str(_g(d, 'old_value', '')).strip()
             new_qty = str(_g(d, 'new_value', '')).strip()
-            parent_pn = (_g(d, 'parent_pn_a') or _g(d, 'parent_pn_b') or '').strip()
-            # MOD → prefer target, fallback to source
+            # MOD: 优先归集到目标 BOM 父组件
+            parent_pn = (_g(d, 'parent_pn_b') or _g(d, 'parent_pn_a') or '').strip()
             parent_name = parent_lookup_tgt.get(parent_pn, parent_lookup_src.get(parent_pn, ''))
             type_label = 'MOD'
             line_no = d['line_no_a'] or d['line_no_b'] or 0
-            # MOD ref → 优先用目标 BOM 位号（当前状态），源位号做回退
             ref_val = (_g(d, 'reference_b') or _g(d, 'reference_a') or '').strip()
             ref_val = _clean_ref_text(ref_val)
 
