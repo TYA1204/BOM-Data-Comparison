@@ -362,9 +362,9 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 })
 
     # =================================================================
-    # Step 4 — Expand leaf children of added components
-    # 新增组件的叶子物料递归展开为独立的 ADD/leaf 记录，
-    # 确保 WORD/Excel/WEB 差异报告能展示新增组件内部的完整物料清单。
+    # Step 4 — Expand leaf children of added components (with diff check)
+    # 新增组件的叶子物料：跟源BOM中的同PN比对，完全相同则跳过，
+    # 仅当用量/位号等有差异时才生成对应的 diff 记录。
     # =================================================================
     added_component_pns = set(
         (r.get('part_number_b') or '').strip().upper()
@@ -383,36 +383,102 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
             for r in diff_records if (r.get('part_number_b') or r.get('part_number_a'))
         )
 
-        def _collect_added_leaves(root_pn):
-            results = []
+        def _expand_with_diff(root_pn, results):
             for child in children_map_b.get(root_pn, []):
                 child_pn = child['part_number'].strip().upper()
                 if child_pn in already_tracked:
                     if child_pn in parent_pns:
-                        _collect_added_leaves(child_pn)  # still recurse into sub-components
+                        _expand_with_diff(child_pn, results)
                     continue
                 already_tracked.add(child_pn)
                 if child_pn in parent_pns:
-                    results.extend(_collect_added_leaves(child_pn))
+                    _expand_with_diff(child_pn, results)
                 else:
-                    results.append(child)
+                    # Leaf: compare against source BOM
+                    src_items = index_a.get(child_pn, [])
+                    src = _pick_by_parent(src_items, child.get('parent_pn', ''))
+                    if src is None and src_items:
+                        src = src_items[0]  # same PN, different parent → use first match
+
+                    if src is None:
+                        # Genuinely new leaf — doesn't exist in source at all
+                        results.append({
+                            'diff_type': 'added',
+                            'diff_category': 'leaf',
+                            'part_number_b': child['part_number'],
+                            'part_name_b': child['part_name'],
+                            'field_name': 'part_number',
+                            'new_value': child['part_number'],
+                            'reference_b': child.get('reference', ''),
+                            'quantity_b': child['quantity'],
+                            'match_confidence': 0,
+                            'parent_pn_b': child.get('parent_pn', ''),
+                            'line_no_b': child['line_no'],
+                        })
+                    else:
+                        # Leaf exists in source → check for actual changes
+                        qty_a = float(src.get('quantity', 0) or 0)
+                        qty_b = float(child.get('quantity', 0) or 0)
+                        ref_a = (src.get('reference', '') or '').strip()
+                        ref_b = (child.get('reference', '') or '').strip()
+
+                        changed = False
+                        if qty_a != qty_b:
+                            results.append({
+                                'diff_type': 'modified',
+                                'diff_category': 'quantity',
+                                'part_number_a': src['part_number'],
+                                'part_number_b': child['part_number'],
+                                'part_name_a': src['part_name'],
+                                'part_name_b': child['part_name'],
+                                'field_name': 'quantity',
+                                'old_value': str(qty_a),
+                                'new_value': str(qty_b),
+                                'quantity_a': qty_a,
+                                'quantity_b': qty_b,
+                                'reference_a': ref_a,
+                                'reference_b': ref_b,
+                                'match_confidence': 100,
+                                'parent_pn_a': src.get('parent_pn', ''),
+                                'parent_pn_b': child.get('parent_pn', ''),
+                                'line_no_a': src['line_no'],
+                                'line_no_b': child['line_no'],
+                            })
+                            changed = True
+
+                        if ref_a != ref_b:
+                            ref_set_a = set(r for r in ref_a.split() if r)
+                            ref_set_b = set(r for r in ref_b.split() if r)
+                            results.append({
+                                'diff_type': 'modified',
+                                'diff_category': 'reference',
+                                'part_number_a': src['part_number'],
+                                'part_number_b': child['part_number'],
+                                'part_name_a': src['part_name'],
+                                'part_name_b': child['part_name'],
+                                'field_name': 'reference',
+                                'old_value': ' '.join(sorted(ref_set_a - ref_set_b)),
+                                'new_value': ' '.join(sorted(ref_set_b - ref_set_a)),
+                                'quantity_a': qty_a,
+                                'quantity_b': qty_b,
+                                'reference_a': ref_a,
+                                'reference_b': ref_b,
+                                'match_confidence': 100,
+                                'parent_pn_a': src.get('parent_pn', ''),
+                                'parent_pn_b': child.get('parent_pn', ''),
+                                'line_no_a': src['line_no'],
+                                'line_no_b': child['line_no'],
+                            })
+                            changed = True
+
+                        if not changed:
+                            already_tracked.add(child_pn)  # identical → skip silently
             return results
 
         for comp_pn in sorted(added_component_pns):
-            for leaf in _collect_added_leaves(comp_pn):
-                diff_records.append({
-                    'diff_type': 'added',
-                    'diff_category': 'leaf',
-                    'part_number_b': leaf['part_number'],
-                    'part_name_b': leaf['part_name'],
-                    'field_name': 'part_number',
-                    'new_value': leaf['part_number'],
-                    'reference_b': leaf.get('reference', ''),
-                    'quantity_b': leaf['quantity'],
-                    'match_confidence': 0,
-                    'parent_pn_b': leaf.get('parent_pn', ''),
-                    'line_no_b': leaf['line_no'],
-                })
+            expand_results = []
+            _expand_with_diff(comp_pn, expand_results)
+            diff_records.extend(expand_results)
 
     # =================================================================
     # Save results to database
