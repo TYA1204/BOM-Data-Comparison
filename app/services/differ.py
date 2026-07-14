@@ -124,14 +124,18 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
 
     # ── Skip unchecked components: recursively remove them + descendants ──
     # 未勾选的组件及其全部子孙从比对数据中前置移除，不参与比对
+    # 注意：按 parent_pn 上下文排除，非全局 PN 黑名单。
+    # 同一 PN 可能同时出现在已勾选和未勾选组件下，全局排除会误伤已勾选组件的数据。
     if skip_pns:
         skip_set = set(p.strip().upper() for p in skip_pns if p and p.strip())
-        excluded_a = _collect_all_descendants(items_a, skip_set) | skip_set
-        excluded_b = _collect_all_descendants(items_b, skip_set) | skip_set
+        unchecked_pns_a = _collect_all_descendants(items_a, skip_set) | skip_set
+        unchecked_pns_b = _collect_all_descendants(items_b, skip_set) | skip_set
         items_a = [it for it in items_a
-                   if it['part_number'].strip().upper() not in excluded_a]
+                   if not (it['parent_pn'].strip().upper() in unchecked_pns_a
+                           or it['part_number'].strip().upper() in skip_set)]
         items_b = [it for it in items_b
-                   if it['part_number'].strip().upper() not in excluded_b]
+                   if not (it['parent_pn'].strip().upper() in unchecked_pns_b
+                           or it['part_number'].strip().upper() in skip_set)]
 
     # --- Exclude specific parents (recursively exclude all descendants) ---
     if exclude_parents:
