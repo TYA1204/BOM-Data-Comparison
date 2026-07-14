@@ -1,8 +1,23 @@
+import io
 import os
+import sqlite3
 from flask import Blueprint, request, jsonify, render_template, current_app, send_file
 from app.models import db as db_module
+from app.services.xmind_export import generate_xmind_bytes as export_xmind_bytes
 
 bp = Blueprint('upload', __name__)
+
+
+def _get_db_conn():
+    """获取直接 sqlite3 连接（XMind 导出需要）。"""
+    db_path = current_app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+    return sqlite3.connect(db_path)
+
+
+def _get_xmind_template_path():
+    """获取 XMind 模板路径。"""
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    return os.path.join(project_root, 'ogic block diagram', 'P1C85Q7HXX8TB56000.xmind')
 
 
 @bp.route('/')
@@ -292,3 +307,72 @@ def clear_database():
         })
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+# ---------- XMind 导出 ----------
+
+@bp.route('/api/export-xmind/<int:bom_id>')
+def export_xmind_single(bom_id):
+    """导出单个 BOM 为 XMind 逻辑图。"""
+    filename = request.args.get('filename', '').strip()
+    template_path = _get_xmind_template_path()
+
+    if not os.path.exists(template_path):
+        return jsonify({'ok': False, 'msg': 'XMind 模板文件不存在'}), 500
+
+    try:
+        conn = _get_db_conn()
+        try:
+            data = export_xmind_bytes(conn, [bom_id], template_path)
+        finally:
+            conn.close()
+
+        if not filename:
+            bom_name = db_module.query_one(
+                'SELECT bom_name FROM bom_header WHERE id=?', (bom_id,)
+            )
+            name = bom_name['bom_name'] if bom_name else f'BOM_{bom_id}'
+            filename = f'{name}_逻辑图.xmind'
+
+        return send_file(
+            io.BytesIO(data),
+            mimetype='application/vnd.xmind.workbook',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': f'XMind 导出失败：{str(e)}'}), 500
+
+
+@bp.route('/api/export-xmind-batch', methods=['POST'])
+def export_xmind_batch():
+    """批量导出多个 BOM 为 XMind 工作簿（每个 BOM 一个 Sheet）。"""
+    payload = request.get_json() or {}
+    bom_ids = payload.get('bom_ids', [])
+    filename = payload.get('filename', '').strip()
+
+    if not bom_ids:
+        return jsonify({'ok': False, 'msg': '请选择至少一个 BOM'}), 400
+
+    template_path = _get_xmind_template_path()
+    if not os.path.exists(template_path):
+        return jsonify({'ok': False, 'msg': 'XMind 模板文件不存在'}), 500
+
+    try:
+        conn = _get_db_conn()
+        try:
+            data = export_xmind_bytes(conn, bom_ids, template_path)
+        finally:
+            conn.close()
+
+        if not filename:
+            filename = f'BOM工作簿_{len(bom_ids)}份.xmind'
+
+        return send_file(
+            io.BytesIO(data),
+            mimetype='application/vnd.xmind.workbook',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': f'XMind 导出失败：{str(e)}'}), 500

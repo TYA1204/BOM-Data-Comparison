@@ -231,6 +231,7 @@ function renderTable(boms) {
             '<td>' +
                 '<div class="flex items-center gap-1">' +
                     '<button onclick="exportBom(' + b.id + ')" class="btn btn--ghost btn--sm" title="导出Excel">导出</button>' +
+                    '<button onclick="quickExportXmind(' + b.id + ', \'' + BOMApp.escapeHtml(b.source_file || b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-amber-600 hover:text-amber-800" title="导出XMind">XMind</button>' +
                     '<button onclick="deleteBom(' + b.id + ', \'' + BOMApp.escapeHtml(b.source_file || b.bom_name).replace(/'/g, "\\'") + '\')" class="btn btn--ghost btn--sm text-red-500 hover:text-red-700" title="删除">删除</button>' +
                 '</div>' +
             '</td>' +
@@ -271,6 +272,32 @@ function updateBatchUI() {
 // ── Actions ──
 function exportBom(bomId) {
     window.location.href = '/upload/api/export/' + bomId;
+}
+
+function quickExportXmind(bomId, bomName) {
+    BOMApp.Toast.info('正在生成 XMind 文件...');
+    var url = '/upload/api/export-xmind/' + bomId;
+    var filename = bomName + '_逻辑图.xmind';
+    url += '?filename=' + encodeURIComponent(filename);
+    fetch(url)
+        .then(function(resp) {
+            if (!resp.ok) return resp.json().then(function(e) { throw new Error(e.msg || '导出失败'); });
+            return resp.blob();
+        })
+        .then(function(blob) {
+            var blobUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+            BOMApp.Toast.success('XMind 已导出：' + bomName);
+        })
+        .catch(function(err) {
+            BOMApp.Toast.error('导出失败：' + (err.message || '未知错误'));
+        });
 }
 
 function batchExport() {
