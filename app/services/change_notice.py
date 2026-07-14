@@ -425,9 +425,11 @@ def group_diffs_by_parent(diff_rows):
         has_add = bool(g['adds'])
         has_del = bool(g['dels'])
         has_mod = bool(g['mods'])
-        if has_add and not has_del and not has_mod:
+        # 有 ADD 的优先归到 P3EM（目标侧），即使同时含 DEL
+        # 否则 H5F 的 DEL 组无法通过功能键合并过来
+        if has_add:
             p3em_groups.append(g)
-        elif has_del and not has_add and not has_mod:
+        elif has_del and not has_mod:
             h5f_groups.append(g)
         else:
             mod_groups.append(g)
