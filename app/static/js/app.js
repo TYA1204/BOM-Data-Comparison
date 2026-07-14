@@ -434,6 +434,11 @@
   function formatDate(dateStr) {
     if (!dateStr) return '-';
     try {
+      // SQLite CURRENT_TIMESTAMP 返回 UTC 时间（'YYYY-MM-DD HH:MM:SS'，无 Z 标记）
+      // JS new Date() 默认按本地时间解析，需要补上 'Z' 让浏览器按 UTC 解析后转本地显示
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+        dateStr = dateStr.replace(' ', 'T') + 'Z';
+      }
       var d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
       return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) +
