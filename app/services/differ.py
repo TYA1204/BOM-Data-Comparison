@@ -362,6 +362,59 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                 })
 
     # =================================================================
+    # Step 4 — Expand leaf children of added components
+    # 新增组件的叶子物料递归展开为独立的 ADD/leaf 记录，
+    # 确保 WORD/Excel/WEB 差异报告能展示新增组件内部的完整物料清单。
+    # =================================================================
+    added_component_pns = set(
+        (r.get('part_number_b') or '').strip().upper()
+        for r in diff_records
+        if r['diff_type'] == 'added' and r['diff_category'] == 'component'
+    )
+    if added_component_pns:
+        children_map_b = {}
+        for it in items_b:
+            ppn = (it.get('parent_pn') or '').strip().upper()
+            if ppn:
+                children_map_b.setdefault(ppn, []).append(it)
+
+        already_tracked = set(
+            (r.get('part_number_b') or r.get('part_number_a') or '').strip().upper()
+            for r in diff_records if (r.get('part_number_b') or r.get('part_number_a'))
+        )
+
+        def _collect_added_leaves(root_pn):
+            results = []
+            for child in children_map_b.get(root_pn, []):
+                child_pn = child['part_number'].strip().upper()
+                if child_pn in already_tracked:
+                    if child_pn in parent_pns:
+                        _collect_added_leaves(child_pn)  # still recurse into sub-components
+                    continue
+                already_tracked.add(child_pn)
+                if child_pn in parent_pns:
+                    results.extend(_collect_added_leaves(child_pn))
+                else:
+                    results.append(child)
+            return results
+
+        for comp_pn in sorted(added_component_pns):
+            for leaf in _collect_added_leaves(comp_pn):
+                diff_records.append({
+                    'diff_type': 'added',
+                    'diff_category': 'leaf',
+                    'part_number_b': leaf['part_number'],
+                    'part_name_b': leaf['part_name'],
+                    'field_name': 'part_number',
+                    'new_value': leaf['part_number'],
+                    'reference_b': leaf.get('reference', ''),
+                    'quantity_b': leaf['quantity'],
+                    'match_confidence': 0,
+                    'parent_pn_b': leaf.get('parent_pn', ''),
+                    'line_no_b': leaf['line_no'],
+                })
+
+    # =================================================================
     # Save results to database
     # =================================================================
     source_bom = db.query_one('SELECT bom_name FROM bom_header WHERE id=?', (source_bom_id,))
