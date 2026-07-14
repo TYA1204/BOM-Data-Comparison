@@ -421,6 +421,8 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                         qty_b = float(child.get('quantity', 0) or 0)
                         ref_a = (src.get('reference', '') or '').strip()
                         ref_b = (child.get('reference', '') or '').strip()
+                        unit_a = str(src.get('unit', '')).strip().upper()
+                        unit_b = str(child.get('unit', '')).strip().upper()
 
                         changed = False
                         if qty_a != qty_b:
@@ -459,6 +461,29 @@ def run_comparison(source_bom_id, target_bom_id, comparison_type='version',
                                 'field_name': 'reference',
                                 'old_value': ' '.join(sorted(ref_set_a - ref_set_b)),
                                 'new_value': ' '.join(sorted(ref_set_b - ref_set_a)),
+                                'quantity_a': qty_a,
+                                'quantity_b': qty_b,
+                                'reference_a': ref_a,
+                                'reference_b': ref_b,
+                                'match_confidence': 100,
+                                'parent_pn_a': src.get('parent_pn', ''),
+                                'parent_pn_b': child.get('parent_pn', ''),
+                                'line_no_a': src['line_no'],
+                                'line_no_b': child['line_no'],
+                            })
+                            changed = True
+
+                        if unit_a and unit_b and unit_a != unit_b:
+                            results.append({
+                                'diff_type': 'modified',
+                                'diff_category': 'unit',
+                                'part_number_a': src['part_number'],
+                                'part_number_b': child['part_number'],
+                                'part_name_a': src['part_name'],
+                                'part_name_b': child['part_name'],
+                                'field_name': 'unit',
+                                'old_value': unit_a,
+                                'new_value': unit_b,
                                 'quantity_a': qty_a,
                                 'quantity_b': qty_b,
                                 'reference_a': ref_a,
