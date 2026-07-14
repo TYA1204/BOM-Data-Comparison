@@ -5,6 +5,8 @@
 # 用法: bash run.sh [--force] [--skip-cache-check]
 #   --force              强制启动，即使发现缓存残留（自动清除后继续）
 #   --skip-cache-check   跳过缓存检查（不推荐）
+# 环境变量:
+#   AUTO_RECOVER=true    看门狗自动恢复模式（等同 --force，不阻塞启动）
 # ============================================================================
 set -e
 
@@ -23,6 +25,12 @@ for arg in "$@"; do
         --skip-cache-check)   SKIP_CACHE_CHECK="true" ;;
     esac
 done
+
+# AUTO_RECOVER 环境变量：用于看门狗自动恢复场景
+# 当该变量为 true 时，遇到 pycache 残留自动清除（等同 --force），避免堵死自动恢复链路
+if [ "${AUTO_RECOVER:-}" = "true" ]; then
+    FORCE_MODE="true"
+fi
 
 # ─────────────────────────────────────────────────────
 # 颜色定义
