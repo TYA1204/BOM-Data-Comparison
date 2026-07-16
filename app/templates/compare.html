@@ -715,17 +715,21 @@ function getParentPN(side, pn) {
 // 从比对结果构建「仅看差异」保留集合：
 // 规则（已与用户确认）：只看叶子差异 —— 组件级 added/removed 不单列；
 // 叶子物料（含数量/单位/位号/版本变更 及 叶子增删）自身的 PN + 其父组件 PN + 全部祖先 PN 纳入 keepSet
+// 注：比对结果字段为 part_number_a / part_number_b（无单一 part_number 字段）
 function buildDiffKeepSet() {
     diffKeepSet = { source: {}, target: {} };
     for (var i = 0; i < allResults.length; i++) {
         var r = allResults[i];
         // 组件级增删不纳入（用户选择：只看叶子差异）
         if (r.diff_category === 'component') continue;
-        var leaf = (r.part_number || '').trim().toUpperCase();
+        var pna = (r.part_number_a || '').trim().toUpperCase();
+        var pnb = (r.part_number_b || '').trim().toUpperCase();
         var pa = (r.parent_pn_a || '').trim().toUpperCase();
         var pb = (r.parent_pn_b || '').trim().toUpperCase();
         // 差异叶子自身也要显示（否则会被过滤掉）
-        if (leaf) { addKeepChain('source', leaf); addKeepChain('target', leaf); }
+        // added → 仅目标侧有该料(part_number_b)；removed → 仅来源侧有(part_number_a)；modified → 两侧同号
+        if (pna) addKeepChain('source', pna);
+        if (pnb) addKeepChain('target', pnb);
         if (pa) addKeepChain('source', pa);
         if (pb) addKeepChain('target', pb);
     }
