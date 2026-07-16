@@ -1145,6 +1145,21 @@ code, .font-mono, [class*="font-mono"] {
   background: var(--color-primary-50);
 }
 
+/* 方案B：仅看差异 - 平铺父组件清单 */
+.diff-parent-row > td {
+  background: #fff7f7;
+  font-weight: 600;
+}
+.diff-parent-row:hover > td {
+  background: #ffeaea;
+}
+.diff-leaf-row > td {
+  background: #fcfdff;
+}
+.diff-leaf-row:hover > td {
+  background: #f1f5f9;
+}
+
 .comp-toggle-all-label {
   display: flex;
   align-items: center;
