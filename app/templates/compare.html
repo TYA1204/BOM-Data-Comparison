@@ -238,6 +238,9 @@
                             <option value="has_children">有子件</option>
                             <option value="no_children">无子件</option>
                         </select>
+                        <label class="comp-onlydiff-toggle" title="只显示含有差异叶子的父组件及其链路">
+                            <input type="checkbox" id="comp-onlydiff-source" onchange="toggleOnlyDiff('source')"> 仅看差异
+                        </label>
                     </div>
                     <div class="comp-table-wrap">
                         <table class="comp-table" id="comp-table-source">
@@ -279,6 +282,9 @@
                             <option value="has_children">有子件</option>
                             <option value="no_children">无子件</option>
                         </select>
+                        <label class="comp-onlydiff-toggle" title="只显示含有差异叶子的父组件及其链路">
+                            <input type="checkbox" id="comp-onlydiff-target" onchange="toggleOnlyDiff('target')"> 仅看差异
+                        </label>
                     </div>
                     <div class="comp-table-wrap">
                         <table class="comp-table" id="comp-table-target">
@@ -378,6 +384,10 @@ var compData = { source: [], target: [] };
 // 复选框勾选状态缓存: { source: {pn: bool}, target: {pn: bool} }
 // 用于 renderComponentTree 重绘时恢复用户的勾选状态，避免硬编码 checked 导致状态丢失
 var compCheckedState = { source: {}, target: {} };
+// 差异组件过滤（仅看差异组件模式）
+var diffKeepSet = { source: {}, target: {} };            // 有差异的父组件 PN + 其祖先链路（两侧独立）
+var onlyDiffMode = { source: false, target: false };     // 「仅看差异」开关状态
+var compParentMap = { source: {}, target: {} };          // childPN → parentPN 映射，用于向上回溯祖先
 
 var TYPE_MAP = { added: '新增', removed: '删除', modified: '变更' };
 var CAT_MAP = { component: '组件', leaf: '物料', quantity: '数量', unit: '单位', version: '版本', reference: '位号' };
@@ -653,6 +663,7 @@ function loadComponents(bomId, side) {
             }
             var tree = data.tree || [];
             compData[side] = tree;
+            buildParentMap(side);
 
             // 初始化 compCheckedState: 首次加载时所有有子件的节点默认勾选
             var initState = {};
@@ -682,13 +693,62 @@ function loadComponents(bomId, side) {
         });
 }
 
+// ── 差异组件过滤：仅看差异组件 ──
+// 构建 childPN → parentPN 映射，供向上回溯祖先链路
+function buildParentMap(side) {
+    var map = {};
+    function walk(nodes, parentPn) {
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            map[n.part_number.toUpperCase()] = parentPn ? parentPn.toUpperCase() : null;
+            if (n.children && n.children.length > 0) walk(n.children, n.part_number);
+        }
+    }
+    walk(compData[side] || [], null);
+    compParentMap[side] = map;
+}
+
+function getParentPN(side, pn) {
+    return compParentMap[side][String(pn).toUpperCase()] || null;
+}
+
+// 从比对结果构建「仅看差异」保留集合：
+// 规则（已与用户确认）：只看叶子差异 —— 组件级 added/removed 不单列；
+// 叶子物料（含数量/单位/位号/版本变更 及 叶子增删）自身的 PN + 其父组件 PN + 全部祖先 PN 纳入 keepSet
+function buildDiffKeepSet() {
+    diffKeepSet = { source: {}, target: {} };
+    for (var i = 0; i < allResults.length; i++) {
+        var r = allResults[i];
+        // 组件级增删不纳入（用户选择：只看叶子差异）
+        if (r.diff_category === 'component') continue;
+        var leaf = (r.part_number || '').trim().toUpperCase();
+        var pa = (r.parent_pn_a || '').trim().toUpperCase();
+        var pb = (r.parent_pn_b || '').trim().toUpperCase();
+        // 差异叶子自身也要显示（否则会被过滤掉）
+        if (leaf) { addKeepChain('source', leaf); addKeepChain('target', leaf); }
+        if (pa) addKeepChain('source', pa);
+        if (pb) addKeepChain('target', pb);
+    }
+}
+
+function addKeepChain(side, leafParentPn) {
+    var pn = leafParentPn;
+    var guard = 0;
+    while (pn && guard < 200) {
+        diffKeepSet[side][pn] = true;
+        pn = getParentPN(side, pn);
+        guard++;
+    }
+}
+
 // ── Tree Rendering ──
-function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
+function renderComponentTree(side, expandedSet, searchTerm, filterVal, onlyDiff) {
     var tree = compData[side] || [];
     var tbody = document.getElementById('comp-body-' + side);
     if (!expandedSet) expandedSet = {};
     if (!searchTerm) searchTerm = '';
     if (!filterVal) filterVal = 'all';
+    if (!onlyDiff) onlyDiff = false;
 
     var seq = 0;
     var defaultExpand = Object.keys(expandedSet).length === 0 && !searchTerm && filterVal === 'all';
@@ -713,6 +773,11 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
                 expanded = anyChildHasKids;
             }
 
+            // 仅看差异模式：keepSet 内的父组件强制展开，露出差异链路
+            if (onlyDiff && hasKids && (pn in diffKeepSet[side])) {
+                expanded = true;
+            }
+
             // 混合节点检测: 仅首次加载时生效（非用户手动展开）
             var mixedLeafCount = 0;
             if (defaultExpand && hasKids && expanded) {
@@ -722,7 +787,7 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
                     }
                 }
             }
-            var isMixed = mixedLeafCount > 0 && mixedLeafCount < n.children.length;
+            var isMixed = !onlyDiff && mixedLeafCount > 0 && mixedLeafCount < n.children.length;
             if (searchTerm && hasKids && !expanded) {
                 var cpnList = collectDescendantPNs(n);
                 var anyMatch = false;
@@ -743,7 +808,8 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
 
             var matchesSearch = !searchTerm || rowMatches(n, searchTerm);
             var matchesFilter = filterVal === 'all' || (filterVal === 'has_children' ? hasKids : !hasKids);
-            var hideRow = (searchTerm && !matchesSearch && !(expanded && hasKids)) || !matchesFilter;
+            var inKeep = !onlyDiff || (pn in diffKeepSet[side]);
+            var hideRow = !inKeep || (searchTerm && !matchesSearch && !(expanded && hasKids)) || !matchesFilter;
             if (!hideRow) visibleCount++;
 
             var isChecked = (pn in compCheckedState[side]) ? compCheckedState[side][pn] : true;
@@ -785,6 +851,11 @@ function renderComponentTree(side, expandedSet, searchTerm, filterVal) {
     }
 
     tbody.innerHTML = renderNodes(tree, 0);
+
+    // 仅看差异模式且无任何匹配：显示空提示
+    if (onlyDiff && visibleCount === 0) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="comp-empty"><svg class="comp-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>该侧无差异组件</p></div></td></tr>';
+    }
 
     // Update count
     var countEl = document.getElementById('comp-' + side + '-count');
@@ -991,7 +1062,17 @@ function rebuildTreeView(side) {
     var expanded = getExpandedState(side);
     var searchVal = (document.getElementById('comp-search-' + side).value || '').toLowerCase().trim();
     var filterVal = document.getElementById('comp-filter-' + side).value;
-    renderComponentTree(side, expanded, searchVal, filterVal);
+    var onlyDiff = onlyDiffMode[side];
+    renderComponentTree(side, expanded, searchVal, filterVal, onlyDiff);
+}
+
+// 仅看差异组件开关
+function toggleOnlyDiff(side) {
+    var cb = document.getElementById('comp-onlydiff-' + side);
+    onlyDiffMode[side] = cb.checked;
+    if (cb.checked) cb.closest('.comp-onlydiff-toggle').classList.add('is-active');
+    else cb.closest('.comp-onlydiff-toggle').classList.remove('is-active');
+    rebuildTreeView(side);
 }
 
 // ── Search/Filter ──
@@ -1121,6 +1202,7 @@ function loadResult(taskId) {
             allResults = data.results;
             filteredResults = allResults;
             resultPage = 1;
+            buildDiffKeepSet();
 
             renderStats(allResults);
             applyAllFilters();
